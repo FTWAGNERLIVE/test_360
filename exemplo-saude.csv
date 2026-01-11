@@ -1,0 +1,21 @@
+Paciente_ID,Nome,Idade,Genero,Diagnostico,Data_Consulta,Medico,Valor_Consulta,Status,Medicamento
+PAC001,João Silva,45,M,Hipertensão,2024-01-15,Dr. Carlos,250.00,Atendido,Losartana
+PAC002,Maria Santos,32,F,Diabetes Tipo 2,2024-01-16,Dra. Ana,280.00,Atendido,Metformina
+PAC003,Pedro Costa,28,M,Gripe,2024-01-17,Dr. Roberto,150.00,Atendido,Paracetamol
+PAC004,Ana Oliveira,55,F,Artrite,2024-01-18,Dra. Fernanda,320.00,Atendido,Anti-inflamatório
+PAC005,Carlos Pereira,40,M,Ansiedade,2024-01-19,Dr. Lucas,300.00,Atendido,Ansiolítico
+PAC006,Juliana Lima,35,F,Gravidez,2024-01-20,Dra. Camila,350.00,Atendido,Ácido Fólico
+PAC007,Roberto Alves,62,M,Colesterol Alto,2024-01-21,Dr. Rafael,280.00,Atendido,Estatina
+PAC008,Fernanda Rocha,29,F,Enxaqueca,2024-01-22,Dra. Patricia,200.00,Atendido,Analgésico
+PAC009,Lucas Martins,38,M,Asma,2024-01-23,Dr. Bruno,270.00,Atendido,Broncodilatador
+PAC010,Camila Souza,25,F,Depressão,2024-01-24,Dra. Larissa,350.00,Atendido,Antidepressivo
+PAC011,Rafael Barbosa,50,M,Problema Cardíaco,2024-01-25,Dr. Thiago,400.00,Atendido,Betabloqueador
+PAC012,Patricia Gomes,42,F,Osteoporose,2024-01-26,Dra. Amanda,330.00,Atendido,Cálcio
+PAC013,Bruno Ferreira,33,M,Insônia,2024-01-27,Dr. Gabriel,220.00,Atendido,Melatonina
+PAC014,Larissa Dias,48,F,Menopausa,2024-01-28,Dra. Isabela,300.00,Atendido,Reposição Hormonal
+PAC015,Thiago Ribeiro,36,M,Dor nas Costas,2024-01-29,Dr. Diego,250.00,Atendido,Relaxante Muscular
+PAC016,Amanda Torres,27,F,Alergia,2024-01-30,Dra. Mariana,180.00,Atendido,Antihistamínico
+PAC017,Gabriel Lima,44,M,Gastrite,2024-02-01,Dr. João,200.00,Atendido,Protetor Gástrico
+PAC018,Isabela Castro,31,F,Sinusite,2024-02-02,Dra. Maria,190.00,Atendido,Descongestionante
+PAC019,Diego Silva,58,M,Problema de Visão,2024-02-03,Dr. Pedro,280.00,Atendido,Colírio
+PAC020,Mariana Alves,39,F,Infecção Urinária,2024-02-04,Dra. Ana,240.00,Atendido,Antibiótico

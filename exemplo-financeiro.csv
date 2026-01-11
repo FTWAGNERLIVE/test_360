@@ -1,0 +1,21 @@
+Categoria,Descricao,Valor,Data,Status,Tipo,Fornecedor
+Receita,Vendas Produtos,125000.00,2024-01-15,Pago,Entrada,Clientes
+Despesa,Salários,45000.00,2024-01-05,Pago,Saída,Folha de Pagamento
+Despesa,Aluguel,8000.00,2024-01-10,Pago,Saída,Imobiliária XYZ
+Receita,Serviços Consultoria,35000.00,2024-01-20,Pago,Entrada,Cliente ABC
+Despesa,Energia Elétrica,2500.00,2024-01-12,Pago,Saída,Companhia Elétrica
+Despesa,Internet e Telefone,1200.00,2024-01-08,Pago,Saída,Operadora Telecom
+Receita,Vendas Online,89000.00,2024-01-25,Pago,Entrada,E-commerce
+Despesa,Marketing Digital,15000.00,2024-01-18,Pago,Saída,Agência Marketing
+Despesa,Fornecedores,28000.00,2024-01-22,Pago,Saída,Fornecedor Principal
+Receita,Licenças Software,12000.00,2024-01-28,Pago,Entrada,Cliente Corporativo
+Despesa,Manutenção Equipamentos,3500.00,2024-01-14,Pago,Saída,Técnico TI
+Receita,Assinaturas Mensais,45000.00,2024-01-01,Pago,Entrada,Clientes Recorrentes
+Despesa,Seguro Empresarial,2200.00,2024-01-05,Pago,Saída,Seguradora
+Despesa,Combustível,1800.00,2024-01-16,Pago,Saída,Posto de Gasolina
+Receita,Comissões Recebidas,8500.00,2024-01-30,Pago,Entrada,Parceiros
+Despesa,Alimentação Escritório,1200.00,2024-01-11,Pago,Saída,Restaurante
+Despesa,Impostos,18000.00,2024-01-20,Pago,Saída,Receita Federal
+Receita,Projeto Especial,55000.00,2024-01-22,Pago,Entrada,Cliente VIP
+Despesa,Software Licenses,4500.00,2024-01-15,Pago,Saída,Fornecedor Software
+Receita,Reembolsos,3200.00,2024-01-18,Pago,Entrada,Clientes

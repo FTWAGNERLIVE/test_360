@@ -1,0 +1,21 @@
+Produto,Categoria,Quantidade_Vendida,Valor_Unitario,Data_Venda,Cliente,Regiao
+Notebook Dell,Informática,45,3500.00,2024-01-15,Empresa ABC,Sudeste
+Mouse Logitech,Periféricos,120,89.90,2024-01-16,Loja XYZ,Nordeste
+Teclado Mecânico,Periféricos,78,450.00,2024-01-17,Cliente Premium,Sul
+Monitor LG 27",Monitores,32,1200.00,2024-01-18,Corporativo SP,Sudeste
+SSD 1TB,Componentes,156,450.00,2024-01-19,Tech Store,Norte
+Placa de Vídeo RTX 4060,Componentes,28,2200.00,2024-01-20,Gamer Shop,Sudeste
+Headset HyperX,Periféricos,94,350.00,2024-01-21,Loja Online,Nordeste
+Webcam Logitech,Periféricos,67,280.00,2024-01-22,Home Office,Sul
+Impressora HP,Impressão,23,850.00,2024-01-23,Escritório Central,Sudeste
+Tablet Samsung,Dispositivos,41,1200.00,2024-01-24,Retail Store,Nordeste
+Smartphone Xiaomi,Dispositivos,89,1800.00,2024-01-25,Mobile Shop,Sul
+Fone Bluetooth,Periféricos,134,150.00,2024-01-26,Loja Eletrônica,Sudeste
+Cabo USB-C,Periféricos,245,25.00,2024-01-27,Distribuidor,Nordeste
+Carregador Wireless,Periféricos,112,80.00,2024-01-28,Loja Online,Sul
+HD Externo 2TB,Componentes,56,550.00,2024-01-29,Backup Solutions,Sudeste
+RAM 16GB,Componentes,98,320.00,2024-01-30,Upgrade Store,Nordeste
+Processador Intel i7,Componentes,34,1800.00,2024-02-01,PC Builder,Sul
+Gabinete Gamer,Componentes,45,450.00,2024-02-02,Gaming Store,Sudeste
+Cooler CPU,Componentes,67,180.00,2024-02-03,Performance Shop,Nordeste
+Fonte 750W,Componentes,52,420.00,2024-02-04,Power Solutions,Sul

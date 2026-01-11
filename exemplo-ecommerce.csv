@@ -1,0 +1,21 @@
+Pedido_ID,Cliente,Produto,Quantidade,Preco_Unitario,Total,Data_Pedido,Status,Metodo_Pagamento,Cidade,UF
+PED001,João Silva,Notebook,1,3500.00,3500.00,2024-01-15,Entregue,Cartão de Crédito,São Paulo,SP
+PED002,Maria Santos,Smartphone,2,1800.00,3600.00,2024-01-16,Em Trânsito,PIX,Rio de Janeiro,RJ
+PED003,Pedro Costa,Tablet,1,1200.00,1200.00,2024-01-17,Entregue,Boleto,Belo Horizonte,MG
+PED004,Ana Oliveira,Fone Bluetooth,3,150.00,450.00,2024-01-18,Entregue,Cartão de Débito,Curitiba,PR
+PED005,Carlos Pereira,Monitor,1,1200.00,1200.00,2024-01-19,Preparando,Cartão de Crédito,Porto Alegre,RS
+PED006,Juliana Lima,Teclado,2,450.00,900.00,2024-01-20,Entregue,PIX,Salvador,BA
+PED007,Roberto Alves,Mouse,5,89.90,449.50,2024-01-21,Em Trânsito,Cartão de Crédito,Brasília,DF
+PED008,Fernanda Rocha,Webcam,2,280.00,560.00,2024-01-22,Entregue,PIX,Fortaleza,CE
+PED009,Lucas Martins,SSD,1,450.00,450.00,2024-01-23,Preparando,Boleto,Recife,PE
+PED010,Camila Souza,Headset,1,350.00,350.00,2024-01-24,Entregue,Cartão de Crédito,Manaus,AM
+PED011,Rafael Barbosa,Placa de Vídeo,1,2200.00,2200.00,2024-01-25,Em Trânsito,PIX,Belém,PA
+PED012,Patricia Gomes,Impressora,1,850.00,850.00,2024-01-26,Entregue,Cartão de Débito,Goiânia,GO
+PED013,Bruno Ferreira,RAM,2,320.00,640.00,2024-01-27,Preparando,Cartão de Crédito,Campinas,SP
+PED014,Larissa Dias,Carregador,4,80.00,320.00,2024-01-28,Entregue,PIX,São Paulo,SP
+PED015,Thiago Ribeiro,HD Externo,1,550.00,550.00,2024-01-29,Em Trânsito,Boleto,Rio de Janeiro,RJ
+PED016,Amanda Torres,Cabo USB,10,25.00,250.00,2024-01-30,Entregue,Cartão de Crédito,Belo Horizonte,MG
+PED017,Gabriel Lima,Processador,1,1800.00,1800.00,2024-02-01,Preparando,PIX,Curitiba,PR
+PED018,Isabela Castro,Gabinete,1,450.00,450.00,2024-02-02,Entregue,Cartão de Débito,Porto Alegre,RS
+PED019,Diego Silva,Cooler,2,180.00,360.00,2024-02-03,Em Trânsito,Cartão de Crédito,Salvador,BA
+PED020,Mariana Alves,Fonte,1,420.00,420.00,2024-02-04,Entregue,PIX,Brasília,DF

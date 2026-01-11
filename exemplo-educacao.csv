@@ -1,0 +1,21 @@
+Aluno_ID,Nome,Idade,Curso,Nota_Media,Frequencia,Status,Data_Matricula,Valor_Mensalidade,Forma_Pagamento
+ALU001,João Silva,20,Engenharia,8.5,95,Aprovado,2024-01-15,850.00,Boleto
+ALU002,Maria Santos,22,Medicina,9.2,98,Aprovado,2024-01-10,1200.00,Cartão
+ALU003,Pedro Costa,19,Administração,7.8,88,Aprovado,2024-01-12,650.00,PIX
+ALU004,Ana Oliveira,21,Direito,8.9,92,Aprovado,2024-01-08,950.00,Boleto
+ALU005,Carlos Pereira,23,TI,9.0,96,Aprovado,2024-01-14,780.00,Cartão
+ALU006,Juliana Lima,20,Psicologia,8.2,90,Aprovado,2024-01-11,720.00,PIX
+ALU007,Roberto Alves,24,Arquitetura,7.5,85,Recuperação,2024-01-13,880.00,Boleto
+ALU008,Fernanda Rocha,22,Enfermagem,8.7,94,Aprovado,2024-01-09,680.00,Cartão
+ALU009,Lucas Martins,19,Marketing,8.0,89,Aprovado,2024-01-16,600.00,PIX
+ALU010,Camila Souza,21,Design,9.1,97,Aprovado,2024-01-07,750.00,Boleto
+ALU011,Rafael Barbosa,25,Contabilidade,7.9,87,Recuperação,2024-01-15,650.00,Cartão
+ALU012,Patricia Gomes,20,Fisioterapia,8.4,93,Aprovado,2024-01-10,700.00,PIX
+ALU013,Bruno Ferreira,22,Engenharia,8.8,95,Aprovado,2024-01-12,850.00,Boleto
+ALU014,Larissa Dias,19,Medicina,9.3,99,Aprovado,2024-01-08,1200.00,Cartão
+ALU015,Thiago Ribeiro,23,Administração,7.6,86,Recuperação,2024-01-14,650.00,PIX
+ALU016,Amanda Torres,21,TI,8.6,91,Aprovado,2024-01-11,780.00,Boleto
+ALU017,Gabriel Lima,20,Psicologia,8.3,92,Aprovado,2024-01-13,720.00,Cartão
+ALU018,Isabela Castro,24,Arquitetura,8.1,88,Aprovado,2024-01-09,880.00,PIX
+ALU019,Diego Silva,22,Enfermagem,7.7,84,Recuperação,2024-01-16,680.00,Boleto
+ALU020,Mariana Alves,19,Marketing,8.9,96,Aprovado,2024-01-07,600.00,Cartão

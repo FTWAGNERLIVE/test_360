@@ -1,0 +1,231 @@
+.dashboard-container {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--primary);
+}
+
+.header-left h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.company-name {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-name {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.logout-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logout-button:hover {
+  background: var(--bg-primary);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.dashboard-main {
+  flex: 1;
+  padding: 32px;
+  position: relative;
+}
+
+.test-notice {
+  max-width: 1400px;
+  margin: 0 auto 24px;
+  padding: 12px 20px;
+  background: rgba(251, 188, 4, 0.1);
+  border: 1px solid var(--google-yellow);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.test-notice svg {
+  color: var(--google-yellow);
+  flex-shrink: 0;
+}
+
+.dashboard-content {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.upload-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.upload-card {
+  background: var(--bg-secondary);
+  border: 2px dashed var(--border);
+  border-radius: 16px;
+  padding: 64px;
+  text-align: center;
+  max-width: 600px;
+  width: 100%;
+  transition: all 0.3s;
+}
+
+.upload-card:hover {
+  border-color: var(--primary);
+  background: rgba(66, 133, 244, 0.05);
+}
+
+.upload-icon {
+  color: var(--primary);
+  margin-bottom: 24px;
+}
+
+.upload-card h2 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.upload-card p {
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+  font-size: 16px;
+}
+
+.data-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 24px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.section-header h2 {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.btn-secondary {
+  padding: 10px 20px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-primary);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.chat-toggle {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  border: none;
+  border-radius: 50px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 10px 25px rgba(66, 133, 244, 0.4);
+  transition: all 0.3s;
+  z-index: 50;
+}
+
+.chat-toggle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px rgba(66, 133, 244, 0.5);
+}
+
+@media (max-width: 768px) {
+  .dashboard-header {
+    padding: 16px 20px;
+  }
+
+  .header-left h1 {
+    font-size: 20px;
+  }
+
+  .user-name {
+    display: none;
+  }
+
+  .dashboard-main {
+    padding: 20px;
+  }
+
+  .upload-card {
+    padding: 40px 24px;
+  }
+
+  .chat-toggle {
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+}

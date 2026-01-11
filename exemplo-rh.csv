@@ -1,0 +1,21 @@
+Nome,Cargo,Departamento,Salario,Data_Admissao,Idade,Genero,Performance,Horas_Trabalhadas
+João Silva,Desenvolvedor,Tecnologia,8500.00,2022-03-15,28,M,9.2,160
+Maria Santos,Analista de Marketing,Marketing,6500.00,2021-07-20,32,F,8.8,160
+Pedro Oliveira,Gerente de Vendas,Vendas,12000.00,2020-01-10,35,M,9.5,180
+Ana Costa,Designer,Design,7200.00,2023-02-05,26,F,8.5,160
+Carlos Pereira,Analista Financeiro,Financeiro,6800.00,2022-09-12,30,M,8.9,160
+Juliana Lima,Recrutadora,RH,6000.00,2023-05-18,29,F,8.7,160
+Roberto Alves,DevOps,Tecnologia,9500.00,2021-11-22,33,M,9.3,180
+Fernanda Rocha,Product Manager,Produto,11000.00,2020-06-08,37,F,9.6,180
+Lucas Martins,Analista de Dados,Dados,7800.00,2022-12-03,27,M,9.0,160
+Camila Souza,UX Designer,Design,7500.00,2023-08-14,28,F,8.6,160
+Rafael Barbosa,Scrum Master,Tecnologia,8200.00,2021-04-25,31,M,8.8,160
+Patricia Gomes,Analista Comercial,Vendas,7000.00,2023-01-30,29,F,8.9,160
+Bruno Ferreira,Backend Developer,Tecnologia,8800.00,2022-07-11,30,M,9.1,160
+Larissa Dias,Content Manager,Marketing,6800.00,2023-03-20,27,F,8.7,160
+Thiago Ribeiro,Frontend Developer,Tecnologia,8300.00,2021-09-05,29,M,9.0,160
+Amanda Torres,Analista de BI,Dados,7500.00,2022-11-15,28,F,8.8,160
+Gabriel Lima,QA Engineer,Tecnologia,7200.00,2023-06-22,26,M,8.6,160
+Isabela Castro,Social Media,Marketing,6000.00,2023-04-10,25,F,8.5,160
+Diego Silva,Arquiteto de Software,Tecnologia,13000.00,2020-03-18,38,M,9.7,180
+Mariana Alves,Analista de Customer Success,Suporte,6500.00,2022-08-28,30,F,8.9,160
