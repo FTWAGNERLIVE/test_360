@@ -358,7 +358,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent, value }) => 
+                      label={({ name, percent }) => 
                         percent > 0.05 ? `${name}\n${(percent * 100).toFixed(1)}%` : ''
                       }
                       outerRadius={120}
@@ -367,7 +367,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                       dataKey="value"
                       paddingAngle={2}
                     >
-                      {pieData.map((entry, index) => (
+                      {pieData.map((_entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -378,7 +378,6 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                         borderRadius: '8px',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                       }}
-                      formatter={(value: any, name: any) => [value, name]}
                     />
                     <Legend 
                       verticalAlign="bottom" 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { LogOut, Upload, FileText, BarChart3, MessageCircle, Clock } from 'lucide-react'
+import { LogOut, FileText, BarChart3, MessageCircle, Clock } from 'lucide-react'
 import CSVUploader from '../components/CSVUploader'
 import DataVisualization from '../components/DataVisualization'
 import ChatBot from '../components/ChatBot'

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle2, Building2, Target, Database, MessageSquare, Clock } from 'lucide-react'
+import { Building2, Target, Database, MessageSquare, Clock } from 'lucide-react'
 import './Onboarding.css'
 
 const INDUSTRIES = [
@@ -35,7 +35,7 @@ const GOALS = [
 ]
 
 export default function Onboarding() {
-  const { user, completeOnboarding } = useAuth()
+  const { completeOnboarding } = useAuth()
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
