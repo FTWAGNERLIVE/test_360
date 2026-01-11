@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart } from 'recharts'
+import { Bar, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart } from 'recharts'
 import { TrendingUp, Database, BarChart3 as BarChartIcon } from 'lucide-react'
 import './DataVisualization.css'
 
@@ -9,11 +9,6 @@ interface DataVisualizationProps {
 }
 
 const COLORS = ['#4285F4', '#EA4335', '#FBBC04', '#34A853', '#4285F4', '#EA4335']
-
-// Formatação de valores monetários
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-}
 
 // Formatação de números grandes
 const formatNumber = (value: number) => {
@@ -281,7 +276,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                         radius={[4, 4, 0, 0]}
                       />
                     ))}
-                    {stats.numericHeaders.slice(2, 3).map((header, index) => (
+                    {stats.numericHeaders.slice(2, 3).map((header) => (
                       <Line 
                         key={header} 
                         type="monotone" 
