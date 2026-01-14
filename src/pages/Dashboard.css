@@ -93,6 +93,38 @@
   flex-shrink: 0;
 }
 
+.saved-data-notice {
+  max-width: 1400px;
+  margin: 0 auto 24px;
+  padding: 12px 20px;
+  background: #e8f5e9;
+  border: 1px solid #4caf50;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #2e7d32;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
+  animation: slideDown 0.3s ease-out;
+}
+
+.saved-data-notice svg {
+  color: #4caf50;
+  flex-shrink: 0;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .dashboard-content {
   max-width: 1400px;
   margin: 0 auto;

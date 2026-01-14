@@ -60,26 +60,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return true
     }
     
-    const existingUser = localStorage.getItem('user')
-    if (existingUser) {
-      const userData = JSON.parse(existingUser)
-      if (userData.email === email && userData.role !== 'admin') {
-        setUser(userData)
-        return true
+    // Buscar credenciais salvas
+    const credentials = JSON.parse(localStorage.getItem('userCredentials') || '{}')
+    
+    // Verificar se o usuário já existe
+    if (credentials[email]) {
+      // Usuário existe - validar senha
+      if (credentials[email].password === password) {
+        // Senha correta - carregar dados do usuário
+        const userData = credentials[email].userData
+        if (userData) {
+          localStorage.setItem('user', JSON.stringify(userData))
+          setUser(userData)
+          return true
+        }
+      } else {
+        // Senha incorreta
+        return false
       }
+    } else {
+      // Novo usuário - criar credenciais e usuário
+      const userId = Date.now().toString()
+      const newUser: User = {
+        id: userId,
+        email,
+        name: email.split('@')[0],
+        role: 'user',
+        onboardingCompleted: false
+      }
+      
+      // Salvar credenciais
+      credentials[email] = {
+        password: password,
+        userData: newUser
+      }
+      localStorage.setItem('userCredentials', JSON.stringify(credentials))
+      
+      // Salvar usuário atual
+      localStorage.setItem('user', JSON.stringify(newUser))
+      setUser(newUser)
+      return true
     }
-
-    // Novo usuário (não admin)
-    const newUser: User = {
-      id: Date.now().toString(),
-      email,
-      name: email.split('@')[0],
-      role: 'user',
-      onboardingCompleted: false
-    }
-    localStorage.setItem('user', JSON.stringify(newUser))
-    setUser(newUser)
-    return true
+    
+    return false
   }
 
   const logout = () => {
@@ -96,6 +119,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       localStorage.setItem('user', JSON.stringify(updatedUser))
       setUser(updatedUser)
+      
+      // Atualizar dados do usuário nas credenciais
+      const credentials = JSON.parse(localStorage.getItem('userCredentials') || '{}')
+      if (credentials[user.email]) {
+        credentials[user.email].userData = updatedUser
+        localStorage.setItem('userCredentials', JSON.stringify(credentials))
+      }
       
       // Salvar dados de onboarding em lista separada para admin
       const allOnboardingData = JSON.parse(localStorage.getItem('allOnboardingData') || '[]')
