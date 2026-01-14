@@ -20,7 +20,18 @@ export default function Login() {
     try {
       const success = await login(email, password)
       if (success) {
-        navigate('/onboarding')
+        // Verificar se é admin
+        const userData = localStorage.getItem('user')
+        if (userData) {
+          const user = JSON.parse(userData)
+          if (user.role === 'admin') {
+            navigate('/admin')
+          } else {
+            navigate('/onboarding')
+          }
+        } else {
+          navigate('/onboarding')
+        }
       } else {
         setError('Credenciais inválidas')
       }

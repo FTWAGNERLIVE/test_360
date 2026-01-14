@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { Bar, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart } from 'recharts'
-import { TrendingUp, Database, BarChart3 as BarChartIcon, X, Mail } from 'lucide-react'
+import { TrendingUp, Database, BarChart3 as BarChartIcon, X, Mail, Filter, ChevronDown } from 'lucide-react'
 import './DataVisualization.css'
 
 interface DataVisualizationProps {
@@ -18,8 +18,101 @@ const formatNumber = (value: number) => {
 }
 
 export default function DataVisualization({ data, headers }: DataVisualizationProps) {
-  const [filteredData, setFilteredData] = useState<any[]>(data)
-  const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  // Identificar colunas mais relevantes para filtros
+  const filterableHeaders = useMemo(() => {
+    const relevant: string[] = []
+    
+    // Procurar por colunas de categoria, tipo, status
+    const categoryHeaders = headers.filter(h => 
+      h.toLowerCase().includes('categoria') || 
+      h.toLowerCase().includes('category') ||
+      h.toLowerCase().includes('tipo') ||
+      h.toLowerCase().includes('status') ||
+      h.toLowerCase().includes('região') ||
+      h.toLowerCase().includes('regiao') ||
+      h.toLowerCase().includes('setor') ||
+      h.toLowerCase().includes('departamento')
+    )
+    
+    // Procurar por colunas de data
+    const dateHeaders = headers.filter(h => 
+      h.toLowerCase().includes('data') || 
+      h.toLowerCase().includes('date')
+    )
+    
+    relevant.push(...categoryHeaders.slice(0, 1))
+    relevant.push(...dateHeaders.slice(0, 1))
+    
+    // Se não encontrou, pegar as primeiras 2 colunas não numéricas
+    if (relevant.length < 2) {
+      const nonNumeric = headers.filter(h => {
+        const sample = data[0]?.[h]
+        return isNaN(Number(sample)) && sample !== '' && sample !== null
+      })
+      relevant.push(...nonNumeric.slice(0, 2 - relevant.length))
+    }
+    
+    return relevant.slice(0, 2)
+  }, [headers, data])
+
+  const [filter1, setFilter1] = useState<string>(filterableHeaders[0] || '')
+  const [filter2, setFilter2] = useState<string>(filterableHeaders[1] || '')
+  const [filter1Value, setFilter1Value] = useState<string>('')
+  const [filter2Value, setFilter2Value] = useState<string>('')
+  const [openFilter1, setOpenFilter1] = useState(false)
+  const [openFilter2, setOpenFilter2] = useState(false)
+  const filter1Ref = useRef<HTMLDivElement>(null)
+  const filter2Ref = useRef<HTMLDivElement>(null)
+
+  // Fechar dropdowns ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filter1Ref.current && !filter1Ref.current.contains(event.target as Node)) {
+        setOpenFilter1(false)
+      }
+      if (filter2Ref.current && !filter2Ref.current.contains(event.target as Node)) {
+        setOpenFilter2(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  // Obter valores únicos para cada filtro
+  const getFilterValues = (header: string): string[] => {
+    if (!header) return []
+    const values = new Set<string>()
+    data.forEach(row => {
+      const value = String(row[header] || '')
+      if (value) values.add(value)
+    })
+    return Array.from(values).sort()
+  }
+
+  // Aplicar filtros aos dados
+  const filteredData = useMemo(() => {
+    let result = [...data]
+    
+    if (filter1 && filter1Value) {
+      result = result.filter(row => String(row[filter1]) === filter1Value)
+    }
+    
+    if (filter2 && filter2Value) {
+      result = result.filter(row => String(row[filter2]) === filter2Value)
+    }
+    
+    return result
+  }, [data, filter1, filter1Value, filter2, filter2Value])
+
+  const clearFilters = () => {
+    setFilter1(filterableHeaders[0] || '')
+    setFilter2(filterableHeaders[1] || '')
+    setFilter1Value('')
+    setFilter2Value('')
+  }
   
   const stats = useMemo(() => {
     if (data.length === 0) return null
@@ -40,8 +133,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
       }
     })
 
-    const dataToAnalyze = filteredData.length > 0 && filteredData.length < data.length ? filteredData : data
-    dataToAnalyze.forEach(row => {
+    filteredData.forEach(row => {
       numericHeaders.forEach(header => {
         const value = Number(row[header])
         if (!isNaN(value)) {
@@ -54,78 +146,11 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     })
 
     return { numericHeaders, statsMap }
-  }, [filteredData, data, headers])
-
-  const handleBarClick = (data: any) => {
-    if (!data) return
-    
-    let clickedItem: any = null
-    const currentData = filteredData.length > 0 && filteredData.length < data.length ? filteredData : data
-    
-    // Tentar obter o payload de diferentes formas
-    if (data.activePayload && data.activePayload[0]) {
-      clickedItem = data.activePayload[0].payload
-    } else if (data.payload) {
-      clickedItem = data.payload
-    } else if (data.date || data.category || data.index) {
-      clickedItem = data
-    }
-    
-    if (!clickedItem) return
-    
-    const dateHeader = headers.find(h => h.toLowerCase().includes('data') || h.toLowerCase().includes('date'))
-    const categoryHeader = headers.find(h => 
-      h.toLowerCase().includes('categoria') || 
-      h.toLowerCase().includes('category') ||
-      h.toLowerCase().includes('tipo') ||
-      h.toLowerCase().includes('setor')
-    )
-    
-    if (clickedItem.date && dateHeader) {
-      const filtered = currentData.filter((row: any) => String(row[dateHeader]) === String(clickedItem.date))
-      if (filtered.length > 0) {
-        setFilteredData(filtered)
-        setActiveFilter(`Data: ${clickedItem.date}`)
-      }
-    } else if (clickedItem.category && categoryHeader) {
-      const filtered = currentData.filter((row: any) => String(row[categoryHeader]) === String(clickedItem.category))
-      if (filtered.length > 0) {
-        setFilteredData(filtered)
-        setActiveFilter(`${categoryHeader}: ${clickedItem.category}`)
-      }
-    }
-  }
-
-  const handlePieClick = (data: any) => {
-    if (!data || !data.name) return
-    
-    const currentData = filteredData.length > 0 && filteredData.length < data.length ? filteredData : data
-    const categoryHeader = headers.find(h => 
-      h.toLowerCase().includes('categoria') || 
-      h.toLowerCase().includes('category') ||
-      h.toLowerCase().includes('tipo') ||
-      h.toLowerCase().includes('status') ||
-      h.toLowerCase().includes('região') ||
-      h.toLowerCase().includes('regiao')
-    )
-    
-    if (categoryHeader) {
-      const filtered = currentData.filter((row: any) => String(row[categoryHeader]) === String(data.name))
-      setFilteredData(filtered)
-      setActiveFilter(`${categoryHeader}: ${data.name}`)
-    }
-  }
-
-  const clearFilter = () => {
-    setFilteredData(data)
-    setActiveFilter(null)
-  }
+  }, [filteredData, headers])
 
   // Dados para gráfico de barras/linhas melhorado
   const chartData = useMemo(() => {
     if (!stats || stats.numericHeaders.length === 0) return []
-    
-    const dataToAnalyze = filteredData.length > 0 ? filteredData : data
 
     // Se houver coluna de data, agrupar por data
     const dateHeader = headers.find(h => 
@@ -136,7 +161,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
 
     if (dateHeader) {
       const grouped: Record<string, any> = {}
-      dataToAnalyze.forEach(row => {
+      filteredData.forEach(row => {
         const date = row[dateHeader] || 'Sem data'
         if (!grouped[date]) {
           grouped[date] = { date, ...stats.numericHeaders.reduce((acc, h) => ({ ...acc, [h]: 0 }), {}) }
@@ -158,7 +183,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
 
     if (categoryHeader) {
       const grouped: Record<string, any> = {}
-      dataToAnalyze.forEach(row => {
+      filteredData.forEach(row => {
         const category = row[categoryHeader] || 'Outros'
         if (!grouped[category]) {
           grouped[category] = { category, ...stats.numericHeaders.reduce((acc, h) => ({ ...acc, [h]: 0 }), {}) }
@@ -171,7 +196,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     }
 
     // Caso padrão: primeiros registros
-    return dataToAnalyze.slice(0, 10).map((row, index) => {
+    return filteredData.slice(0, 10).map((row, index) => {
       const chartRow: any = { index: `#${index + 1}` }
       stats.numericHeaders.slice(0, 3).forEach(header => {
         chartRow[header] = Number(row[header]) || 0
@@ -195,9 +220,8 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     )
 
     if (categoryHeader) {
-      const dataToAnalyze = filteredData.length > 0 && filteredData.length < data.length ? filteredData : data
       const categoryCounts: Record<string, number> = {}
-      dataToAnalyze.forEach(row => {
+      filteredData.forEach(row => {
         const category = String(row[categoryHeader] || 'Outros')
         categoryCounts[category] = (categoryCounts[category] || 0) + 1
       })
@@ -221,8 +245,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
       'Muito Alto': 0
     }
 
-    const dataToAnalyze = filteredData.length > 0 ? filteredData : data
-    const values = dataToAnalyze.map(row => Number(row[firstNumericHeader]) || 0).filter(v => v > 0)
+    const values = filteredData.map(row => Number(row[firstNumericHeader]) || 0).filter(v => v > 0)
     if (values.length === 0) return []
 
     const max = Math.max(...values)
@@ -240,17 +263,15 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
 
     return Object.entries(ranges)
       .filter(([, count]) => count > 0)
-      .map(([name, value]) => ({ name, value }))
-  }, [filteredData, data, stats, headers])
+        .map(([name, value]) => ({ name, value }))
+  }, [filteredData, stats, headers])
 
   // Estatísticas resumidas
   const summaryStats = useMemo(() => {
     if (!stats || stats.numericHeaders.length === 0) return null
-    
-    const dataToAnalyze = filteredData.length > 0 ? filteredData : data
 
     return stats.numericHeaders.map(header => {
-      const values = dataToAnalyze.map(row => Number(row[header]) || 0).filter(v => !isNaN(v) && v > 0)
+      const values = filteredData.map(row => Number(row[header]) || 0).filter(v => !isNaN(v) && v > 0)
       if (values.length === 0) return null
 
       const sum = values.reduce((a, b) => a + b, 0)
@@ -260,7 +281,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
 
       return { header, avg, max, min, sum, count: values.length }
     }).filter(Boolean)
-  }, [filteredData, data, stats])
+  }, [filteredData, stats])
 
   if (data.length === 0) {
     return (
@@ -271,17 +292,144 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     )
   }
 
-  const displayData = filteredData.length > 0 ? filteredData : data
-
   return (
     <div className="data-visualization">
-      {activeFilter && (
-        <div className="active-filter">
-          <span>Filtro ativo: <strong>{activeFilter}</strong></span>
-          <button onClick={clearFilter} className="clear-filter-btn">
-            <X size={16} />
-            Limpar filtro
-          </button>
+      {filterableHeaders.length > 0 && (
+        <div className="filters-section">
+          <div className="filters-container">
+            {filterableHeaders[0] && (
+              <div className="filter-dropdown" ref={filter1Ref}>
+                <button
+                  className="filter-button"
+                  onClick={() => {
+                    setOpenFilter1(!openFilter1)
+                    setOpenFilter2(false)
+                  }}
+                >
+                  <Filter size={16} />
+                  <span>{filter1 || filterableHeaders[0] || 'Filtro 1'}</span>
+                  {filter1Value && <span className="filter-value">: {filter1Value}</span>}
+                  <ChevronDown size={16} className={openFilter1 ? 'open' : ''} />
+                </button>
+                {openFilter1 && (
+                  <div className="filter-options">
+                    <div className="filter-header-select">
+                      <label>Selecione a coluna:</label>
+                      <select
+                        value={filter1}
+                        onChange={(e) => {
+                          setFilter1(e.target.value)
+                          setFilter1Value('')
+                        }}
+                      >
+                        <option value="">Selecione uma coluna</option>
+                        {headers.filter(h => {
+                          const sample = data[0]?.[h]
+                          return isNaN(Number(sample)) && sample !== '' && sample !== null
+                        }).map(h => (
+                          <option key={h} value={h}>{h}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {filter1 && (
+                      <div className="filter-values">
+                        <label>Selecione o valor:</label>
+                        <div className="filter-values-list">
+                          <button
+                            className={filter1Value === '' ? 'active' : ''}
+                            onClick={() => setFilter1Value('')}
+                          >
+                            Todos
+                          </button>
+                          {getFilterValues(filter1).map(value => (
+                            <button
+                              key={value}
+                              className={filter1Value === value ? 'active' : ''}
+                              onClick={() => setFilter1Value(value)}
+                            >
+                              {value}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {filterableHeaders[1] && (
+              <div className="filter-dropdown" ref={filter2Ref}>
+                <button
+                  className="filter-button"
+                  onClick={() => {
+                    setOpenFilter2(!openFilter2)
+                    setOpenFilter1(false)
+                  }}
+                >
+                  <Filter size={16} />
+                  <span>{filter2 || filterableHeaders[1] || 'Filtro 2'}</span>
+                  {filter2Value && <span className="filter-value">: {filter2Value}</span>}
+                  <ChevronDown size={16} className={openFilter2 ? 'open' : ''} />
+                </button>
+                {openFilter2 && (
+                  <div className="filter-options">
+                    <div className="filter-header-select">
+                      <label>Selecione a coluna:</label>
+                      <select
+                        value={filter2}
+                        onChange={(e) => {
+                          setFilter2(e.target.value)
+                          setFilter2Value('')
+                        }}
+                      >
+                        <option value="">Selecione uma coluna</option>
+                        {headers.filter(h => {
+                          const sample = data[0]?.[h]
+                          return isNaN(Number(sample)) && sample !== '' && sample !== null
+                        }).map(h => (
+                          <option key={h} value={h}>{h}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {filter2 && (
+                      <div className="filter-values">
+                        <label>Selecione o valor:</label>
+                        <div className="filter-values-list">
+                          <button
+                            className={filter2Value === '' ? 'active' : ''}
+                            onClick={() => setFilter2Value('')}
+                          >
+                            Todos
+                          </button>
+                          {getFilterValues(filter2).map(value => (
+                            <button
+                              key={value}
+                              className={filter2Value === value ? 'active' : ''}
+                              onClick={() => setFilter2Value(value)}
+                            >
+                              {value}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {(filter1Value || filter2Value) && (
+              <button onClick={clearFilters} className="clear-filters-btn">
+                <X size={16} />
+                Limpar
+              </button>
+            )}
+          </div>
+          <div className="filter-support-notice">
+            <Mail size={12} />
+            <span>Precisa de mais filtros? <a href="https://www.linkedin.com/company/creattive-tecnologia/posts/?feedView=all" target="_blank" rel="noopener noreferrer">Fale com nosso time de vendas</a></span>
+          </div>
         </div>
       )}
       <div className="stats-grid">
@@ -291,7 +439,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
           </div>
           <div className="stat-content">
             <p className="stat-label">Total de Registros</p>
-            <p className="stat-value">{displayData.length.toLocaleString()}</p>
+            <p className="stat-value">{filteredData.length.toLocaleString()}</p>
           </div>
         </div>
 
@@ -360,8 +508,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                         fill={COLORS[index % COLORS.length]}
                         name={header}
                         radius={[4, 4, 0, 0]}
-                        onClick={handleBarClick}
-                        style={{ cursor: 'pointer' }}
+                        style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
                       />
                     ))}
                     {stats.numericHeaders.slice(2, 3).map((header) => (
@@ -373,7 +520,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                         name={header}
                         strokeWidth={3}
                         dot={{ fill: COLORS[2], r: 4, cursor: 'pointer' }}
-                        onClick={handleBarClick}
+                        activeDot={{ r: 6, fill: COLORS[2], stroke: '#fff', strokeWidth: 2 }}
                         style={{ cursor: 'pointer' }}
                       />
                     ))}
@@ -414,12 +561,25 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                         backgroundColor: '#ffffff', 
                         border: '1px solid #dadce0',
                         borderRadius: '8px',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        padding: '12px',
+                        fontSize: '14px'
                       }}
-                      formatter={(value: any) => formatNumber(value)}
+                      formatter={(value: any, name: any) => [formatNumber(value), name]}
+                      labelFormatter={(label) => {
+                        const dateHeader = headers.find(h => h.toLowerCase().includes('data') || h.toLowerCase().includes('date'))
+                        const categoryHeader = headers.find(h => h.toLowerCase().includes('categoria') || h.toLowerCase().includes('category'))
+                        if (dateHeader || categoryHeader) {
+                          return `${dateHeader || categoryHeader}: ${label}`
+                        }
+                        return `Período: ${label}`
+                      }}
+                      cursor={{ stroke: '#4285F4', strokeWidth: 2, strokeDasharray: '5 5' }}
+                      animationDuration={200}
+                      separator=": "
                     />
                     <Legend 
-                      wrapperStyle={{ paddingTop: '20px' }}
+                      wrapperStyle={{ paddingTop: '20px', cursor: 'pointer' }}
                       iconType="circle"
                     />
                     {stats.numericHeaders.slice(0, 3).map((header, index) => (
@@ -431,8 +591,8 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                         fill={`url(#color${index})`}
                         name={header}
                         strokeWidth={2}
-                        onClick={handleBarClick}
                         style={{ cursor: 'pointer' }}
+                        activeDot={{ r: 5, fill: COLORS[index % COLORS.length], stroke: '#fff', strokeWidth: 2 }}
                       />
                     ))}
                   </AreaChart>
@@ -458,8 +618,6 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                       fill="#8884d8"
                       dataKey="value"
                       paddingAngle={2}
-                      onClick={handlePieClick}
-                      style={{ cursor: 'pointer' }}
                     >
                       {pieData.map((_entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -470,13 +628,18 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                         backgroundColor: '#ffffff', 
                         border: '1px solid #dadce0',
                         borderRadius: '8px',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        padding: '12px'
                       }}
+                      formatter={(value: any, name: any) => [`${value} (${((value / pieData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`, name]}
+                      labelStyle={{ fontWeight: 600 }}
+                      animationDuration={200}
                     />
                     <Legend 
                       verticalAlign="bottom" 
                       height={36}
                       iconType="circle"
+                      wrapperStyle={{ cursor: 'pointer' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -516,7 +679,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
           )}
 
           <div className="data-table-section">
-            <h3>Dados ({displayData.length > 30 ? 'Primeiros 30 registros' : `${displayData.length} registros`})</h3>
+            <h3>Dados ({filteredData.length > 20 ? 'Primeiros 20 registros' : `${filteredData.length} registros`})</h3>
             <div className="table-wrapper">
               <table className="data-table">
                 <thead>
@@ -527,7 +690,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                   </tr>
                 </thead>
                 <tbody>
-                  {displayData.slice(0, 30).map((row, index) => (
+                  {filteredData.slice(0, 20).map((row, index) => (
                     <tr key={index}>
                       {headers.map(header => (
                         <td key={header}>{row[header] || '-'}</td>
@@ -537,11 +700,18 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                 </tbody>
               </table>
             </div>
-            {displayData.length > 30 && (
+            {filteredData.length > 20 && (
               <div className="table-limit-notice">
                 <Mail size={16} />
-                <span>Caso queira ver mais linhas, entre em contato com nosso suporte</span>
-                <a href="mailto:suporte@creattive.com" className="contact-link">Contatar Suporte</a>
+                <span>Se deseja que seja lido mais do que 20 linhas, entre em contato com nosso time de vendas</span>
+                <a 
+                  href="https://www.linkedin.com/company/creattive-tecnologia/posts/?feedView=all" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="contact-link"
+                >
+                  Contatar Time de Vendas
+                </a>
               </div>
             )}
           </div>

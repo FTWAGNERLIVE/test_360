@@ -70,7 +70,8 @@ export default function Onboarding() {
     industry: '',
     dataSource: '',
     goals: [] as string[],
-    specificQuestions: ''
+    specificQuestions: '',
+    contact: ''
   })
   const [loading, setLoading] = useState(false)
 
@@ -108,6 +109,7 @@ export default function Onboarding() {
     }
 
     setLoading(true)
+    
     // Simular processamento
     await new Promise(resolve => setTimeout(resolve, 1000))
     
@@ -187,6 +189,17 @@ export default function Onboarding() {
                     Baixar modelo CSV para {formData.industry}
                   </button>
                 )}
+              </div>
+              <div className="form-group">
+                <label htmlFor="contact">Seu Telefone</label>
+                <input
+                  id="contact"
+                  type="tel"
+                  value={formData.contact}
+                  onChange={(e) => setFormData(prev => ({ ...prev, contact: e.target.value }))}
+                  placeholder="(11) 99999-9999"
+                  required
+                />
               </div>
             </div>
           )}

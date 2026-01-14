@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
+import Admin from './pages/Admin'
 import { AuthProvider, useAuth } from './context/AuthContext'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -17,6 +18,20 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user.onboardingCompleted) {
     return <Navigate to="/onboarding" replace />
+  }
+
+  return <>{children}</>
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth()
+
+  if (isLoading) {
+    return <div className="loading-screen">Carregando...</div>
+  }
+
+  if (!user || user.role !== 'admin') {
+    return <Navigate to="/login" replace />
   }
 
   return <>{children}</>
@@ -46,6 +61,14 @@ function AppRoutes() {
           <ProtectedRoute>
             <Dashboard />
           </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <Admin />
+          </AdminRoute>
         }
       />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
