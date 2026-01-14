@@ -56,39 +56,63 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     return { numericHeaders, statsMap }
   }, [filteredData, data, headers])
 
-  const handleChartClick = (clickedData: any) => {
-    if (!clickedData) return
+  const handleBarClick = (data: any) => {
+    if (!data) return
     
+    let clickedItem: any = null
     const currentData = filteredData.length > 0 && filteredData.length < data.length ? filteredData : data
     
-    // Se clicou em um item do gráfico de pizza
-    if (clickedData.name) {
-      const categoryHeader = headers.find(h => 
-        h.toLowerCase().includes('categoria') || 
-        h.toLowerCase().includes('category') ||
-        h.toLowerCase().includes('tipo') ||
-        h.toLowerCase().includes('status')
-      )
-      
-      if (categoryHeader) {
-        const filtered = currentData.filter((row: any) => String(row[categoryHeader]) === clickedData.name)
+    // Tentar obter o payload de diferentes formas
+    if (data.activePayload && data.activePayload[0]) {
+      clickedItem = data.activePayload[0].payload
+    } else if (data.payload) {
+      clickedItem = data.payload
+    } else if (data.date || data.category || data.index) {
+      clickedItem = data
+    }
+    
+    if (!clickedItem) return
+    
+    const dateHeader = headers.find(h => h.toLowerCase().includes('data') || h.toLowerCase().includes('date'))
+    const categoryHeader = headers.find(h => 
+      h.toLowerCase().includes('categoria') || 
+      h.toLowerCase().includes('category') ||
+      h.toLowerCase().includes('tipo') ||
+      h.toLowerCase().includes('setor')
+    )
+    
+    if (clickedItem.date && dateHeader) {
+      const filtered = currentData.filter((row: any) => String(row[dateHeader]) === String(clickedItem.date))
+      if (filtered.length > 0) {
         setFilteredData(filtered)
-        setActiveFilter(`${categoryHeader}: ${clickedData.name}`)
+        setActiveFilter(`Data: ${clickedItem.date}`)
+      }
+    } else if (clickedItem.category && categoryHeader) {
+      const filtered = currentData.filter((row: any) => String(row[categoryHeader]) === String(clickedItem.category))
+      if (filtered.length > 0) {
+        setFilteredData(filtered)
+        setActiveFilter(`${categoryHeader}: ${clickedItem.category}`)
       }
     }
-    // Se clicou em um item do gráfico de barras/linha
-    else if (clickedData.date || clickedData.category || clickedData.index) {
-      const key = clickedData.date || clickedData.category || clickedData.index
-      const dateHeader = headers.find(h => h.toLowerCase().includes('data') || h.toLowerCase().includes('date'))
-      const categoryHeader = headers.find(h => h.toLowerCase().includes('categoria') || h.toLowerCase().includes('category'))
-      
-      const filtered = currentData.filter((row: any) => {
-        if (dateHeader && String(row[dateHeader]) === String(key)) return true
-        if (categoryHeader && String(row[categoryHeader]) === String(key)) return true
-        return false
-      })
+  }
+
+  const handlePieClick = (data: any) => {
+    if (!data || !data.name) return
+    
+    const currentData = filteredData.length > 0 && filteredData.length < data.length ? filteredData : data
+    const categoryHeader = headers.find(h => 
+      h.toLowerCase().includes('categoria') || 
+      h.toLowerCase().includes('category') ||
+      h.toLowerCase().includes('tipo') ||
+      h.toLowerCase().includes('status') ||
+      h.toLowerCase().includes('região') ||
+      h.toLowerCase().includes('regiao')
+    )
+    
+    if (categoryHeader) {
+      const filtered = currentData.filter((row: any) => String(row[categoryHeader]) === String(data.name))
       setFilteredData(filtered)
-      setActiveFilter(String(key))
+      setActiveFilter(`${categoryHeader}: ${data.name}`)
     }
   }
 
@@ -301,7 +325,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
               <div className="chart-card">
                 <h3>Análise Comparativa</h3>
                 <ResponsiveContainer width="100%" height={350}>
-                  <ComposedChart data={chartData} onClick={handleChartClick} style={{ cursor: 'pointer' }}>
+                  <ComposedChart data={chartData} style={{ cursor: 'pointer' }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#dadce0" opacity={0.3} />
                     <XAxis 
                       dataKey={chartData[0]?.date ? 'date' : chartData[0]?.category ? 'category' : 'index'} 
@@ -336,6 +360,8 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                         fill={COLORS[index % COLORS.length]}
                         name={header}
                         radius={[4, 4, 0, 0]}
+                        onClick={handleBarClick}
+                        style={{ cursor: 'pointer' }}
                       />
                     ))}
                     {stats.numericHeaders.slice(2, 3).map((header) => (
@@ -346,7 +372,9 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                         stroke={COLORS[2]}
                         name={header}
                         strokeWidth={3}
-                        dot={{ fill: COLORS[2], r: 4 }}
+                        dot={{ fill: COLORS[2], r: 4, cursor: 'pointer' }}
+                        onClick={handleBarClick}
+                        style={{ cursor: 'pointer' }}
                       />
                     ))}
                   </ComposedChart>
@@ -358,7 +386,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
               <div className="chart-card">
                 <h3>Tendência Temporal</h3>
                 <ResponsiveContainer width="100%" height={350}>
-                  <AreaChart data={chartData} onClick={handleChartClick} style={{ cursor: 'pointer' }}>
+                  <AreaChart data={chartData} style={{ cursor: 'pointer' }}>
                     <defs>
                       {stats.numericHeaders.slice(0, 3).map((header, index) => (
                         <linearGradient key={header} id={`color${index}`} x1="0" y1="0" x2="0" y2="1">
@@ -403,6 +431,8 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                         fill={`url(#color${index})`}
                         name={header}
                         strokeWidth={2}
+                        onClick={handleBarClick}
+                        style={{ cursor: 'pointer' }}
                       />
                     ))}
                   </AreaChart>
@@ -428,7 +458,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                       fill="#8884d8"
                       dataKey="value"
                       paddingAngle={2}
-                      onClick={(data) => handleChartClick(data)}
+                      onClick={handlePieClick}
                       style={{ cursor: 'pointer' }}
                     >
                       {pieData.map((_entry, index) => (
