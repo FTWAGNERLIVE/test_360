@@ -1,0 +1,4 @@
+Aluno_ID,Nome,Idade,Curso,Nota_Media,Frequencia,Status,Data_Matricula,Valor_Mensalidade,Forma_Pagamento
+ALU001,Aluno Exemplo,20,Curso A,8.5,95,Aprovado,2024-01-15,850.00,Boleto
+ALU002,Aluno Exemplo,22,Curso B,9.2,98,Aprovado,2024-01-10,1200.00,Cartão
+ALU003,Aluno Exemplo,19,Curso C,7.8,88,Aprovado,2024-01-12,650.00,PIX

@@ -1,0 +1,4 @@
+Paciente_ID,Nome,Idade,Genero,Diagnostico,Data_Consulta,Medico,Valor_Consulta,Status,Medicamento
+PAC001,Paciente Exemplo,45,M,Diagnóstico A,2024-01-15,Dr. Exemplo,250.00,Atendido,Medicamento A
+PAC002,Paciente Exemplo,32,F,Diagnóstico B,2024-01-16,Dra. Exemplo,280.00,Atendido,Medicamento B
+PAC003,Paciente Exemplo,28,M,Diagnóstico C,2024-01-17,Dr. Exemplo,150.00,Atendido,Medicamento C

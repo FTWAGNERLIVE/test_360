@@ -1,0 +1,4 @@
+Produto,Categoria,Quantidade_Vendida,Valor_Unitario,Data_Venda,Cliente,Regiao
+Produto A,Categoria A,45,3500.00,2024-01-15,Cliente A,Sudeste
+Produto B,Categoria B,120,89.90,2024-01-16,Cliente B,Nordeste
+Produto C,Categoria C,78,450.00,2024-01-17,Cliente C,Sul

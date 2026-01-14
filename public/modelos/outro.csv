@@ -1,0 +1,4 @@
+Item,Categoria,Valor,Data,Status,Observacao
+Item A,Categoria A,1000.00,2024-01-15,Ativo,Observação exemplo
+Item B,Categoria B,2000.00,2024-01-16,Ativo,Observação exemplo
+Item C,Categoria C,1500.00,2024-01-17,Inativo,Observação exemplo

@@ -1,0 +1,4 @@
+Categoria,Descricao,Valor,Data,Status,Tipo,Fornecedor
+Receita,Vendas Produtos,125000.00,2024-01-15,Pago,Entrada,Clientes
+Despesa,Salários,45000.00,2024-01-05,Pago,Saída,Folha de Pagamento
+Despesa,Aluguel,8000.00,2024-01-10,Pago,Saída,Imobiliária

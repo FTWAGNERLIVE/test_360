@@ -1,0 +1,4 @@
+Nome,Cargo,Departamento,Salario,Data_Admissao,Idade,Genero,Performance,Horas_Trabalhadas
+Funcionário A,Desenvolvedor,Tecnologia,8500.00,2022-03-15,28,M,9.2,160
+Funcionário B,Analista de Marketing,Marketing,6500.00,2021-07-20,32,F,8.8,160
+Funcionário C,Gerente de Vendas,Vendas,12000.00,2020-01-10,35,M,9.5,180

@@ -1,0 +1,4 @@
+Pedido_ID,Cliente,Produto,Quantidade,Preco_Unitario,Total,Data_Pedido,Status,Metodo_Pagamento,Cidade,UF
+PED001,Cliente Exemplo,Produto A,1,100.00,100.00,2024-01-15,Entregue,Cartão de Crédito,São Paulo,SP
+PED002,Cliente Exemplo,Produto B,2,50.00,100.00,2024-01-16,Em Trânsito,PIX,Rio de Janeiro,RJ
+PED003,Cliente Exemplo,Produto C,1,150.00,150.00,2024-01-17,Entregue,Boleto,Belo Horizonte,MG

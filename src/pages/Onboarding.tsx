@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { Building2, Target, Database, MessageSquare, Clock } from 'lucide-react'
+import { Building2, Target, Database, MessageSquare, Clock, Download } from 'lucide-react'
 import './Onboarding.css'
 
 const INDUSTRIES = [
@@ -34,6 +34,33 @@ const GOALS = [
   'Tomar decisões estratégicas'
 ]
 
+// Mapeamento de indústria para modelo CSV
+const getModeloCSV = (industry: string): string | null => {
+  const mapping: Record<string, string> = {
+    'E-commerce': 'ecommerce',
+    'Saúde': 'saude',
+    'Financeiro': 'financeiro',
+    'Educação': 'educacao',
+    'Tecnologia': 'vendas',
+    'Varejo': 'vendas',
+    'Manufatura': 'vendas',
+    'Outro': 'outro'
+  }
+  return mapping[industry] || null
+}
+
+const getModeloCSVByDataSource = (dataSource: string): string | null => {
+  const mapping: Record<string, string> = {
+    'Vendas': 'vendas',
+    'Marketing': 'marketing',
+    'Recursos Humanos': 'rh',
+    'Financeiro': 'financeiro',
+    'Clientes': 'ecommerce',
+    'Outro': 'outro'
+  }
+  return mapping[dataSource] || null
+}
+
 export default function Onboarding() {
   const { completeOnboarding } = useAuth()
   const navigate = useNavigate()
@@ -54,6 +81,23 @@ export default function Onboarding() {
         ? prev.goals.filter(g => g !== goal)
         : [...prev.goals, goal]
     }))
+  }
+
+  const handleDownloadModelo = () => {
+    const modelo = formData.industry 
+      ? getModeloCSV(formData.industry) 
+      : formData.dataSource 
+        ? getModeloCSVByDataSource(formData.dataSource)
+        : 'outro'
+    
+    if (modelo) {
+      const link = document.createElement('a')
+      link.href = `/modelos/${modelo}.csv`
+      link.download = `modelo-${modelo}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -133,6 +177,16 @@ export default function Onboarding() {
                     <option key={industry} value={industry}>{industry}</option>
                   ))}
                 </select>
+                {formData.industry && (
+                  <button
+                    type="button"
+                    onClick={handleDownloadModelo}
+                    className="download-modelo-btn"
+                  >
+                    <Download size={16} />
+                    Baixar modelo CSV para {formData.industry}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -159,6 +213,16 @@ export default function Onboarding() {
                     </label>
                   ))}
                 </div>
+                {formData.dataSource && !formData.industry && (
+                  <button
+                    type="button"
+                    onClick={handleDownloadModelo}
+                    className="download-modelo-btn"
+                  >
+                    <Download size={16} />
+                    Baixar modelo CSV para {formData.dataSource}
+                  </button>
+                )}
               </div>
             </div>
           )}

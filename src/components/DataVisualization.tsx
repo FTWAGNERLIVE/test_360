@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Bar, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart } from 'recharts'
-import { TrendingUp, Database, BarChart3 as BarChartIcon } from 'lucide-react'
+import { TrendingUp, Database, BarChart3 as BarChartIcon, X, Mail } from 'lucide-react'
 import './DataVisualization.css'
 
 interface DataVisualizationProps {
@@ -18,6 +18,9 @@ const formatNumber = (value: number) => {
 }
 
 export default function DataVisualization({ data, headers }: DataVisualizationProps) {
+  const [filteredData, setFilteredData] = useState<any[]>(data)
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  
   const stats = useMemo(() => {
     if (data.length === 0) return null
 
@@ -37,7 +40,8 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
       }
     })
 
-    data.forEach(row => {
+    const dataToAnalyze = filteredData.length > 0 && filteredData.length < data.length ? filteredData : data
+    dataToAnalyze.forEach(row => {
       numericHeaders.forEach(header => {
         const value = Number(row[header])
         if (!isNaN(value)) {
@@ -50,11 +54,54 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     })
 
     return { numericHeaders, statsMap }
-  }, [data, headers])
+  }, [filteredData, data, headers])
+
+  const handleChartClick = (clickedData: any) => {
+    if (!clickedData) return
+    
+    const currentData = filteredData.length > 0 && filteredData.length < data.length ? filteredData : data
+    
+    // Se clicou em um item do gráfico de pizza
+    if (clickedData.name) {
+      const categoryHeader = headers.find(h => 
+        h.toLowerCase().includes('categoria') || 
+        h.toLowerCase().includes('category') ||
+        h.toLowerCase().includes('tipo') ||
+        h.toLowerCase().includes('status')
+      )
+      
+      if (categoryHeader) {
+        const filtered = currentData.filter((row: any) => String(row[categoryHeader]) === clickedData.name)
+        setFilteredData(filtered)
+        setActiveFilter(`${categoryHeader}: ${clickedData.name}`)
+      }
+    }
+    // Se clicou em um item do gráfico de barras/linha
+    else if (clickedData.date || clickedData.category || clickedData.index) {
+      const key = clickedData.date || clickedData.category || clickedData.index
+      const dateHeader = headers.find(h => h.toLowerCase().includes('data') || h.toLowerCase().includes('date'))
+      const categoryHeader = headers.find(h => h.toLowerCase().includes('categoria') || h.toLowerCase().includes('category'))
+      
+      const filtered = currentData.filter((row: any) => {
+        if (dateHeader && String(row[dateHeader]) === String(key)) return true
+        if (categoryHeader && String(row[categoryHeader]) === String(key)) return true
+        return false
+      })
+      setFilteredData(filtered)
+      setActiveFilter(String(key))
+    }
+  }
+
+  const clearFilter = () => {
+    setFilteredData(data)
+    setActiveFilter(null)
+  }
 
   // Dados para gráfico de barras/linhas melhorado
   const chartData = useMemo(() => {
     if (!stats || stats.numericHeaders.length === 0) return []
+    
+    const dataToAnalyze = filteredData.length > 0 ? filteredData : data
 
     // Se houver coluna de data, agrupar por data
     const dateHeader = headers.find(h => 
@@ -65,7 +112,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
 
     if (dateHeader) {
       const grouped: Record<string, any> = {}
-      data.forEach(row => {
+      dataToAnalyze.forEach(row => {
         const date = row[dateHeader] || 'Sem data'
         if (!grouped[date]) {
           grouped[date] = { date, ...stats.numericHeaders.reduce((acc, h) => ({ ...acc, [h]: 0 }), {}) }
@@ -87,7 +134,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
 
     if (categoryHeader) {
       const grouped: Record<string, any> = {}
-      data.forEach(row => {
+      dataToAnalyze.forEach(row => {
         const category = row[categoryHeader] || 'Outros'
         if (!grouped[category]) {
           grouped[category] = { category, ...stats.numericHeaders.reduce((acc, h) => ({ ...acc, [h]: 0 }), {}) }
@@ -100,14 +147,14 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     }
 
     // Caso padrão: primeiros registros
-    return data.slice(0, 10).map((row, index) => {
+    return dataToAnalyze.slice(0, 10).map((row, index) => {
       const chartRow: any = { index: `#${index + 1}` }
       stats.numericHeaders.slice(0, 3).forEach(header => {
         chartRow[header] = Number(row[header]) || 0
       })
       return chartRow
     })
-  }, [data, stats, headers])
+  }, [filteredData, data, stats, headers])
 
   // Dados para gráfico de pizza melhorado
   const pieData = useMemo(() => {
@@ -124,8 +171,9 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     )
 
     if (categoryHeader) {
+      const dataToAnalyze = filteredData.length > 0 && filteredData.length < data.length ? filteredData : data
       const categoryCounts: Record<string, number> = {}
-      data.forEach(row => {
+      dataToAnalyze.forEach(row => {
         const category = String(row[categoryHeader] || 'Outros')
         categoryCounts[category] = (categoryCounts[category] || 0) + 1
       })
@@ -149,7 +197,8 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
       'Muito Alto': 0
     }
 
-    const values = data.map(row => Number(row[firstNumericHeader]) || 0).filter(v => v > 0)
+    const dataToAnalyze = filteredData.length > 0 ? filteredData : data
+    const values = dataToAnalyze.map(row => Number(row[firstNumericHeader]) || 0).filter(v => v > 0)
     if (values.length === 0) return []
 
     const max = Math.max(...values)
@@ -168,14 +217,16 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     return Object.entries(ranges)
       .filter(([, count]) => count > 0)
       .map(([name, value]) => ({ name, value }))
-  }, [data, stats, headers])
+  }, [filteredData, data, stats, headers])
 
   // Estatísticas resumidas
   const summaryStats = useMemo(() => {
     if (!stats || stats.numericHeaders.length === 0) return null
+    
+    const dataToAnalyze = filteredData.length > 0 ? filteredData : data
 
     return stats.numericHeaders.map(header => {
-      const values = data.map(row => Number(row[header]) || 0).filter(v => !isNaN(v) && v > 0)
+      const values = dataToAnalyze.map(row => Number(row[header]) || 0).filter(v => !isNaN(v) && v > 0)
       if (values.length === 0) return null
 
       const sum = values.reduce((a, b) => a + b, 0)
@@ -185,7 +236,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
 
       return { header, avg, max, min, sum, count: values.length }
     }).filter(Boolean)
-  }, [data, stats])
+  }, [filteredData, data, stats])
 
   if (data.length === 0) {
     return (
@@ -196,8 +247,19 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     )
   }
 
+  const displayData = filteredData.length > 0 ? filteredData : data
+
   return (
     <div className="data-visualization">
+      {activeFilter && (
+        <div className="active-filter">
+          <span>Filtro ativo: <strong>{activeFilter}</strong></span>
+          <button onClick={clearFilter} className="clear-filter-btn">
+            <X size={16} />
+            Limpar filtro
+          </button>
+        </div>
+      )}
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon">
@@ -205,7 +267,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
           </div>
           <div className="stat-content">
             <p className="stat-label">Total de Registros</p>
-            <p className="stat-value">{data.length.toLocaleString()}</p>
+            <p className="stat-value">{displayData.length.toLocaleString()}</p>
           </div>
         </div>
 
@@ -239,7 +301,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
               <div className="chart-card">
                 <h3>Análise Comparativa</h3>
                 <ResponsiveContainer width="100%" height={350}>
-                  <ComposedChart data={chartData}>
+                  <ComposedChart data={chartData} onClick={handleChartClick} style={{ cursor: 'pointer' }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#dadce0" opacity={0.3} />
                     <XAxis 
                       dataKey={chartData[0]?.date ? 'date' : chartData[0]?.category ? 'category' : 'index'} 
@@ -296,7 +358,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
               <div className="chart-card">
                 <h3>Tendência Temporal</h3>
                 <ResponsiveContainer width="100%" height={350}>
-                  <AreaChart data={chartData}>
+                  <AreaChart data={chartData} onClick={handleChartClick} style={{ cursor: 'pointer' }}>
                     <defs>
                       {stats.numericHeaders.slice(0, 3).map((header, index) => (
                         <linearGradient key={header} id={`color${index}`} x1="0" y1="0" x2="0" y2="1">
@@ -366,6 +428,8 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                       fill="#8884d8"
                       dataKey="value"
                       paddingAngle={2}
+                      onClick={(data) => handleChartClick(data)}
+                      style={{ cursor: 'pointer' }}
                     >
                       {pieData.map((_entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -422,7 +486,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
           )}
 
           <div className="data-table-section">
-            <h3>Dados (Primeiros 20 registros)</h3>
+            <h3>Dados ({displayData.length > 30 ? 'Primeiros 30 registros' : `${displayData.length} registros`})</h3>
             <div className="table-wrapper">
               <table className="data-table">
                 <thead>
@@ -433,7 +497,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                   </tr>
                 </thead>
                 <tbody>
-                  {data.slice(0, 20).map((row, index) => (
+                  {displayData.slice(0, 30).map((row, index) => (
                     <tr key={index}>
                       {headers.map(header => (
                         <td key={header}>{row[header] || '-'}</td>
@@ -443,6 +507,13 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                 </tbody>
               </table>
             </div>
+            {displayData.length > 30 && (
+              <div className="table-limit-notice">
+                <Mail size={16} />
+                <span>Caso queira ver mais linhas, entre em contato com nosso suporte</span>
+                <a href="mailto:suporte@creattive.com" className="contact-link">Contatar Suporte</a>
+              </div>
+            )}
           </div>
         </>
       )}
