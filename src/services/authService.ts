@@ -47,10 +47,19 @@ export async function createAccount(email: string, password: string, name: strin
 
   try {
     // Criar usuário no Firebase Auth
+    console.log('Tentando criar usuário com email:', email)
+    console.log('Auth configurado:', !!auth)
+    
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     firebaseUser = userCredential.user
+    console.log('Usuário criado com sucesso:', firebaseUser.uid)
   } catch (error: any) {
-    console.error('Erro ao criar usuário no Firebase Auth:', error)
+    console.error('Erro completo ao criar usuário no Firebase Auth:', {
+      code: error.code,
+      message: error.message,
+      error: error,
+      stack: error.stack
+    })
     
     // Tratar erros específicos do Firebase Auth
     if (error.code === 'auth/email-already-in-use') {
@@ -60,13 +69,20 @@ export async function createAccount(email: string, password: string, name: strin
     } else if (error.code === 'auth/weak-password') {
       throw new Error('A senha é muito fraca. Use uma senha com pelo menos 6 caracteres.')
     } else if (error.code === 'auth/operation-not-allowed') {
-      throw new Error('Operação não permitida. Entre em contato com o suporte.')
+      throw new Error('Operação não permitida. Verifique se o método de autenticação por email/senha está habilitado no Firebase Console.')
     } else if (error.code === 'auth/unauthorized-domain') {
-      throw new Error('Domínio não autorizado. Entre em contato com o suporte.')
+      throw new Error('Domínio não autorizado. Adicione este domínio em Firebase Console > Authentication > Settings > Authorized domains')
     } else if (error.code === 'auth/network-request-failed') {
       throw new Error('Erro de conexão. Verifique sua internet e tente novamente.')
+    } else if (error.code === 'auth/invalid-api-key') {
+      throw new Error('Chave API inválida. Verifique as variáveis de ambiente no Vercel.')
+    } else if (error.code === 'auth/app-not-authorized') {
+      throw new Error('Aplicação não autorizada. Verifique as configurações do Firebase.')
     } else {
-      throw new Error(error.message || 'Erro ao criar conta. Tente novamente.')
+      // Para erros 400 sem código específico, mostrar mensagem mais detalhada
+      const errorMsg = error.message || 'Erro ao criar conta. Tente novamente.'
+      console.error('Erro desconhecido:', errorMsg)
+      throw new Error(`${errorMsg} (Código: ${error.code || 'N/A'})`)
     }
   }
 
