@@ -80,7 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return true
     } catch (error: any) {
       console.error('Erro no login:', error)
-      return false
+      // Re-throw para que o componente Login possa exibir a mensagem de erro específica
+      throw error
     }
   }
 

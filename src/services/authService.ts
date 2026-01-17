@@ -103,14 +103,63 @@ export async function login(email: string, password: string): Promise<UserData> 
 
   // Se não for admin hardcoded, tentar Firebase
   if (!auth || !db) {
-    throw new Error('Firebase não está configurado')
+    console.error('Firebase não está configurado. Verifique as variáveis de ambiente no Vercel.')
+    throw new Error('Firebase não está configurado. Verifique as configurações do servidor.')
   }
 
-  const userCredential = await signInWithEmailAndPassword(auth, email, password)
+  let userCredential
+  try {
+    userCredential = await signInWithEmailAndPassword(auth, email, password)
+  } catch (error: any) {
+    console.error('Erro no Firebase Auth:', error)
+    if (error.code === 'auth/unauthorized-domain') {
+      throw new Error('Domínio não autorizado. Verifique as configurações do Firebase Authentication.')
+    } else if (error.code === 'auth/user-not-found') {
+      throw new Error('Usuário não encontrado.')
+    } else if (error.code === 'auth/wrong-password') {
+      throw new Error('Senha incorreta.')
+    } else if (error.code === 'auth/invalid-email') {
+      throw new Error('Email inválido.')
+    }
+    throw new Error(error.message || 'Erro ao fazer login. Tente novamente.')
+  }
+
   const firebaseUser = userCredential.user
 
-  // Buscar dados do usuário no Firestore
-  const userDoc = await getDoc(doc(db, USERS_COLLECTION, firebaseUser.uid))
+  // Buscar dados do usuário no Firestore com retry
+  let userDoc = null
+  let retries = 3
+  let lastError: any = null
+  
+  while (retries > 0) {
+    try {
+      userDoc = await getDoc(doc(db, USERS_COLLECTION, firebaseUser.uid))
+      break
+    } catch (error: any) {
+      lastError = error
+      retries--
+      
+      if (error.code === 'unavailable' || error.code === 'failed-precondition' || error.message?.includes('offline')) {
+        console.warn(`Firestore offline. Tentativas restantes: ${retries}`)
+        if (retries > 0) {
+          // Aguardar progressivamente mais tempo entre tentativas
+          await new Promise(resolve => setTimeout(resolve, 1000 * (4 - retries)))
+        }
+      } else if (error.code === 'permission-denied') {
+        // Erro de permissão - não adianta tentar novamente
+        throw new Error('Permissão negada. Verifique as regras do Firestore.')
+      } else {
+        // Outro tipo de erro - não adianta tentar novamente
+        throw new Error(`Erro ao buscar dados: ${error.message || 'Erro desconhecido'}`)
+      }
+    }
+  }
+  
+  // Se não conseguiu buscar após todas as tentativas
+  if (!userDoc) {
+    console.error('Não foi possível conectar ao Firestore após múltiplas tentativas:', lastError)
+    throw new Error('Não foi possível conectar ao banco de dados. Verifique sua conexão e as configurações do Firebase.')
+  }
   
   if (!userDoc.exists()) {
     throw new Error('Dados do usuário não encontrados')
@@ -156,12 +205,11 @@ export async function loginWithGoogle(): Promise<UserData> {
       break
     } catch (error: any) {
       retries--
-      if (error.code === 'unavailable' || error.message?.includes('offline')) {
+      if (error.code === 'unavailable' || error.code === 'failed-precondition' || error.message?.includes('offline')) {
         console.warn(`Firestore offline. Tentativas restantes: ${retries}`)
         if (retries > 0) {
-          // Aguardar um pouco antes de tentar novamente
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          // Não chamar enableNetwork - pode causar conflitos de estado
+          // Aguardar progressivamente mais tempo entre tentativas
+          await new Promise(resolve => setTimeout(resolve, 1000 * (4 - retries)))
         } else {
           // Se não conseguir buscar e for novo usuário, criar dados temporários
           const trialEndDate = new Date()

@@ -51,7 +51,10 @@ export default function Login() {
       }
       // O redirecionamento será feito automaticamente pelo useEffect quando o user for atualizado
     } catch (err: any) {
-      setError(err.message || 'Erro ao fazer login. Tente novamente.')
+      console.error('Erro no login:', err)
+      // Exibir mensagem de erro mais específica
+      const errorMessage = err.message || 'Erro ao fazer login. Verifique suas credenciais e tente novamente.'
+      setError(errorMessage)
       setLoading(false)
     }
   }
