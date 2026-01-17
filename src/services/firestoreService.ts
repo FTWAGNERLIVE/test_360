@@ -6,7 +6,7 @@ import {
   orderBy,
   Timestamp 
 } from 'firebase/firestore'
-import { db } from '../config/firebase'
+import { db, auth } from '../config/firebase'
 
 export interface OnboardingData {
   companyName: string
@@ -32,25 +32,50 @@ export async function saveOnboardingData(data: Omit<OnboardingData, 'timestamp'>
   }
   
   // Validar dados antes de tentar salvar
-  if (!data.userId || !data.email) {
-    throw new Error('Dados do usuário incompletos. Faça login novamente.')
-  }
-  
   if (!data.companyName || !data.industry || !data.dataSource) {
     throw new Error('Preencha todos os campos obrigatórios do formulário.')
   }
   
+  // Obter o UID do usuário autenticado atual (garantir que seja o correto)
+  if (!auth || !auth.currentUser) {
+    throw new Error('Usuário não autenticado. Faça login novamente.')
+  }
+  
+  const currentUserId = auth.currentUser.uid
+  
+  // Usar o UID atual do Firebase Auth, não o userId passado (pode estar incorreto)
+  const userIdToSave = data.userId || currentUserId
+  
+  // Verificar se o userId passado corresponde ao UID atual
+  if (data.userId && data.userId !== currentUserId) {
+    console.warn('⚠️ ATENÇÃO: userId passado não corresponde ao UID do usuário autenticado!')
+    console.warn('📋 Usando UID do Firebase Auth atual em vez do userId passado.')
+    console.warn('📋 userId passado:', data.userId)
+    console.warn('📋 UID atual:', currentUserId)
+  }
+  
+  if (!data.email) {
+    // Usar o email do usuário autenticado se não foi passado
+    const currentUserEmail = auth.currentUser.email
+    if (!currentUserEmail) {
+      throw new Error('Email do usuário não encontrado. Faça login novamente.')
+    }
+    data.email = currentUserEmail
+  }
+  
   try {
     console.log('💾 Tentando salvar dados de onboarding:', {
-      userId: data.userId,
+      userIdUsado: userIdToSave,
       email: data.email,
       companyName: data.companyName,
-      industry: data.industry
+      industry: data.industry,
+      uidAtual: currentUserId
     })
     
     // Preparar dados antes de enviar para otimizar
     const dataToSave = {
       ...data,
+      userId: userIdToSave, // Garantir que use o UID correto
       timestamp: Timestamp.now()
     }
     
