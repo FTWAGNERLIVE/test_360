@@ -32,13 +32,26 @@ export async function saveOnboardingData(data: Omit<OnboardingData, 'timestamp'>
   }
   
   try {
-    const docRef = await addDoc(collection(db, ONBOARDING_COLLECTION), {
+    // Preparar dados antes de enviar para otimizar
+    const dataToSave = {
       ...data,
       timestamp: Timestamp.now()
-    })
+    }
+    
+    const docRef = await addDoc(collection(db, ONBOARDING_COLLECTION), dataToSave)
     return docRef.id
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao salvar dados de onboarding:', error)
+    
+    // Tratar erros específicos do Firestore
+    if (error.code === 'permission-denied') {
+      throw new Error('Permissão negada. Verifique as regras do Firestore.')
+    } else if (error.code === 'unavailable') {
+      throw new Error('Serviço temporariamente indisponível. Tente novamente.')
+    } else if (error.code === 'deadline-exceeded') {
+      throw new Error('Tempo de espera esgotado. Verifique sua conexão e tente novamente.')
+    }
+    
     throw error
   }
 }

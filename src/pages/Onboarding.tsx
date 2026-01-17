@@ -116,31 +116,42 @@ export default function Onboarding() {
     setSaveSuccess(false)
     
     try {
-      // Salvar no Firebase (se configurado)
       if (user) {
-        await saveOnboardingData({
+        // Executar salvamento e atualização em paralelo para melhor performance
+        const onboardingData = {
           ...formData,
           userId: user.id,
           email: user.email
-        })
+        }
+
+        // Executar ambas as operações em paralelo
+        await Promise.all([
+          saveOnboardingData(onboardingData),
+          completeOnboarding(formData)
+        ])
+        
         setSaveSuccess(true)
-        await completeOnboarding(formData)
+        // Navegar imediatamente após salvar (sem delay desnecessário)
+        navigate('/dashboard')
+      } else {
+        // Se não houver usuário, apenas navegar
+        navigate('/dashboard')
       }
-      
-      // Aguardar um pouco para mostrar mensagem de sucesso
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      navigate('/dashboard')
     } catch (error) {
       console.error('Erro ao processar onboarding:', error)
       setSaveError('Erro ao salvar dados. Tentando novamente...')
       
-      // Fallback: salvar apenas localmente
-      completeOnboarding(formData)
+      // Tentar salvar apenas a atualização do usuário (fallback)
+      try {
+        await completeOnboarding(formData)
+      } catch (fallbackError) {
+        console.error('Erro no fallback:', fallbackError)
+      }
       
-      // Aguardar e navegar mesmo com erro (dados salvos localmente)
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      navigate('/dashboard')
+      // Navegar mesmo com erro (dados podem estar salvos parcialmente)
+      setTimeout(() => {
+        navigate('/dashboard')
+      }, 500)
     } finally {
       setLoading(false)
     }
