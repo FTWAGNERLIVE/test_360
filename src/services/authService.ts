@@ -196,16 +196,33 @@ export async function login(email: string, password: string): Promise<UserData> 
   try {
     userCredential = await signInWithEmailAndPassword(auth, email, password)
   } catch (error: any) {
-    console.error('Erro no Firebase Auth:', error)
-    if (error.code === 'auth/unauthorized-domain') {
+    console.error('Erro no Firebase Auth:', {
+      code: error.code,
+      message: error.message,
+      fullError: error
+    })
+    
+    if (error.code === 'auth/invalid-credential') {
+      throw new Error('Credenciais inválidas. Verifique seu email e senha.')
+    } else if (error.code === 'auth/unauthorized-domain') {
       throw new Error('Domínio não autorizado. Verifique as configurações do Firebase Authentication.')
     } else if (error.code === 'auth/user-not-found') {
-      throw new Error('Usuário não encontrado.')
+      throw new Error('Usuário não encontrado. Verifique se o email está correto.')
     } else if (error.code === 'auth/wrong-password') {
-      throw new Error('Senha incorreta.')
+      throw new Error('Senha incorreta. Tente novamente ou use "Esqueceu sua senha?".')
     } else if (error.code === 'auth/invalid-email') {
-      throw new Error('Email inválido.')
+      throw new Error('Email inválido. Verifique o formato do email.')
+    } else if (error.code === 'auth/too-many-requests') {
+      throw new Error('Muitas tentativas de login. Aguarde alguns minutos e tente novamente.')
+    } else if (error.code === 'auth/network-request-failed') {
+      throw new Error('Erro de conexão. Verifique sua internet e tente novamente.')
     }
+    
+    // Para erros 400 sem código específico
+    if (error.message?.includes('400') || error.message?.includes('Bad Request')) {
+      throw new Error('Erro ao fazer login. Verifique: 1) Se o domínio está autorizado no Firebase, 2) Se as variáveis de ambiente estão corretas no Vercel.')
+    }
+    
     throw new Error(error.message || 'Erro ao fazer login. Tente novamente.')
   }
 

@@ -30,6 +30,16 @@ if (isFirebaseConfigured) {
     db = getFirestore(app)
     auth = getAuth(app)
     
+    // Verificar se projectId está correto (não deve ser storageBucket)
+    const projectIdFromEnv = import.meta.env.VITE_FIREBASE_PROJECT_ID
+    const actualProjectId = projectIdFromEnv || 'farol-360'
+    
+    if (firebaseConfig.projectId !== actualProjectId) {
+      console.warn('⚠️ ATENÇÃO: projectId pode estar incorreto nas variáveis de ambiente!')
+      console.warn('📋 projectId esperado:', actualProjectId)
+      console.warn('📋 projectId atual:', firebaseConfig.projectId)
+    }
+    
     console.log('✅ Firebase inicializado com sucesso:', {
       projectId: firebaseConfig.projectId,
       authDomain: firebaseConfig.authDomain,
@@ -40,10 +50,11 @@ if (isFirebaseConfigured) {
     
     // Log adicional para diagnóstico
     console.log('🔍 Verificando configuração do Firestore...')
-    console.log('📋 Configurações:', {
+    console.log('📋 Configurações completas:', {
       projectId: firebaseConfig.projectId,
       authDomain: firebaseConfig.authDomain,
-      storageBucket: firebaseConfig.storageBucket
+      storageBucket: firebaseConfig.storageBucket,
+      '⚠️ Verifique se projectId não é igual ao storageBucket': firebaseConfig.projectId !== firebaseConfig.storageBucket
     })
     
     // Não chamar enableNetwork na inicialização - deixar o Firestore gerenciar automaticamente
