@@ -43,34 +43,93 @@ export async function createAccount(email: string, password: string, name: strin
     trialEndDate.setFullYear(trialEndDate.getFullYear() + 10)
   }
 
-  // Criar usuário no Firebase Auth
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password)
-  const firebaseUser = userCredential.user
+  let firebaseUser: any = null
 
-  // Criar documento do usuário no Firestore
-  const userData: Omit<UserData, 'id'> = {
-    email: firebaseUser.email!,
-    name: name || email.split('@')[0],
-    role: role,
-    onboardingCompleted: role !== 'user', // Admin e vendas não precisam de onboarding
-    createdAt: new Date(),
-    trialEndDate
+  try {
+    // Criar usuário no Firebase Auth
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+    firebaseUser = userCredential.user
+  } catch (error: any) {
+    console.error('Erro ao criar usuário no Firebase Auth:', error)
+    
+    // Tratar erros específicos do Firebase Auth
+    if (error.code === 'auth/email-already-in-use') {
+      throw new Error('Este email já está cadastrado. Tente fazer login.')
+    } else if (error.code === 'auth/invalid-email') {
+      throw new Error('Email inválido. Verifique o formato do email.')
+    } else if (error.code === 'auth/weak-password') {
+      throw new Error('A senha é muito fraca. Use uma senha com pelo menos 6 caracteres.')
+    } else if (error.code === 'auth/operation-not-allowed') {
+      throw new Error('Operação não permitida. Entre em contato com o suporte.')
+    } else if (error.code === 'auth/unauthorized-domain') {
+      throw new Error('Domínio não autorizado. Entre em contato com o suporte.')
+    } else if (error.code === 'auth/network-request-failed') {
+      throw new Error('Erro de conexão. Verifique sua internet e tente novamente.')
+    } else {
+      throw new Error(error.message || 'Erro ao criar conta. Tente novamente.')
+    }
   }
 
-  await setDoc(doc(db, USERS_COLLECTION, firebaseUser.uid), {
-    ...userData,
-    createdAt: Timestamp.now(),
-    trialEndDate: Timestamp.fromDate(trialEndDate)
-  })
+  if (!firebaseUser) {
+    throw new Error('Falha ao criar usuário')
+  }
 
-  // Enviar email de verificação
-  if (firebaseUser.email) {
-    await sendEmailVerification(firebaseUser)
+  try {
+    // Criar documento do usuário no Firestore
+    const userData: Omit<UserData, 'id'> = {
+      email: firebaseUser.email!,
+      name: name || email.split('@')[0],
+      role: role,
+      onboardingCompleted: role !== 'user', // Admin e vendas não precisam de onboarding
+      createdAt: new Date(),
+      trialEndDate
+    }
+
+    await setDoc(doc(db, USERS_COLLECTION, firebaseUser.uid), {
+      ...userData,
+      createdAt: Timestamp.now(),
+      trialEndDate: Timestamp.fromDate(trialEndDate)
+    })
+  } catch (error: any) {
+    console.error('Erro ao criar documento no Firestore:', error)
+    
+    // Se falhar ao criar no Firestore, tentar deletar o usuário do Auth para evitar inconsistência
+    try {
+      if (firebaseUser) {
+        await firebaseUser.delete()
+      }
+    } catch (deleteError) {
+      console.error('Erro ao deletar usuário após falha no Firestore:', deleteError)
+    }
+
+    // Tratar erros específicos do Firestore
+    if (error.code === 'permission-denied') {
+      throw new Error('Permissão negada. Verifique as regras do Firestore.')
+    } else if (error.code === 'unavailable') {
+      throw new Error('Serviço temporariamente indisponível. Tente novamente em alguns instantes.')
+    } else {
+      throw new Error('Erro ao salvar dados do usuário. Tente novamente.')
+    }
+  }
+
+  try {
+    // Enviar email de verificação
+    if (firebaseUser.email) {
+      await sendEmailVerification(firebaseUser)
+    }
+  } catch (error: any) {
+    // Não bloquear a criação se falhar o envio de email
+    console.warn('Erro ao enviar email de verificação:', error)
   }
 
   return {
     id: firebaseUser.uid,
-    ...userData
+    email: firebaseUser.email!,
+    name: name || email.split('@')[0],
+    role: role,
+    onboardingCompleted: role !== 'user',
+    createdAt: new Date(),
+    trialEndDate
   }
 }
 

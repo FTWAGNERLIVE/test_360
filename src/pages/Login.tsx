@@ -135,14 +135,29 @@ export default function Login() {
         // O redirecionamento será feito automaticamente pelo useEffect quando o user for atualizado
       }, 2000)
     } catch (err: any) {
+      console.error('Erro completo ao criar conta:', err)
+      
+      // Tratar erros específicos do Firebase
       if (err.code === 'auth/email-already-in-use') {
         setError('Este email já está cadastrado. Tente fazer login.')
       } else if (err.code === 'auth/invalid-email') {
-        setError('Email inválido')
+        setError('Email inválido. Verifique o formato do email.')
       } else if (err.code === 'auth/weak-password') {
         setError('A senha é muito fraca. Use uma senha mais forte.')
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('Operação não permitida. Entre em contato com o suporte.')
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError('Domínio não autorizado. Entre em contato com o suporte.')
+      } else if (err.code === 'auth/network-request-failed') {
+        setError('Erro de conexão. Verifique sua internet e tente novamente.')
+      } else if (err.message?.includes('Permissão negada')) {
+        setError('Erro de permissão. Entre em contato com o suporte.')
+      } else if (err.message?.includes('Firestore')) {
+        setError('Erro ao salvar dados. Tente novamente em alguns instantes.')
       } else {
-        setError(err.message || 'Erro ao criar conta. Tente novamente.')
+        // Mostrar mensagem de erro mais amigável
+        const errorMessage = err.message || 'Erro ao criar conta. Tente novamente.'
+        setError(errorMessage)
       }
       setSignUpLoading(false)
     }
