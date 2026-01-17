@@ -1,13 +1,51 @@
 import { useState, useRef } from 'react'
-import { Upload, FileCheck, AlertCircle } from 'lucide-react'
+import { Upload, FileCheck, AlertCircle, Download } from 'lucide-react'
 import Papa from 'papaparse'
 import './CSVUploader.css'
 
-interface CSVUploaderProps {
-  onFileUploaded: (data: any[], headers: string[]) => void
+interface OnboardingData {
+  companyName?: string
+  industry?: string
+  dataSource?: string
+  goals?: string[]
+  specificQuestions?: string
+  contact?: string
 }
 
-export default function CSVUploader({ onFileUploaded }: CSVUploaderProps) {
+interface CSVUploaderProps {
+  onFileUploaded: (data: any[], headers: string[]) => void
+  onboardingData?: OnboardingData
+}
+
+// Mapeamento de indústria para modelo CSV
+const getModeloCSV = (industry: string): string | null => {
+  const mapping: Record<string, string> = {
+    'E-commerce': 'ecommerce',
+    'Saúde': 'saude',
+    'Financeiro': 'financeiro',
+    'Educação': 'educacao',
+    'Tecnologia': 'vendas',
+    'Varejo': 'vendas',
+    'Manufatura': 'vendas',
+    'Outro': 'outro'
+  }
+  return mapping[industry] || null
+}
+
+// Mapeamento de fonte de dados para modelo CSV
+const getModeloCSVByDataSource = (dataSource: string): string | null => {
+  const mapping: Record<string, string> = {
+    'Vendas': 'vendas',
+    'Marketing': 'marketing',
+    'Recursos Humanos': 'rh',
+    'Financeiro': 'financeiro',
+    'Clientes': 'ecommerce',
+    'Outro': 'outro'
+  }
+  return mapping[dataSource] || null
+}
+
+export default function CSVUploader({ onFileUploaded, onboardingData }: CSVUploaderProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState('')
@@ -75,6 +113,72 @@ export default function CSVUploader({ onFileUploaded }: CSVUploaderProps) {
     fileInputRef.current?.click()
   }
 
+  const handleDownloadExample = async () => {
+    // Determinar qual modelo CSV baixar baseado no onboarding
+    let modelo = 'outro' // padrão
+    
+    if (onboardingData?.industry) {
+      const modeloByIndustry = getModeloCSV(onboardingData.industry)
+      if (modeloByIndustry) {
+        modelo = modeloByIndustry
+      }
+    } else if (onboardingData?.dataSource) {
+      const modeloByDataSource = getModeloCSVByDataSource(onboardingData.dataSource)
+      if (modeloByDataSource) {
+        modelo = modeloByDataSource
+      }
+    }
+    
+    // Baixar o arquivo CSV da pasta public/modelos
+    try {
+      const response = await fetch(`/modelos/${modelo}.csv`)
+      if (!response.ok) {
+        throw new Error('Arquivo não encontrado')
+      }
+      
+      const csvContent = await response.text()
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      
+      // Nome do arquivo baseado no modelo
+      const nomeArquivo = onboardingData?.industry 
+        ? `modelo-${onboardingData.industry.toLowerCase().replace(/\s+/g, '-')}.csv`
+        : onboardingData?.dataSource
+          ? `modelo-${onboardingData.dataSource.toLowerCase().replace(/\s+/g, '-')}.csv`
+          : `modelo-${modelo}.csv`
+      
+      link.setAttribute('href', url)
+      link.setAttribute('download', nomeArquivo)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Erro ao baixar modelo CSV:', error)
+      // Fallback para exemplo genérico
+      const exampleCSV = `Produto,Categoria,Vendas,Data,Região
+Notebook,Electrônicos,15000,2024-01-15,Sudeste
+Smartphone,Electrônicos,25000,2024-01-16,Nordeste
+Tablet,Electrônicos,8000,2024-01-17,Sul
+Mouse,Periféricos,5000,2024-01-18,Sudeste
+Teclado,Periféricos,6000,2024-01-19,Norte`
+
+      const blob = new Blob(['\uFEFF' + exampleCSV], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      
+      link.setAttribute('href', url)
+      link.setAttribute('download', 'exemplo-dados.csv')
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    }
+  }
+
   return (
     <div className="csv-uploader">
       <div
@@ -119,10 +223,27 @@ export default function CSVUploader({ onFileUploaded }: CSVUploaderProps) {
       )}
 
       {!isProcessing && (
-        <div className="upload-info">
-          <FileCheck size={16} />
-          <span>Seus dados serão processados de forma segura e privada</span>
-        </div>
+        <>
+          <div className="upload-info">
+            <FileCheck size={16} />
+            <span>Seus dados serão processados de forma segura e privada</span>
+          </div>
+          <button 
+            type="button"
+            className="download-example-btn"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleDownloadExample()
+            }}
+          >
+            <Download size={18} />
+            {onboardingData?.industry 
+              ? `Baixar modelo CSV para ${onboardingData.industry}`
+              : onboardingData?.dataSource
+                ? `Baixar modelo CSV para ${onboardingData.dataSource}`
+                : 'Baixar exemplo CSV'}
+          </button>
+        </>
       )}
     </div>
   )

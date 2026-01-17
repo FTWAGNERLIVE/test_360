@@ -4,10 +4,14 @@
 
 **URL:** `/admin` (após fazer login)
 
-## Credenciais
+## Credenciais Temporárias (Sem Firebase)
 
 - **Email:** `admin@creattive.com`
 - **Senha:** `admin123`
+
+✅ **Funciona sem Firebase:** Estas credenciais funcionam como fallback e permitem acesso ao painel admin mesmo sem Firebase configurado. O sistema verifica essas credenciais primeiro antes de tentar autenticação via Firebase.
+
+⚠️ **Nota:** Esta é uma conta temporária para desenvolvimento. Em produção, use contas criadas através do Firebase.
 
 ## Funcionalidades do Painel Admin
 

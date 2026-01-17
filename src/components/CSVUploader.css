@@ -84,3 +84,32 @@
   color: var(--text-secondary);
   font-size: 12px;
 }
+
+.download-example-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px auto 0;
+  padding: 12px 24px;
+  background: #34a853;
+  border: 1px solid #34a853;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.download-example-btn:hover {
+  background: #2d8f47;
+  border-color: #2d8f47;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(52, 168, 83, 0.3);
+}
+
+.download-example-btn:active {
+  transform: translateY(0);
+  background: #267d3e;
+}

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { Building2, Target, Database, MessageSquare, Clock, Download } from 'lucide-react'
+import { Building2, Target, Database, MessageSquare, Clock, Download, CheckCircle, AlertCircle } from 'lucide-react'
+import { saveOnboardingData } from '../services/firestoreService'
 import './Onboarding.css'
 
 const INDUSTRIES = [
@@ -62,7 +63,7 @@ const getModeloCSVByDataSource = (dataSource: string): string | null => {
 }
 
 export default function Onboarding() {
-  const { completeOnboarding } = useAuth()
+  const { completeOnboarding, user } = useAuth()
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
@@ -74,6 +75,8 @@ export default function Onboarding() {
     contact: ''
   })
   const [loading, setLoading] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [saveSuccess, setSaveSuccess] = useState(false)
 
   const handleGoalToggle = (goal: string) => {
     setFormData(prev => ({
@@ -109,12 +112,38 @@ export default function Onboarding() {
     }
 
     setLoading(true)
+    setSaveError('')
+    setSaveSuccess(false)
     
-    // Simular processamento
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    completeOnboarding(formData)
-    navigate('/dashboard')
+    try {
+      // Salvar no Firebase (se configurado)
+      if (user) {
+        await saveOnboardingData({
+          ...formData,
+          userId: user.id,
+          email: user.email
+        })
+        setSaveSuccess(true)
+        await completeOnboarding(formData)
+      }
+      
+      // Aguardar um pouco para mostrar mensagem de sucesso
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      navigate('/dashboard')
+    } catch (error) {
+      console.error('Erro ao processar onboarding:', error)
+      setSaveError('Erro ao salvar dados. Tentando novamente...')
+      
+      // Fallback: salvar apenas localmente
+      completeOnboarding(formData)
+      
+      // Aguardar e navegar mesmo com erro (dados salvos localmente)
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      navigate('/dashboard')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const canProceed = () => {
@@ -285,12 +314,27 @@ export default function Onboarding() {
             </div>
           )}
 
+          {saveError && (
+            <div className="save-error-message">
+              <AlertCircle size={18} />
+              <span>{saveError}</span>
+            </div>
+          )}
+          
+          {saveSuccess && (
+            <div className="save-success-message">
+              <CheckCircle size={18} />
+              <span>Dados salvos com sucesso!</span>
+            </div>
+          )}
+
           <div className="form-actions">
             {step > 1 && (
               <button
                 type="button"
                 onClick={() => setStep(step - 1)}
                 className="btn-secondary"
+                disabled={loading}
               >
                 Voltar
               </button>
@@ -300,7 +344,7 @@ export default function Onboarding() {
               className="btn-primary"
               disabled={!canProceed() || loading}
             >
-              {loading ? 'Processando...' : step === 4 ? 'Finalizar' : 'Continuar'}
+              {loading ? 'Salvando dados...' : step === 4 ? 'Finalizar' : 'Continuar'}
             </button>
           </div>
         </form>

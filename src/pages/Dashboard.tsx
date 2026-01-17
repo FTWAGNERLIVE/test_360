@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { LogOut, FileText, BarChart3, MessageCircle, Clock, CheckCircle2 } from 'lucide-react'
+import { LogOut, FileText, BarChart3, MessageCircle, Clock, CheckCircle2, HelpCircle, Send, X } from 'lucide-react'
 import CSVUploader from '../components/CSVUploader'
 import DataVisualization from '../components/DataVisualization'
 import ChatBot from '../components/ChatBot'
+import { sendSupportMessage } from '../services/supportService'
 import './Dashboard.css'
 
 export default function Dashboard() {
@@ -12,6 +13,11 @@ export default function Dashboard() {
   const [csvHeaders, setCsvHeaders] = useState<string[]>([])
   const [showChat, setShowChat] = useState(false)
   const [showSavedMessage, setShowSavedMessage] = useState(false)
+  const [showSupport, setShowSupport] = useState(false)
+  const [supportSubject, setSupportSubject] = useState('')
+  const [supportMessage, setSupportMessage] = useState('')
+  const [supportLoading, setSupportLoading] = useState(false)
+  const [supportSuccess, setSupportSuccess] = useState(false)
 
   // Carregar dados salvos ao montar o componente
   useEffect(() => {
@@ -63,6 +69,38 @@ export default function Dashboard() {
     }
   }
 
+  const handleSendSupport = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!supportSubject.trim() || !supportMessage.trim() || !user) {
+      return
+    }
+
+    setSupportLoading(true)
+    setSupportSuccess(false)
+
+    try {
+      await sendSupportMessage(
+        user.id,
+        user.email,
+        user.name,
+        supportSubject,
+        supportMessage
+      )
+      setSupportSuccess(true)
+      setSupportSubject('')
+      setSupportMessage('')
+      setTimeout(() => {
+        setSupportSuccess(false)
+        setShowSupport(false)
+      }, 3000)
+    } catch (error) {
+      console.error('Erro ao enviar mensagem de suporte:', error)
+      alert('Erro ao enviar mensagem. Tente novamente.')
+    } finally {
+      setSupportLoading(false)
+    }
+  }
+
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
@@ -100,7 +138,10 @@ export default function Dashboard() {
                 <FileText size={48} className="upload-icon" />
                 <h2>Faça upload do seu arquivo CSV</h2>
                 <p>Envie seus dados para análise inteligente com IA</p>
-                <CSVUploader onFileUploaded={handleFileUploaded} />
+                <CSVUploader 
+                  onFileUploaded={handleFileUploaded} 
+                  onboardingData={user?.onboardingData}
+                />
               </div>
             </div>
           ) : (
@@ -121,18 +162,92 @@ export default function Dashboard() {
           )}
         </div>
 
-        {csvData.length > 0 && (
+        <div className="dashboard-actions">
+          {csvData.length > 0 && (
+            <button
+              className="chat-toggle"
+              onClick={() => setShowChat(!showChat)}
+            >
+              <MessageCircle size={24} />
+              {showChat ? 'Ocultar' : 'Abrir'} Chat
+            </button>
+          )}
+          
           <button
-            className="chat-toggle"
-            onClick={() => setShowChat(!showChat)}
+            className="support-toggle"
+            onClick={() => setShowSupport(!showSupport)}
           >
-            <MessageCircle size={24} />
-            {showChat ? 'Ocultar' : 'Abrir'} Chat
+            <HelpCircle size={24} />
+            {showSupport ? 'Fechar' : 'Suporte'}
           </button>
-        )}
+        </div>
 
         {showChat && csvData.length > 0 && (
           <ChatBot data={csvData} headers={csvHeaders} />
+        )}
+
+        {showSupport && (
+          <div className="support-modal">
+            <div className="support-form-card">
+              <div className="support-form-header">
+                <h2>Enviar Mensagem de Suporte</h2>
+                <button
+                  onClick={() => {
+                    setShowSupport(false)
+                    setSupportSubject('')
+                    setSupportMessage('')
+                    setSupportSuccess(false)
+                  }}
+                  className="close-support-btn"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {supportSuccess ? (
+                <div className="support-success">
+                  <CheckCircle2 size={48} />
+                  <h3>Mensagem enviada com sucesso!</h3>
+                  <p>Nossa equipe entrará em contato em breve.</p>
+                </div>
+              ) : (
+                <form onSubmit={handleSendSupport} className="support-form">
+                  <div className="form-group">
+                    <label htmlFor="supportSubject">Assunto</label>
+                    <input
+                      id="supportSubject"
+                      type="text"
+                      value={supportSubject}
+                      onChange={(e) => setSupportSubject(e.target.value)}
+                      placeholder="Ex: Problema com upload de arquivo"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="supportMessage">Mensagem</label>
+                    <textarea
+                      id="supportMessage"
+                      value={supportMessage}
+                      onChange={(e) => setSupportMessage(e.target.value)}
+                      placeholder="Descreva seu problema ou dúvida..."
+                      rows={6}
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="send-support-btn"
+                    disabled={supportLoading || !supportSubject.trim() || !supportMessage.trim()}
+                  >
+                    <Send size={18} />
+                    {supportLoading ? 'Enviando...' : 'Enviar Mensagem'}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
         )}
       </main>
     </div>
