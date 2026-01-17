@@ -79,25 +79,42 @@ export async function saveOnboardingData(data: Omit<OnboardingData, 'timestamp'>
       timestamp: Timestamp.now()
     }
     
-    const docRef = await addDoc(collection(db, ONBOARDING_COLLECTION), dataToSave)
+    // Adicionar timeout de 30 segundos para evitar travamento
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('TIMEOUT: Operação demorou mais de 30 segundos. Verifique sua conexão e as regras do Firestore.'))
+      }, 30000) // 30 segundos
+    })
+    
+    // Executar salvamento com timeout
+    const savePromise = addDoc(collection(db, ONBOARDING_COLLECTION), dataToSave)
+    
+    console.log('⏳ Aguardando resposta do Firestore...')
+    const docRef = await Promise.race([savePromise, timeoutPromise])
+    
     console.log('✅ Dados de onboarding salvos com sucesso. ID:', docRef.id)
     return docRef.id
   } catch (error: any) {
     console.error('❌ Erro ao salvar dados de onboarding:', {
       code: error.code,
       message: error.message,
-      error: error
+      error: error,
+      stack: error.stack
     })
     
     // Tratar erros específicos do Firestore
-    if (error.code === 'permission-denied') {
-      throw new Error('Permissão negada. Verifique as regras do Firestore ou se você está autenticado.')
+    if (error.message?.includes('TIMEOUT')) {
+      throw new Error('Operação demorou muito. Verifique: 1) Sua conexão com a internet, 2) Se as regras do Firestore estão publicadas, 3) Se o Firestore está online.')
+    } else if (error.code === 'permission-denied') {
+      throw new Error('Permissão negada. Verifique: 1) Se as regras do Firestore estão publicadas, 2) Se você está autenticado, 3) Se o userId corresponde ao uid do usuário.')
     } else if (error.code === 'unavailable') {
-      throw new Error('Serviço temporariamente indisponível. Tente novamente em alguns instantes.')
+      throw new Error('Serviço temporariamente indisponível. Verifique: 1) Se o Firestore está habilitado, 2) Se está em Native mode, 3) Tente novamente em alguns instantes.')
     } else if (error.code === 'deadline-exceeded') {
       throw new Error('Tempo de espera esgotado. Verifique sua conexão e tente novamente.')
     } else if (error.code === 'failed-precondition') {
-      throw new Error('Erro de pré-condição. Verifique se o Firestore está habilitado e as regras estão publicadas.')
+      throw new Error('Erro de pré-condição. Verifique: 1) Se o Firestore está habilitado, 2) Se as regras estão publicadas, 3) Se está em Native mode.')
+    } else if (error.code === 'cancelled') {
+      throw new Error('Operação cancelada. Tente novamente.')
     }
     
     // Re-throw com mensagem mais clara

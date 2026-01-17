@@ -124,11 +124,22 @@ export default function Onboarding() {
           email: user.email
         }
 
-        // Executar ambas as operações em paralelo
-        await Promise.all([
-          saveOnboardingData(onboardingData),
-          completeOnboarding(formData)
-        ])
+        // Executar salvamento primeiro (mais crítico)
+        try {
+          await saveOnboardingData(onboardingData)
+          console.log('✅ Dados de onboarding salvos com sucesso')
+        } catch (saveError: any) {
+          console.error('❌ Erro ao salvar dados de onboarding:', saveError)
+          throw saveError // Re-throw para ser capturado pelo catch externo
+        }
+        
+        // Depois atualizar o status do usuário (menos crítico, pode falhar sem bloquear)
+        try {
+          await completeOnboarding(formData)
+        } catch (updateError) {
+          console.warn('⚠️ Erro ao atualizar status do usuário (não crítico):', updateError)
+          // Não bloquear se falhar - os dados já foram salvos
+        }
         
         setSaveSuccess(true)
         // Navegar imediatamente após salvar (sem delay desnecessário)
