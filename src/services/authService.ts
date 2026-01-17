@@ -79,9 +79,19 @@ export async function createAccount(email: string, password: string, name: strin
     } else if (error.code === 'auth/app-not-authorized') {
       throw new Error('Aplicação não autorizada. Verifique as configurações do Firebase.')
     } else {
-      // Para erros 400 sem código específico, mostrar mensagem mais detalhada
+      // Para erros 400 sem código específico, verificar a mensagem
       const errorMsg = error.message || 'Erro ao criar conta. Tente novamente.'
-      console.error('Erro desconhecido:', errorMsg)
+      console.error('Erro ao criar conta:', {
+        code: error.code,
+        message: errorMsg,
+        fullError: error
+      })
+      
+      // Verificar se é um erro 400 genérico
+      if (errorMsg.includes('400') || errorMsg.includes('Bad Request') || !error.code) {
+        throw new Error('Erro ao criar conta. Verifique: 1) Se o domínio está autorizado no Firebase, 2) Se o método Email/Password está habilitado, 3) Se as variáveis de ambiente estão corretas no Vercel.')
+      }
+      
       throw new Error(`${errorMsg} (Código: ${error.code || 'N/A'})`)
     }
   }
