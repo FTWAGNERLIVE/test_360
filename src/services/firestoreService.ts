@@ -22,123 +22,129 @@ export interface OnboardingData {
 }
 
 const ONBOARDING_COLLECTION = 'onboarding_data'
+const SAVE_TIMEOUT = 20000 // 20 segundos
 
 /**
  * Salva os dados de onboarding no Firestore
+ * Versão reestruturada e simplificada
  */
 export async function saveOnboardingData(data: Omit<OnboardingData, 'timestamp'>): Promise<string> {
+  // Validação 1: Firebase configurado
   if (!db) {
-    throw new Error('Firebase não está configurado')
+    throw new Error('Firebase não está configurado. Verifique as variáveis de ambiente.')
   }
-  
-  // Validar dados antes de tentar salvar
-  if (!data.companyName || !data.industry || !data.dataSource) {
-    throw new Error('Preencha todos os campos obrigatórios do formulário.')
-  }
-  
-  // Obter o UID do usuário autenticado atual (garantir que seja o correto)
+
+  // Validação 2: Usuário autenticado
   if (!auth || !auth.currentUser) {
     throw new Error('Usuário não autenticado. Faça login novamente.')
   }
-  
-  const currentUserId = auth.currentUser.uid
-  
-  // Usar o UID atual do Firebase Auth, não o userId passado (pode estar incorreto)
-  const userIdToSave = data.userId || currentUserId
-  
-  // Verificar se o userId passado corresponde ao UID atual
-  if (data.userId && data.userId !== currentUserId) {
-    console.warn('⚠️ ATENÇÃO: userId passado não corresponde ao UID do usuário autenticado!')
-    console.warn('📋 Usando UID do Firebase Auth atual em vez do userId passado.')
-    console.warn('📋 userId passado:', data.userId)
-    console.warn('📋 UID atual:', currentUserId)
+
+  const currentUser = auth.currentUser
+  const currentUserId = currentUser.uid
+  const currentUserEmail = currentUser.email || data.email
+
+  if (!currentUserEmail) {
+    throw new Error('Email do usuário não encontrado. Faça login novamente.')
   }
-  
-  if (!data.email) {
-    // Usar o email do usuário autenticado se não foi passado
-    const currentUserEmail = auth.currentUser.email
-    if (!currentUserEmail) {
-      throw new Error('Email do usuário não encontrado. Faça login novamente.')
-    }
-    data.email = currentUserEmail
+
+  // Validação 3: Dados obrigatórios
+  if (!data.companyName?.trim()) {
+    throw new Error('Nome da empresa é obrigatório.')
   }
-  
+  if (!data.industry?.trim()) {
+    throw new Error('Setor/Indústria é obrigatório.')
+  }
+  if (!data.dataSource?.trim()) {
+    throw new Error('Fonte de dados é obrigatória.')
+  }
+  if (!data.goals || data.goals.length === 0) {
+    throw new Error('Selecione pelo menos um objetivo.')
+  }
+
+  // Preparar dados para salvar
+  const dataToSave = {
+    companyName: data.companyName.trim(),
+    industry: data.industry.trim(),
+    dataSource: data.dataSource.trim(),
+    goals: data.goals, // Array
+    specificQuestions: data.specificQuestions?.trim() || '',
+    contact: data.contact?.trim() || '',
+    userId: currentUserId, // SEMPRE usar o UID do Firebase Auth
+    email: currentUserEmail,
+    timestamp: Timestamp.now()
+  }
+
+  console.log('💾 Salvando dados de onboarding:', {
+    userId: currentUserId,
+    email: currentUserEmail,
+    companyName: dataToSave.companyName,
+    industry: dataToSave.industry,
+    goalsCount: dataToSave.goals.length
+  })
+
   try {
-    console.log('💾 Tentando salvar dados de onboarding:', {
-      userIdUsado: userIdToSave,
-      email: data.email,
-      companyName: data.companyName,
-      industry: data.industry,
-      uidAtual: currentUserId
-    })
-    
-    // Preparar dados antes de enviar para otimizar
-    const dataToSave = {
-      ...data,
-      userId: userIdToSave, // Garantir que use o UID correto
-      timestamp: Timestamp.now()
-    }
-    
-    // Adicionar timeout de 30 segundos para evitar travamento
+    // Criar promise de salvamento
+    const savePromise = addDoc(collection(db, ONBOARDING_COLLECTION), dataToSave)
+
+    // Criar promise de timeout
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
-        reject(new Error('TIMEOUT: Operação demorou mais de 30 segundos. Verifique sua conexão e as regras do Firestore.'))
-      }, 30000) // 30 segundos
+        reject(new Error('TIMEOUT'))
+      }, SAVE_TIMEOUT)
     })
-    
-    // Executar salvamento com timeout
-    const savePromise = addDoc(collection(db, ONBOARDING_COLLECTION), dataToSave)
-    
-    console.log('⏳ Aguardando resposta do Firestore...')
+
+    // Executar com timeout
     const docRef = await Promise.race([savePromise, timeoutPromise])
-    
-    console.log('✅ Dados de onboarding salvos com sucesso. ID:', docRef.id)
+
+    console.log('✅ Dados salvos com sucesso! ID do documento:', docRef.id)
     return docRef.id
+
   } catch (error: any) {
-    console.error('❌ Erro ao salvar dados de onboarding:', {
+    console.error('❌ Erro ao salvar dados:', {
       code: error.code,
       message: error.message,
-      error: error,
-      stack: error.stack
+      name: error.name
     })
-    
-    // Tratar erros específicos do Firestore
-    if (error.message?.includes('TIMEOUT')) {
-      throw new Error('Operação demorou muito. Verifique: 1) Sua conexão com a internet, 2) Se as regras do Firestore estão publicadas, 3) Se o Firestore está online.')
-    } else if (error.code === 'permission-denied') {
-      throw new Error('Permissão negada. Verifique: 1) Se as regras do Firestore estão publicadas, 2) Se você está autenticado, 3) Se o userId corresponde ao uid do usuário.')
-    } else if (error.code === 'unavailable') {
-      throw new Error('Serviço temporariamente indisponível. Verifique: 1) Se o Firestore está habilitado, 2) Se está em Native mode, 3) Tente novamente em alguns instantes.')
-    } else if (error.code === 'deadline-exceeded') {
-      throw new Error('Tempo de espera esgotado. Verifique sua conexão e tente novamente.')
-    } else if (error.code === 'failed-precondition') {
-      throw new Error('Erro de pré-condição. Verifique: 1) Se o Firestore está habilitado, 2) Se as regras estão publicadas, 3) Se está em Native mode.')
-    } else if (error.code === 'cancelled') {
-      throw new Error('Operação cancelada. Tente novamente.')
+
+    // Tratamento de erros específicos
+    if (error.message === 'TIMEOUT') {
+      throw new Error('Operação demorou muito. Verifique sua conexão e tente novamente.')
     }
-    
-    // Re-throw com mensagem mais clara
+
+    if (error.code === 'permission-denied') {
+      throw new Error('Permissão negada. Verifique: 1) Se as regras do Firestore estão PUBLICADAS, 2) Se você está autenticado, 3) Se o userId corresponde ao uid do usuário.')
+    }
+
+    if (error.code === 'unavailable' || error.code === 'failed-precondition') {
+      throw new Error('Firestore indisponível. Verifique: 1) Se o Firestore está habilitado, 2) Se está em Native mode, 3) Se as regras estão publicadas.')
+    }
+
+    if (error.code === 'deadline-exceeded') {
+      throw new Error('Tempo de espera esgotado. Verifique sua conexão e tente novamente.')
+    }
+
+    // Erro genérico
     throw new Error(error.message || 'Erro ao salvar dados. Tente novamente.')
   }
 }
 
 /**
- * Busca todos os dados de onboarding (para admin)
+ * Busca todos os dados de onboarding (para admin/vendas)
  */
 export async function getAllOnboardingData(): Promise<OnboardingData[]> {
   if (!db) {
     throw new Error('Firebase não está configurado')
   }
-  
+
   try {
     const q = query(
       collection(db, ONBOARDING_COLLECTION),
       orderBy('timestamp', 'desc')
     )
-    
+
     const querySnapshot = await getDocs(q)
     const data: OnboardingData[] = []
-    
+
     querySnapshot.forEach((doc) => {
       const docData = doc.data()
       data.push({
@@ -147,7 +153,7 @@ export async function getAllOnboardingData(): Promise<OnboardingData[]> {
         id: doc.id
       } as OnboardingData & { id: string })
     })
-    
+
     return data
   } catch (error) {
     console.error('Erro ao buscar dados de onboarding:', error)
