@@ -137,23 +137,34 @@ export default function Onboarding() {
         // Se não houver usuário, apenas navegar
         navigate('/dashboard')
       }
-    } catch (error) {
-      console.error('Erro ao processar onboarding:', error)
-      setSaveError('Erro ao salvar dados. Tentando novamente...')
+    } catch (error: any) {
+      console.error('❌ Erro ao processar onboarding:', {
+        error,
+        code: error?.code,
+        message: error?.message,
+        stack: error?.stack
+      })
       
-      // Tentar salvar apenas a atualização do usuário (fallback)
-      try {
-        await completeOnboarding(formData)
-      } catch (fallbackError) {
-        console.error('Erro no fallback:', fallbackError)
+      // Mensagem de erro mais específica
+      let errorMessage = 'Erro ao salvar dados. '
+      
+      if (error?.message?.includes('Permissão negada') || error?.code === 'permission-denied') {
+        errorMessage += 'Verifique as regras do Firestore ou se você está autenticado.'
+      } else if (error?.message?.includes('indisponível') || error?.code === 'unavailable') {
+        errorMessage += 'Serviço temporariamente indisponível. Tente novamente em alguns instantes.'
+      } else if (error?.message?.includes('Firebase não está configurado')) {
+        errorMessage += 'Firebase não está configurado. Verifique as variáveis de ambiente.'
+      } else if (error?.message) {
+        errorMessage += error.message
+      } else {
+        errorMessage += 'Tente novamente ou entre em contato com o suporte.'
       }
       
-      // Navegar mesmo com erro (dados podem estar salvos parcialmente)
-      setTimeout(() => {
-        navigate('/dashboard')
-      }, 500)
-    } finally {
+      setSaveError(errorMessage)
       setLoading(false)
+      
+      // NÃO navegar se houver erro - deixar o usuário tentar novamente
+      // O usuário pode clicar em "Salvar dados" novamente
     }
   }
 
