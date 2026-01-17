@@ -422,11 +422,13 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
       return
     }
 
+    console.log('🔐 onAuthStateChange: Usuário autenticado:', firebaseUser.email)
+
     try {
       // Não chamar enableNetwork - o Firestore gerencia a conexão automaticamente
 
       let userDoc = null
-      let retries = 2
+      let retries = 3
       
       while (retries > 0) {
         try {
@@ -436,7 +438,7 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
           retries--
           
           // Log detalhado do erro para debug
-          console.warn(`Tentativa de buscar dados do Firestore falhou (${4 - retries}/3):`, {
+          console.warn(`⚠️ Tentativa de buscar dados do Firestore falhou (${4 - retries}/3):`, {
             code: error.code,
             message: error.message,
             retriesLeft: retries
@@ -447,12 +449,12 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
                error.message?.includes('offline') ||
                error.message?.includes('client is offline')) && retries > 0) {
             // Aguardar progressivamente mais tempo entre tentativas
-            const waitTime = 1000 * (3 - retries)
-            console.log(`Aguardando ${waitTime}ms antes de tentar novamente...`)
+            const waitTime = 1000 * (4 - retries)
+            console.log(`⏳ Aguardando ${waitTime}ms antes de tentar novamente...`)
             await new Promise(resolve => setTimeout(resolve, waitTime))
           } else if (error.code === 'permission-denied') {
             // Erro de permissão - não adianta tentar novamente
-            console.error('Permissão negada ao buscar dados do usuário. Verifique as regras do Firestore.')
+            console.error('❌ Permissão negada ao buscar dados do usuário. Verifique as regras do Firestore.')
             // Retornar dados básicos para não bloquear o usuário
             const trialEndDate = new Date()
             trialEndDate.setDate(trialEndDate.getDate() + 15)
@@ -468,8 +470,32 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
             })
             return
           } else {
-        // Se não conseguir buscar após todas as tentativas, tentar criar o documento
-        console.warn('⚠️ Não foi possível buscar dados do Firestore após múltiplas tentativas. Tentando criar documento...')
+            // Outro tipo de erro - não adianta tentar novamente
+            console.error('❌ Erro ao buscar dados do Firestore:', error)
+            break // Sair do loop e tentar criar documento
+          }
+        }
+      }
+
+      if (userDoc && userDoc.exists()) {
+        const userData = userDoc.data()
+        const trialEndDate = userData.trialEndDate?.toDate() || new Date()
+        
+        console.log('✅ Dados do usuário encontrados no Firestore')
+        
+        callback({
+          id: firebaseUser.uid,
+          email: firebaseUser.email!,
+          name: userData.name || firebaseUser.email!.split('@')[0],
+          role: userData.role || 'user',
+          onboardingCompleted: userData.onboardingCompleted || false,
+          createdAt: userData.createdAt?.toDate() || new Date(),
+          trialEndDate,
+          onboardingData: userData.onboardingData
+        })
+      } else {
+        // Documento não existe - criar automaticamente
+        console.log('📝 Documento do usuário não encontrado no Firestore. Criando automaticamente...')
         const trialEndDate = new Date()
         trialEndDate.setDate(trialEndDate.getDate() + 15)
         
@@ -483,9 +509,8 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
         }
         
         try {
-          // Tentar criar o documento mesmo após falhas de leitura
           await setDoc(doc(db, USERS_COLLECTION, firebaseUser.uid), newUserData)
-          console.log('✅ Documento do usuário criado com sucesso no Firestore (após falhas de leitura)')
+          console.log('✅ Documento do usuário criado com sucesso no Firestore')
           
           callback({
             id: firebaseUser.uid,
@@ -509,27 +534,6 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
             trialEndDate
           })
         }
-        return
-          }
-        }
-      }
-
-      if (userDoc && userDoc.exists()) {
-        const userData = userDoc.data()
-        const trialEndDate = userData.trialEndDate?.toDate() || new Date()
-        
-        callback({
-          id: firebaseUser.uid,
-          email: firebaseUser.email!,
-          name: userData.name || firebaseUser.email!.split('@')[0],
-          role: userData.role || 'user',
-          onboardingCompleted: userData.onboardingCompleted || false,
-          createdAt: userData.createdAt?.toDate() || new Date(),
-          trialEndDate,
-          onboardingData: userData.onboardingData
-        })
-      } else {
-        callback(null)
       }
     } catch (error: any) {
       // Se der erro mas tiver dados do Firebase Auth, usar dados básicos
