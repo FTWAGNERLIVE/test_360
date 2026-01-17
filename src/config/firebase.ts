@@ -30,10 +30,17 @@ if (isFirebaseConfigured) {
     db = getFirestore(app)
     auth = getAuth(app)
     
+    console.log('Firebase inicializado com sucesso:', {
+      projectId: firebaseConfig.projectId,
+      authDomain: firebaseConfig.authDomain,
+      hasDb: !!db,
+      hasAuth: !!auth
+    })
+    
     // Não chamar enableNetwork na inicialização - deixar o Firestore gerenciar automaticamente
     // O Firestore já tenta conectar automaticamente quando necessário
   } catch (error) {
-    console.warn('Erro ao inicializar Firebase:', error)
+    console.error('Erro ao inicializar Firebase:', error)
     console.warn('A aplicação continuará funcionando com localStorage')
   }
 } else {

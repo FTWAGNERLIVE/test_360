@@ -434,13 +434,42 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
           break
         } catch (error: any) {
           retries--
-          if ((error.code === 'unavailable' || error.message?.includes('offline')) && retries > 0) {
-            // Aguardar um pouco e tentar novamente
-            await new Promise(resolve => setTimeout(resolve, 500))
-            // Não chamar enableNetwork - pode causar conflitos
+          
+          // Log detalhado do erro para debug
+          console.warn(`Tentativa de buscar dados do Firestore falhou (${4 - retries}/3):`, {
+            code: error.code,
+            message: error.message,
+            retriesLeft: retries
+          })
+          
+          if ((error.code === 'unavailable' || 
+               error.code === 'failed-precondition' || 
+               error.message?.includes('offline') ||
+               error.message?.includes('client is offline')) && retries > 0) {
+            // Aguardar progressivamente mais tempo entre tentativas
+            const waitTime = 1000 * (3 - retries)
+            console.log(`Aguardando ${waitTime}ms antes de tentar novamente...`)
+            await new Promise(resolve => setTimeout(resolve, waitTime))
+          } else if (error.code === 'permission-denied') {
+            // Erro de permissão - não adianta tentar novamente
+            console.error('Permissão negada ao buscar dados do usuário. Verifique as regras do Firestore.')
+            // Retornar dados básicos para não bloquear o usuário
+            const trialEndDate = new Date()
+            trialEndDate.setDate(trialEndDate.getDate() + 15)
+            
+            callback({
+              id: firebaseUser.uid,
+              email: firebaseUser.email!,
+              name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
+              role: 'user',
+              onboardingCompleted: false,
+              createdAt: new Date(),
+              trialEndDate
+            })
+            return
           } else {
-            // Se não conseguir buscar, retornar dados básicos do Firebase Auth
-            console.warn('Não foi possível buscar dados do Firestore, usando dados básicos:', error)
+            // Se não conseguir buscar após todas as tentativas, retornar dados básicos
+            console.warn('Não foi possível buscar dados do Firestore após múltiplas tentativas, usando dados básicos:', error)
             const trialEndDate = new Date()
             trialEndDate.setDate(trialEndDate.getDate() + 15)
             
@@ -477,8 +506,29 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
       }
     } catch (error: any) {
       // Se der erro mas tiver dados do Firebase Auth, usar dados básicos
-      if (error.code === 'unavailable' || error.message?.includes('offline')) {
-        console.warn('Firestore offline, usando dados básicos do Firebase Auth')
+      if (error.code === 'unavailable' || 
+          error.code === 'failed-precondition' ||
+          error.message?.includes('offline') ||
+          error.message?.includes('client is offline')) {
+        console.warn('Firestore offline, usando dados básicos do Firebase Auth:', {
+          code: error.code,
+          message: error.message
+        })
+        const trialEndDate = new Date()
+        trialEndDate.setDate(trialEndDate.getDate() + 15)
+        
+        callback({
+          id: firebaseUser.uid,
+          email: firebaseUser.email!,
+          name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
+          role: 'user',
+          onboardingCompleted: false,
+          createdAt: new Date(),
+          trialEndDate
+        })
+      } else if (error.code === 'permission-denied') {
+        console.error('Permissão negada ao buscar dados do usuário. Verifique as regras do Firestore.')
+        // Retornar dados básicos para não bloquear o usuário
         const trialEndDate = new Date()
         trialEndDate.setDate(trialEndDate.getDate() + 15)
         
@@ -492,7 +542,12 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
           trialEndDate
         })
       } else {
-        console.error('Erro ao buscar dados do usuário:', error)
+        console.error('Erro ao buscar dados do usuário:', {
+          code: error.code,
+          message: error.message,
+          error: error
+        })
+        // Em caso de erro desconhecido, retornar null para forçar novo login
         callback(null)
       }
     }
