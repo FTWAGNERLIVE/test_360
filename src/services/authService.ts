@@ -468,21 +468,48 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
             })
             return
           } else {
-            // Se não conseguir buscar após todas as tentativas, retornar dados básicos
-            console.warn('Não foi possível buscar dados do Firestore após múltiplas tentativas, usando dados básicos:', error)
-            const trialEndDate = new Date()
-            trialEndDate.setDate(trialEndDate.getDate() + 15)
-            
-            callback({
-              id: firebaseUser.uid,
-              email: firebaseUser.email!,
-              name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
-              role: 'user',
-              onboardingCompleted: false,
-              createdAt: new Date(),
-              trialEndDate
-            })
-            return
+        // Se não conseguir buscar após todas as tentativas, tentar criar o documento
+        console.warn('⚠️ Não foi possível buscar dados do Firestore após múltiplas tentativas. Tentando criar documento...')
+        const trialEndDate = new Date()
+        trialEndDate.setDate(trialEndDate.getDate() + 15)
+        
+        const newUserData = {
+          email: firebaseUser.email!,
+          name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
+          role: 'user' as const,
+          onboardingCompleted: false,
+          createdAt: Timestamp.now(),
+          trialEndDate: Timestamp.fromDate(trialEndDate)
+        }
+        
+        try {
+          // Tentar criar o documento mesmo após falhas de leitura
+          await setDoc(doc(db, USERS_COLLECTION, firebaseUser.uid), newUserData)
+          console.log('✅ Documento do usuário criado com sucesso no Firestore (após falhas de leitura)')
+          
+          callback({
+            id: firebaseUser.uid,
+            email: firebaseUser.email!,
+            name: newUserData.name,
+            role: 'user',
+            onboardingCompleted: false,
+            createdAt: new Date(),
+            trialEndDate
+          })
+        } catch (createError: any) {
+          console.warn('⚠️ Não foi possível criar documento no Firestore, usando dados básicos:', createError)
+          // Se não conseguir criar, retornar dados básicos mesmo assim
+          callback({
+            id: firebaseUser.uid,
+            email: firebaseUser.email!,
+            name: newUserData.name,
+            role: 'user',
+            onboardingCompleted: false,
+            createdAt: new Date(),
+            trialEndDate
+          })
+        }
+        return
           }
         }
       }
