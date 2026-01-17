@@ -126,6 +126,12 @@ async function migrateOnboardingData(): Promise<number> {
   }
 
   const allOnboardingData = JSON.parse(localStorage.getItem('allOnboardingData') || '[]')
+  
+  // Se não houver dados para migrar, retornar 0 sem tentar acessar o Firestore
+  if (!allOnboardingData || allOnboardingData.length === 0) {
+    return 0
+  }
+
   let migrated = 0
 
   for (const data of allOnboardingData) {
@@ -152,7 +158,12 @@ async function migrateOnboardingData(): Promise<number> {
         })
         migrated++
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Se o Firestore estiver offline, não tentar mais
+      if (error.code === 'unavailable' || error.message?.includes('offline') || error.message?.includes('client is offline')) {
+        console.warn('Firestore offline durante migração de onboarding. Migração será tentada novamente na próxima vez.')
+        break // Parar a migração se estiver offline
+      }
       console.error('Erro ao migrar dados de onboarding:', error)
     }
   }
@@ -169,6 +180,12 @@ async function migrateSupportMessages(): Promise<number> {
   }
 
   const supportMessages = JSON.parse(localStorage.getItem('supportMessages') || '[]')
+  
+  // Se não houver dados para migrar, retornar 0 sem tentar acessar o Firestore
+  if (!supportMessages || supportMessages.length === 0) {
+    return 0
+  }
+
   let migrated = 0
 
   for (const msg of supportMessages) {
@@ -196,7 +213,12 @@ async function migrateSupportMessages(): Promise<number> {
         })
         migrated++
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Se o Firestore estiver offline, não tentar mais
+      if (error.code === 'unavailable' || error.message?.includes('offline') || error.message?.includes('client is offline')) {
+        console.warn('Firestore offline durante migração de suporte. Migração será tentada novamente na próxima vez.')
+        break // Parar a migração se estiver offline
+      }
       console.error('Erro ao migrar mensagem de suporte:', error)
     }
   }
@@ -292,14 +314,38 @@ export async function checkAndMigrate(): Promise<void> {
   // Só migrar se Firebase estiver configurado e migração não foi feita
   if (!isMigrationCompleted() && auth && db) {
     try {
+      // Verificar se há dados no localStorage para migrar antes de tentar
+      const hasLocalData = 
+        localStorage.getItem('userCredentials') ||
+        localStorage.getItem('allOnboardingData') ||
+        localStorage.getItem('supportMessages')
+      
+      // Se não houver dados locais, marcar como concluída sem tentar acessar Firestore
+      if (!hasLocalData) {
+        markMigrationCompleted()
+        console.log('ℹ️ Nenhum dado local para migrar. Migração marcada como concluída.')
+        return
+      }
+
       const result = await executeMigration()
       if (result.success) {
-        console.log('✅ Migração automática concluída:', result.message)
+        // Só marcar como concluída se realmente migrou algo ou se não havia dados
+        if (result.usersMigrated > 0 || result.onboardingMigrated > 0 || result.supportMigrated > 0) {
+          console.log('✅ Migração automática concluída:', result.message)
+        } else {
+          // Se não migrou nada mas não deu erro, pode ser que não havia dados ou Firestore estava offline
+          console.log('ℹ️ Migração executada:', result.message)
+        }
       } else {
         console.log('ℹ️ Migração não executada:', result.message)
       }
-    } catch (error) {
-      console.error('Erro na migração automática:', error)
+    } catch (error: any) {
+      // Se o erro for de Firestore offline, não marcar como concluída para tentar novamente depois
+      if (error.code === 'unavailable' || error.message?.includes('offline') || error.message?.includes('client is offline')) {
+        console.warn('⚠️ Firestore offline. Migração será tentada novamente quando o Firestore estiver disponível.')
+      } else {
+        console.error('Erro na migração automática:', error)
+      }
     }
   }
 }
