@@ -1,5 +1,5 @@
 import { initializeApp, FirebaseApp } from 'firebase/app'
-import { getFirestore, Firestore } from 'firebase/firestore'
+import { getFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore'
 import { getAuth, Auth } from 'firebase/auth'
 
 // Configuração do Firebase
@@ -30,21 +30,40 @@ if (isFirebaseConfigured) {
     db = getFirestore(app)
     auth = getAuth(app)
     
-    console.log('Firebase inicializado com sucesso:', {
+    console.log('✅ Firebase inicializado com sucesso:', {
       projectId: firebaseConfig.projectId,
       authDomain: firebaseConfig.authDomain,
       hasDb: !!db,
-      hasAuth: !!auth
+      hasAuth: !!auth,
+      apiKey: firebaseConfig.apiKey.substring(0, 10) + '...' // Mostrar apenas início da API key
+    })
+    
+    // Log adicional para diagnóstico
+    console.log('🔍 Verificando configuração do Firestore...')
+    console.log('📋 Configurações:', {
+      projectId: firebaseConfig.projectId,
+      authDomain: firebaseConfig.authDomain,
+      storageBucket: firebaseConfig.storageBucket
     })
     
     // Não chamar enableNetwork na inicialização - deixar o Firestore gerenciar automaticamente
     // O Firestore já tenta conectar automaticamente quando necessário
-  } catch (error) {
-    console.error('Erro ao inicializar Firebase:', error)
-    console.warn('A aplicação continuará funcionando com localStorage')
+  } catch (error: any) {
+    console.error('❌ Erro ao inicializar Firebase:', error)
+    console.error('📋 Detalhes do erro:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    })
+    console.warn('⚠️ A aplicação continuará funcionando com localStorage')
   }
 } else {
-  console.warn('Firebase não configurado. Usando localStorage como fallback.')
+  console.warn('⚠️ Firebase não configurado. Usando localStorage como fallback.')
+  console.warn('📋 Configurações faltando:', {
+    hasApiKey: !!firebaseConfig.apiKey,
+    hasProjectId: !!firebaseConfig.projectId,
+    hasAuthDomain: !!firebaseConfig.authDomain
+  })
 }
 
 export { db, auth }
