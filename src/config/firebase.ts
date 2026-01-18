@@ -30,14 +30,17 @@ if (isFirebaseConfigured) {
     db = getFirestore(app)
     auth = getAuth(app)
     
-    // Verificar se projectId está correto (não deve ser storageBucket)
+    // Verificar se projectId está correto (CRÍTICO!)
     const projectIdFromEnv = import.meta.env.VITE_FIREBASE_PROJECT_ID
-    const actualProjectId = projectIdFromEnv || 'farol-360'
+    const expectedProjectId = 'farol-360'
     
-    if (firebaseConfig.projectId !== actualProjectId) {
-      console.warn('⚠️ ATENÇÃO: projectId pode estar incorreto nas variáveis de ambiente!')
-      console.warn('📋 projectId esperado:', actualProjectId)
-      console.warn('📋 projectId atual:', firebaseConfig.projectId)
+    if (firebaseConfig.projectId === firebaseConfig.storageBucket || 
+        firebaseConfig.projectId.includes('firebasestorage')) {
+      console.error('❌ ERRO CRÍTICO: projectId está incorreto!')
+      console.error('📋 projectId atual (ERRADO):', firebaseConfig.projectId)
+      console.error('📋 projectId correto:', expectedProjectId)
+      console.error('🔧 CORRIJA no Vercel: Settings → Environment Variables → VITE_FIREBASE_PROJECT_ID')
+      console.error('🔧 Deve ser: farol-360 (não farol-360.firebasestorage.app)')
     }
     
     console.log('✅ Firebase inicializado com sucesso:', {
@@ -45,16 +48,20 @@ if (isFirebaseConfigured) {
       authDomain: firebaseConfig.authDomain,
       hasDb: !!db,
       hasAuth: !!auth,
-      apiKey: firebaseConfig.apiKey.substring(0, 10) + '...' // Mostrar apenas início da API key
+      apiKey: firebaseConfig.apiKey.substring(0, 10) + '...'
     })
     
-    // Log adicional para diagnóstico
-    console.log('🔍 Verificando configuração do Firestore...')
-    console.log('📋 Configurações completas:', {
+    // Alerta sobre configuração do Firestore
+    if (firebaseConfig.projectId === expectedProjectId) {
+      console.log('✅ projectId está correto:', expectedProjectId)
+    } else {
+      console.error('❌ projectId está INCORRETO! Isso pode causar problemas de conexão!')
+    }
+    
+    console.log('🔍 Configuração do Firestore:', {
       projectId: firebaseConfig.projectId,
       authDomain: firebaseConfig.authDomain,
-      storageBucket: firebaseConfig.storageBucket,
-      '⚠️ Verifique se projectId não é igual ao storageBucket': firebaseConfig.projectId !== firebaseConfig.storageBucket
+      storageBucket: firebaseConfig.storageBucket
     })
     
     // Não chamar enableNetwork na inicialização - deixar o Firestore gerenciar automaticamente
