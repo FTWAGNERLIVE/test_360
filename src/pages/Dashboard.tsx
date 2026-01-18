@@ -5,6 +5,7 @@ import CSVUploader from '../components/CSVUploader'
 import DataVisualization from '../components/DataVisualization'
 import ChatBot from '../components/ChatBot'
 import { sendSupportMessage } from '../services/supportService'
+import { saveCSVData, loadCSVData, deleteCSVData } from '../services/csvService'
 import './Dashboard.css'
 
 export default function Dashboard() {
@@ -18,54 +19,116 @@ export default function Dashboard() {
   const [supportMessage, setSupportMessage] = useState('')
   const [supportLoading, setSupportLoading] = useState(false)
   const [supportSuccess, setSupportSuccess] = useState(false)
+  const [loadingCSV, setLoadingCSV] = useState(true)
 
   // Carregar dados salvos ao montar o componente
   useEffect(() => {
-    if (user?.id) {
-      const savedData = localStorage.getItem(`csvData_${user.id}`)
-      const savedHeaders = localStorage.getItem(`csvHeaders_${user.id}`)
-      
-      if (savedData && savedHeaders) {
+    const loadSavedData = async () => {
+      if (!user?.id) {
+        setLoadingCSV(false)
+        return
+      }
+
+      try {
+        // Primeiro tentar carregar do Firestore
         try {
-          const parsedData = JSON.parse(savedData)
-          const parsedHeaders = JSON.parse(savedHeaders)
-          
-          if (parsedData.length > 0 && parsedHeaders.length > 0) {
-            setCsvData(parsedData)
-            setCsvHeaders(parsedHeaders)
+          const firestoreData = await loadCSVData()
+          if (firestoreData && firestoreData.csvData.length > 0 && firestoreData.csvHeaders.length > 0) {
+            console.log('✅ Dados do CSV carregados do Firestore')
+            setCsvData(firestoreData.csvData)
+            setCsvHeaders(firestoreData.csvHeaders)
             setShowSavedMessage(true)
-            
-            // Ocultar mensagem após 5 segundos
             setTimeout(() => setShowSavedMessage(false), 5000)
+            
+            // Sincronizar com localStorage como cache
+            localStorage.setItem(`csvData_${user.id}`, JSON.stringify(firestoreData.csvData))
+            localStorage.setItem(`csvHeaders_${user.id}`, JSON.stringify(firestoreData.csvHeaders))
+            
+            setLoadingCSV(false)
+            return
           }
-        } catch (error) {
-          console.error('Erro ao carregar dados salvos:', error)
+        } catch (firestoreError) {
+          console.warn('⚠️ Erro ao carregar do Firestore, tentando localStorage:', firestoreError)
         }
+
+        // Fallback: tentar carregar do localStorage
+        const savedData = localStorage.getItem(`csvData_${user.id}`)
+        const savedHeaders = localStorage.getItem(`csvHeaders_${user.id}`)
+        
+        if (savedData && savedHeaders) {
+          try {
+            const parsedData = JSON.parse(savedData)
+            const parsedHeaders = JSON.parse(savedHeaders)
+            
+            if (parsedData.length > 0 && parsedHeaders.length > 0) {
+              console.log('✅ Dados do CSV carregados do localStorage')
+              setCsvData(parsedData)
+              setCsvHeaders(parsedHeaders)
+              setShowSavedMessage(true)
+              setTimeout(() => setShowSavedMessage(false), 5000)
+              
+              // Tentar sincronizar com Firestore em background
+              try {
+                await saveCSVData(parsedData, parsedHeaders)
+                console.log('✅ Dados sincronizados com Firestore')
+              } catch (syncError) {
+                console.warn('⚠️ Erro ao sincronizar com Firestore:', syncError)
+              }
+            }
+          } catch (error) {
+            console.error('Erro ao carregar dados salvos:', error)
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error)
+      } finally {
+        setLoadingCSV(false)
       }
     }
+
+    loadSavedData()
   }, [user?.id])
 
-  const handleFileUploaded = (data: any[], headers: string[]) => {
+  const handleFileUploaded = async (data: any[], headers: string[], fileName?: string, fileContent?: string) => {
     setCsvData(data)
     setCsvHeaders(headers)
     
-    // Salvar dados no localStorage
+    // Salvar dados no localStorage (cache local)
     if (user?.id) {
       localStorage.setItem(`csvData_${user.id}`, JSON.stringify(data))
       localStorage.setItem(`csvHeaders_${user.id}`, JSON.stringify(headers))
     }
     
+    // Salvar no Firestore (sincronização entre dispositivos)
+    try {
+      await saveCSVData(data, headers, fileName, fileContent)
+      console.log('✅ Dados do CSV salvos no Firestore com sucesso!')
+    } catch (error: any) {
+      console.error('❌ Erro ao salvar no Firestore:', error)
+      // Não bloquear o usuário se falhar - os dados já estão no localStorage
+      console.warn('⚠️ Dados salvos apenas localmente. Tente novamente mais tarde.')
+    }
+    
     setShowSavedMessage(false)
   }
 
-  const handleClearData = () => {
+  const handleClearData = async () => {
     setCsvData([])
     setCsvHeaders([])
     
-    // Remover dados salvos
+    // Remover dados salvos do localStorage
     if (user?.id) {
       localStorage.removeItem(`csvData_${user.id}`)
       localStorage.removeItem(`csvHeaders_${user.id}`)
+    }
+    
+    // Remover dados do Firestore
+    try {
+      await deleteCSVData()
+      console.log('✅ Dados do CSV removidos do Firestore')
+    } catch (error: any) {
+      console.error('❌ Erro ao remover do Firestore:', error)
+      // Não bloquear o usuário se falhar
     }
   }
 
@@ -119,10 +182,12 @@ export default function Dashboard() {
       </header>
 
       <main className="dashboard-main">
-        <div className="test-notice">
-          <Clock size={16} />
-          <span>Período de teste: 15 dias</span>
-        </div>
+        {user?.role === 'user' && (
+          <div className="test-notice">
+            <Clock size={16} />
+            <span>Período de teste: 15 dias</span>
+          </div>
+        )}
         
         {showSavedMessage && (
           <div className="saved-data-notice">
@@ -132,7 +197,14 @@ export default function Dashboard() {
         )}
         
         <div className="dashboard-content">
-          {csvData.length === 0 ? (
+          {loadingCSV ? (
+            <div className="upload-section">
+              <div className="upload-card">
+                <div className="spinner"></div>
+                <p>Carregando seus dados...</p>
+              </div>
+            </div>
+          ) : csvData.length === 0 ? (
             <div className="upload-section">
               <div className="upload-card">
                 <FileText size={48} className="upload-icon" />

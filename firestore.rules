@@ -24,6 +24,8 @@ service cloud.firestore {
     }
     
     match /users/{userId} {
+      // Permitir leitura individual e listagem para admins e vendas
+      // Quando um admin/vendas lista todos os usuários, o Firestore verifica esta regra para cada documento
       allow read: if isOwner(userId) || isAdminOrVendas();
       allow create: if isAuthenticated() && request.auth.uid == userId;
       allow update: if isOwner(userId) || isAdmin();
@@ -35,7 +37,12 @@ service cloud.firestore {
                      (resource.data.userId == request.auth.uid || isAdminOrVendas());
       allow create: if isAuthenticated() && 
                        request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAdmin();
+      // Vendas pode atualizar apenas o campo status
+      // Admin pode atualizar qualquer campo
+      allow update: if isAdmin() || 
+                       (isAdminOrVendas() && 
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']));
+      allow delete: if isAdmin();
     }
     
     match /support_messages/{messageId} {
@@ -44,6 +51,17 @@ service cloud.firestore {
       allow create: if isAuthenticated() && 
                        request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
+    }
+    
+    // Regras para dados do CSV do usuário
+    match /user_csv_data/{userId} {
+      // Usuário pode ler/atualizar apenas seus próprios dados
+      // Admin e vendas podem ler dados de qualquer usuário
+      allow read: if isAuthenticated() && 
+                     (request.auth.uid == userId || isAdminOrVendas());
+      allow create, update: if isAuthenticated() && request.auth.uid == userId;
+      allow delete: if isAuthenticated() && 
+                        (request.auth.uid == userId || isAdmin());
     }
     
     match /{document=**} {

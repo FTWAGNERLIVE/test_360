@@ -204,10 +204,12 @@ export default function Onboarding() {
         <div className="onboarding-header">
           <h1>Bem-vindo ao Farol 360!</h1>
           <p>Preencha este formulário para personalizar sua análise</p>
-          <div className="test-info">
-            <Clock size={14} />
-            <span>Período de teste: 15 dias</span>
-          </div>
+          {user?.role === 'user' && (
+            <div className="test-info">
+              <Clock size={14} />
+              <span>Período de teste: 15 dias</span>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="onboarding-form">

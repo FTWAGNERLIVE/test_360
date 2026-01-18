@@ -4,9 +4,13 @@ import {
   getDocs, 
   query, 
   orderBy,
+  doc,
+  updateDoc,
   Timestamp 
 } from 'firebase/firestore'
 import { db, auth } from '../config/firebase'
+
+export type ClientStatus = 'pendente' | 'em_atendimento' | 'proposta_enviada' | 'fechado' | 'cancelado'
 
 export interface OnboardingData {
   companyName: string
@@ -18,6 +22,7 @@ export interface OnboardingData {
   userId: string
   email: string
   timestamp: Date | string
+  status?: ClientStatus
   id?: string
 }
 
@@ -71,6 +76,7 @@ export async function saveOnboardingData(data: Omit<OnboardingData, 'timestamp'>
     contact: data.contact?.trim() || '',
     userId: currentUserId, // SEMPRE usar o UID do Firebase Auth
     email: currentUserEmail,
+    status: (data.status || 'pendente') as ClientStatus, // Status padrão: pendente
     timestamp: Timestamp.now()
   }
 
@@ -158,5 +164,42 @@ export async function getAllOnboardingData(): Promise<OnboardingData[]> {
   } catch (error) {
     console.error('Erro ao buscar dados de onboarding:', error)
     throw error
+  }
+}
+
+/**
+ * Atualiza o status de um cliente (apenas vendas)
+ */
+export async function updateClientStatus(onboardingId: string, status: ClientStatus): Promise<void> {
+  if (!db) {
+    throw new Error('Firebase não está configurado')
+  }
+
+  if (!auth || !auth.currentUser) {
+    throw new Error('Usuário não autenticado. Faça login novamente.')
+  }
+
+  try {
+    console.log('🔄 Atualizando status do cliente:', { onboardingId, status })
+
+    await updateDoc(doc(db, ONBOARDING_COLLECTION, onboardingId), {
+      status: status
+    })
+
+    console.log('✅ Status atualizado com sucesso!')
+  } catch (error: any) {
+    console.error('❌ Erro ao atualizar status:', {
+      code: error.code,
+      message: error.message,
+      error: error
+    })
+
+    if (error.code === 'permission-denied') {
+      throw new Error('Permissão negada. Verifique as regras do Firestore.')
+    } else if (error.code === 'unavailable') {
+      throw new Error('Serviço temporariamente indisponível. Tente novamente em alguns instantes.')
+    } else {
+      throw new Error(`Erro ao atualizar status: ${error.message || 'Erro desconhecido'}`)
+    }
   }
 }

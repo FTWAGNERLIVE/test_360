@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Download, User, Building2, Phone, Mail, Calendar, FileText, RefreshCw } from 'lucide-react'
-import { getAllOnboardingData as getFirestoreData } from '../services/firestoreService'
+import { LogOut, Download, User, Building2, Phone, Mail, Calendar, FileText, RefreshCw, CheckCircle, Clock, AlertTriangle, XCircle } from 'lucide-react'
+import { getAllOnboardingData as getFirestoreData, updateClientStatus, ClientStatus } from '../services/firestoreService'
 import './Admin.css'
 
 interface OnboardingRecord {
@@ -15,6 +15,8 @@ interface OnboardingRecord {
   goals: string[]
   specificQuestions: string
   contact: string
+  status?: ClientStatus
+  id?: string
 }
 
 export default function Vendas() {
@@ -24,6 +26,7 @@ export default function Vendas() {
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
 
   const loadData = async () => {
     if (!user || user.role !== 'vendas') {
@@ -82,6 +85,48 @@ export default function Vendas() {
   const handleLogout = () => {
     logout()
     navigate('/login')
+  }
+
+  const handleStatusChange = async (onboardingId: string, newStatus: ClientStatus) => {
+    if (!onboardingId) {
+      alert('ID do registro não encontrado')
+      return
+    }
+
+    setUpdatingStatus(onboardingId)
+    try {
+      await updateClientStatus(onboardingId, newStatus)
+      
+      // Atualizar estado local
+      setOnboardingData(prev => prev.map(item => 
+        item.id === onboardingId ? { ...item, status: newStatus } : item
+      ))
+    } catch (err: any) {
+      console.error('Erro ao atualizar status:', err)
+      alert(err.message || 'Erro ao atualizar status. Tente novamente.')
+    } finally {
+      setUpdatingStatus(null)
+    }
+  }
+
+  const getStatusBadge = (status: ClientStatus = 'pendente') => {
+    const statusConfig = {
+      pendente: { icon: Clock, label: 'Pendente', className: 'status-pending' },
+      em_atendimento: { icon: Clock, label: 'Em Atendimento', className: 'status-active' },
+      proposta_enviada: { icon: FileText, label: 'Proposta Enviada', className: 'status-active' },
+      fechado: { icon: CheckCircle, label: 'Fechado', className: 'status-active' },
+      cancelado: { icon: XCircle, label: 'Cancelado', className: 'status-pending' }
+    }
+
+    const config = statusConfig[status] || statusConfig.pendente
+    const Icon = config.icon
+
+    return (
+      <span className={`status-badge ${config.className}`}>
+        <Icon size={12} />
+        {config.label}
+      </span>
+    )
   }
 
   const handleExportCSV = () => {
@@ -202,6 +247,7 @@ export default function Vendas() {
                   <th>Setor</th>
                   <th>Fonte de Dados</th>
                   <th>Telefone</th>
+                  <th>Status</th>
                   <th>Objetivos</th>
                   <th>Detalhes</th>
                 </tr>
@@ -234,6 +280,31 @@ export default function Vendas() {
                         <Phone size={14} />
                         {record.contact}
                       </div>
+                    </td>
+                    <td>
+                      <select
+                        value={record.status || 'pendente'}
+                        onChange={(e) => handleStatusChange(record.id || '', e.target.value as ClientStatus)}
+                        disabled={updatingStatus === record.id || !record.id}
+                        className="status-select"
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          border: '1px solid #ddd',
+                          fontSize: '14px',
+                          cursor: updatingStatus === record.id ? 'wait' : 'pointer',
+                          opacity: updatingStatus === record.id ? 0.6 : 1
+                        }}
+                      >
+                        <option value="pendente">Pendente</option>
+                        <option value="em_atendimento">Em Atendimento</option>
+                        <option value="proposta_enviada">Proposta Enviada</option>
+                        <option value="fechado">Fechado</option>
+                        <option value="cancelado">Cancelado</option>
+                      </select>
+                      {updatingStatus === record.id && (
+                        <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>Atualizando...</span>
+                      )}
                     </td>
                     <td>
                       <div className="goals-list">

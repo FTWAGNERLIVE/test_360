@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, Download, User, Building2, Phone, Mail, Calendar, FileText, RefreshCw, Key, Clock, AlertTriangle, CheckCircle, MessageSquare, Users, Shield, Eye, XCircle, UserPlus, Database } from 'lucide-react'
-import { getAllOnboardingData as getFirestoreData } from '../services/firestoreService'
+import { getAllOnboardingData as getFirestoreData, ClientStatus } from '../services/firestoreService'
 import { getAllSupportMessages, updateSupportMessageStatus, SupportMessage } from '../services/supportService'
 import { createAccount, updateUserData } from '../services/authService'
 import { executeMigration, isFirebaseReady, isMigrationCompleted } from '../services/migrationService'
@@ -19,6 +19,8 @@ interface OnboardingRecord {
   goals: string[]
   specificQuestions: string
   contact: string
+  status?: ClientStatus
+  id?: string
 }
 
 interface UserAccount {
@@ -114,7 +116,9 @@ export default function Admin() {
 
       // Carregar contas de usuários
       try {
+        console.log('🔄 Carregando contas de usuários...')
         const users = await getAllUsers()
+        console.log(`✅ ${users.length} contas carregadas com sucesso`)
         setUserAccounts(users.map(u => ({
           id: u.id,
           email: u.email,
@@ -122,10 +126,11 @@ export default function Admin() {
           role: u.role,
           onboardingCompleted: u.onboardingCompleted,
           trialEndDate: u.trialEndDate,
-          createdAt: u.trialEndDate ? new Date(u.trialEndDate.getTime() - 15 * 24 * 60 * 60 * 1000) : undefined
+          createdAt: u.createdAt || (u.trialEndDate ? new Date(u.trialEndDate.getTime() - 15 * 24 * 60 * 60 * 1000) : undefined)
         })))
-      } catch (err) {
-        console.error('Erro ao carregar usuários:', err)
+      } catch (err: any) {
+        console.error('❌ Erro ao carregar usuários:', err)
+        setError(`Erro ao carregar contas: ${err.message || 'Erro desconhecido'}`)
       }
 
       // Carregar mensagens de suporte
@@ -287,6 +292,26 @@ export default function Admin() {
       default:
         return <span className="status-badge status-pending"><AlertTriangle size={12} /> Pendente</span>
     }
+  }
+
+  const getClientStatusBadge = (status: ClientStatus = 'pendente') => {
+    const statusConfig = {
+      pendente: { icon: Clock, label: 'Pendente', className: 'status-pending' },
+      em_atendimento: { icon: Clock, label: 'Em Atendimento', className: 'status-active' },
+      proposta_enviada: { icon: FileText, label: 'Proposta Enviada', className: 'status-active' },
+      fechado: { icon: CheckCircle, label: 'Fechado', className: 'status-active' },
+      cancelado: { icon: XCircle, label: 'Cancelado', className: 'status-pending' }
+    }
+
+    const config = statusConfig[status] || statusConfig.pendente
+    const Icon = config.icon
+
+    return (
+      <span className={`status-badge ${config.className}`}>
+        <Icon size={12} />
+        {config.label}
+      </span>
+    )
   }
 
   useEffect(() => {
@@ -581,7 +606,7 @@ export default function Admin() {
             <AlertTriangle size={24} />
             <div>
               <h3>Trial Expirado</h3>
-              <p>{userAccounts.filter(u => u.trialEndDate && isTrialExpired(u.trialEndDate)).length}</p>
+              <p>{userAccounts.filter(u => u.role === 'user' && u.trialEndDate && isTrialExpired(u.trialEndDate)).length}</p>
             </div>
           </div>
         </div>
@@ -635,6 +660,7 @@ export default function Admin() {
                   <th>Setor</th>
                   <th>Fonte de Dados</th>
                   <th>Telefone</th>
+                  <th>Status</th>
                   <th>Objetivos</th>
                   <th>Detalhes</th>
                 </tr>
@@ -667,6 +693,9 @@ export default function Admin() {
                         <Phone size={14} />
                         {record.contact}
                       </div>
+                    </td>
+                    <td>
+                      {getClientStatusBadge(record.status || 'pendente')}
                     </td>
                     <td>
                       <div className="goals-list">
@@ -757,7 +786,9 @@ export default function Admin() {
                             )}
                           </td>
                           <td>
-                            {account.trialEndDate ? (
+                            {account.role === 'admin' || account.role === 'vendas' ? (
+                              <span>-</span>
+                            ) : account.trialEndDate ? (
                               <span className={expired ? 'trial-expired' : 'trial-active'}>
                                 {new Date(account.trialEndDate).toLocaleDateString('pt-BR')}
                               </span>
@@ -766,7 +797,9 @@ export default function Admin() {
                             )}
                           </td>
                           <td>
-                            {account.trialEndDate ? (
+                            {account.role === 'admin' || account.role === 'vendas' ? (
+                              <span>-</span>
+                            ) : account.trialEndDate ? (
                               <span className={expired ? 'trial-expired' : daysRemaining <= 3 ? 'trial-warning' : 'trial-active'}>
                                 {expired ? (
                                   <>

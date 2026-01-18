@@ -13,7 +13,7 @@ interface OnboardingData {
 }
 
 interface CSVUploaderProps {
-  onFileUploaded: (data: any[], headers: string[]) => void
+  onFileUploaded: (data: any[], headers: string[], fileName?: string, fileContent?: string) => void
   onboardingData?: OnboardingData
 }
 
@@ -51,7 +51,7 @@ export default function CSVUploader({ onFileUploaded, onboardingData }: CSVUploa
   const [error, setError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const processFile = (file: File) => {
+  const processFile = async (file: File) => {
     if (!file.name.endsWith('.csv')) {
       setError('Por favor, envie apenas arquivos CSV')
       return
@@ -59,6 +59,14 @@ export default function CSVUploader({ onFileUploaded, onboardingData }: CSVUploa
 
     setIsProcessing(true)
     setError('')
+
+    // Ler o conteúdo do arquivo como texto para salvar depois
+    let fileContent = ''
+    try {
+      fileContent = await file.text()
+    } catch (error) {
+      console.warn('⚠️ Não foi possível ler o conteúdo do arquivo:', error)
+    }
 
     Papa.parse(file, {
       header: true,
@@ -81,7 +89,7 @@ export default function CSVUploader({ onFileUploaded, onboardingData }: CSVUploa
 
         // Simular processamento
         setTimeout(() => {
-          onFileUploaded(data, headers)
+          onFileUploaded(data, headers, file.name, fileContent)
           setIsProcessing(false)
         }, 1500)
       },
@@ -92,20 +100,20 @@ export default function CSVUploader({ onFileUploaded, onboardingData }: CSVUploa
     })
   }
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
 
     const file = e.dataTransfer.files[0]
     if (file) {
-      processFile(file)
+      await processFile(file)
     }
   }
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      processFile(file)
+      await processFile(file)
     }
   }
 

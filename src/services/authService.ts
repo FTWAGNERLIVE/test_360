@@ -102,6 +102,14 @@ export async function createAccount(email: string, password: string, name: strin
 
   try {
     // Criar documento do usuário no Firestore
+    console.log('💾 Salvando documento do usuário no Firestore...')
+    console.log('📋 Dados do usuário:', {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email,
+      name: name || email.split('@')[0],
+      role: role
+    })
+    
     const userData: Omit<UserData, 'id'> = {
       email: firebaseUser.email!,
       name: name || email.split('@')[0],
@@ -116,8 +124,14 @@ export async function createAccount(email: string, password: string, name: strin
       createdAt: Timestamp.now(),
       trialEndDate: Timestamp.fromDate(trialEndDate)
     })
+    
+    console.log('✅ Documento do usuário salvo com sucesso no Firestore!')
   } catch (error: any) {
-    console.error('Erro ao criar documento no Firestore:', error)
+    console.error('❌ Erro ao criar documento no Firestore:', {
+      code: error.code,
+      message: error.message,
+      error: error
+    })
     
     // Se falhar ao criar no Firestore, tentar deletar o usuário do Auth para evitar inconsistência
     try {
@@ -620,24 +634,46 @@ export async function getAllUsers(): Promise<UserData[]> {
     throw new Error('Firebase não está configurado')
   }
 
-  const usersSnapshot = await getDocs(collection(db, USERS_COLLECTION))
-  const users: UserData[] = []
+  try {
+    console.log('🔍 Buscando todos os usuários da coleção users...')
+    const usersSnapshot = await getDocs(collection(db, USERS_COLLECTION))
+    console.log(`✅ Encontrados ${usersSnapshot.size} documentos na coleção users`)
+    
+    const users: UserData[] = []
 
-  usersSnapshot.forEach((doc) => {
-    const data = doc.data()
-    users.push({
-      id: doc.id,
-      email: data.email,
-      name: data.name,
-      role: data.role || 'user',
-      onboardingCompleted: data.onboardingCompleted || false,
-      createdAt: data.createdAt?.toDate() || new Date(),
-      trialEndDate: data.trialEndDate?.toDate() || new Date(),
-      onboardingData: data.onboardingData
+    usersSnapshot.forEach((doc) => {
+      const data = doc.data()
+      console.log(`📄 Processando usuário: ${doc.id} - ${data.email}`)
+      users.push({
+        id: doc.id,
+        email: data.email,
+        name: data.name,
+        role: data.role || 'user',
+        onboardingCompleted: data.onboardingCompleted || false,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        trialEndDate: data.trialEndDate?.toDate() || new Date(),
+        onboardingData: data.onboardingData
+      })
     })
-  })
 
-  return users
+    console.log(`✅ Total de ${users.length} usuários processados`)
+    return users
+  } catch (error: any) {
+    console.error('❌ Erro ao buscar usuários:', {
+      code: error.code,
+      message: error.message,
+      error: error
+    })
+    
+    // Tratar erros específicos
+    if (error.code === 'permission-denied') {
+      throw new Error('Permissão negada. Verifique se você tem permissão de admin/vendas e se as regras do Firestore estão corretas.')
+    } else if (error.code === 'unavailable') {
+      throw new Error('Serviço temporariamente indisponível. Tente novamente em alguns instantes.')
+    } else {
+      throw new Error(`Erro ao buscar usuários: ${error.message || 'Erro desconhecido'}`)
+    }
+  }
 }
 
 /**

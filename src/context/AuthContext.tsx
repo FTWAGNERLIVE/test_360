@@ -185,7 +185,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleGetAllUsers = async (): Promise<User[]> => {
     try {
+      console.log('🔄 AuthContext: Buscando todos os usuários...')
       const users = await getAllUsers()
+      console.log(`✅ AuthContext: ${users.length} usuários encontrados`)
       return users.map(u => ({
         id: u.id,
         email: u.email,
@@ -195,9 +197,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onboardingData: u.onboardingData,
         trialEndDate: u.trialEndDate
       }))
-    } catch (error) {
-      console.error('Erro ao buscar usuários:', error)
-      return []
+    } catch (error: any) {
+      console.error('❌ AuthContext: Erro ao buscar usuários:', {
+        code: error.code,
+        message: error.message,
+        error: error
+      })
+      // Não retornar array vazio silenciosamente - deixar o erro propagar para o Admin.tsx
+      throw error
     }
   }
 
