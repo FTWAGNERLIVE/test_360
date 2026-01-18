@@ -31,7 +31,6 @@ if (isFirebaseConfigured) {
     auth = getAuth(app)
     
     // Verificar se projectId está correto (CRÍTICO!)
-    const projectIdFromEnv = import.meta.env.VITE_FIREBASE_PROJECT_ID
     const expectedProjectId = 'farol-360'
     
     if (firebaseConfig.projectId === firebaseConfig.storageBucket || 
