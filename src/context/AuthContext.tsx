@@ -10,6 +10,7 @@ export interface User {
   onboardingCompleted: boolean
   onboardingData?: OnboardingData
   trialEndDate?: Date
+  createdAt?: Date
 }
 
 export interface OnboardingData {
@@ -195,7 +196,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: u.role,
         onboardingCompleted: u.onboardingCompleted,
         onboardingData: u.onboardingData,
-        trialEndDate: u.trialEndDate
+        trialEndDate: u.trialEndDate,
+        createdAt: u.createdAt
       }))
     } catch (error: any) {
       console.error('❌ AuthContext: Erro ao buscar usuários:', {

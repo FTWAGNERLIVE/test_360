@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Download, User, Building2, Phone, Mail, Calendar, FileText, RefreshCw, CheckCircle, Clock, AlertTriangle, XCircle } from 'lucide-react'
+import { LogOut, Download, User, Building2, Phone, Mail, Calendar, FileText, RefreshCw } from 'lucide-react'
 import { getAllOnboardingData as getFirestoreData, updateClientStatus, ClientStatus } from '../services/firestoreService'
 import './Admin.css'
 
@@ -107,26 +107,6 @@ export default function Vendas() {
     } finally {
       setUpdatingStatus(null)
     }
-  }
-
-  const getStatusBadge = (status: ClientStatus = 'pendente') => {
-    const statusConfig = {
-      pendente: { icon: Clock, label: 'Pendente', className: 'status-pending' },
-      em_atendimento: { icon: Clock, label: 'Em Atendimento', className: 'status-active' },
-      proposta_enviada: { icon: FileText, label: 'Proposta Enviada', className: 'status-active' },
-      fechado: { icon: CheckCircle, label: 'Fechado', className: 'status-active' },
-      cancelado: { icon: XCircle, label: 'Cancelado', className: 'status-pending' }
-    }
-
-    const config = statusConfig[status] || statusConfig.pendente
-    const Icon = config.icon
-
-    return (
-      <span className={`status-badge ${config.className}`}>
-        <Icon size={12} />
-        {config.label}
-      </span>
-    )
   }
 
   const handleExportCSV = () => {
