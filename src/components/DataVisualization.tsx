@@ -1,3 +1,4 @@
+
 import { useMemo, useState, useEffect, useRef } from 'react'
 import { Bar, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart } from 'recharts'
 import { TrendingUp, Database, BarChart3 as BarChartIcon, X, Mail, Filter, ChevronDown } from 'lucide-react'
@@ -17,43 +18,64 @@ const formatNumber = (value: number) => {
   return value.toLocaleString('pt-BR')
 }
 
+const parseDate = (dateStr: string) => {
+  if (!dateStr) return null
+  if (String(dateStr).match(/^\d{4}-\d{2}-\d{2}/)) {
+    const parts = String(dateStr).split('T')[0].split('-')
+    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2].substring(0, 2)))
+  }
+  if (String(dateStr).includes('/')) {
+    const parts = String(dateStr).split(' ')[0].split('/')
+    if (parts.length === 3) {
+      if (parts[0].length <= 2 && parts[2].length === 4) {
+        return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]))
+      }
+      if (parts[0].length === 4) {
+        return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+      }
+    }
+  }
+  const d = new Date(dateStr)
+  return isNaN(d.getTime()) ? null : d
+}
+
 export default function DataVisualization({ data, headers }: DataVisualizationProps) {
+  // Extract specific headers explicitly so we can use them in the charts for cross-filtering
+  const dateHeader = useMemo(() => headers.find(h => 
+    h.toLowerCase().includes('data') || 
+    h.toLowerCase().includes('date') ||
+    h.toLowerCase().includes('dia')
+  ), [headers])
+
+  const categoryHeader = useMemo(() => headers.find(h => 
+    h.toLowerCase().includes('categoria') || 
+    h.toLowerCase().includes('category') ||
+    h.toLowerCase().includes('tipo') ||
+    h.toLowerCase().includes('status') ||
+    h.toLowerCase().includes('região') ||
+    h.toLowerCase().includes('regiao') ||
+    h.toLowerCase().includes('setor') ||
+    h.toLowerCase().includes('departamento')
+  ), [headers])
+
   // Identificar colunas mais relevantes para filtros
   const filterableHeaders = useMemo(() => {
     const relevant: string[] = []
     
-    // Procurar por colunas de categoria, tipo, status
-    const categoryHeaders = headers.filter(h => 
-      h.toLowerCase().includes('categoria') || 
-      h.toLowerCase().includes('category') ||
-      h.toLowerCase().includes('tipo') ||
-      h.toLowerCase().includes('status') ||
-      h.toLowerCase().includes('região') ||
-      h.toLowerCase().includes('regiao') ||
-      h.toLowerCase().includes('setor') ||
-      h.toLowerCase().includes('departamento')
-    )
-    
-    // Procurar por colunas de data
-    const dateHeaders = headers.filter(h => 
-      h.toLowerCase().includes('data') || 
-      h.toLowerCase().includes('date')
-    )
-    
-    relevant.push(...categoryHeaders.slice(0, 1))
-    relevant.push(...dateHeaders.slice(0, 1))
+    if (categoryHeader) relevant.push(categoryHeader)
+    if (dateHeader) relevant.push(dateHeader)
     
     // Se não encontrou, pegar as primeiras 2 colunas não numéricas
     if (relevant.length < 2) {
       const nonNumeric = headers.filter(h => {
         const sample = data[0]?.[h]
-        return isNaN(Number(sample)) && sample !== '' && sample !== null
+        return isNaN(Number(sample)) && sample !== '' && sample !== null && !relevant.includes(h)
       })
       relevant.push(...nonNumeric.slice(0, 2 - relevant.length))
     }
     
     return relevant.slice(0, 2)
-  }, [headers, data])
+  }, [categoryHeader, dateHeader, headers, data])
 
   const [filter1, setFilter1] = useState<string>(filterableHeaders[0] || '')
   const [filter2, setFilter2] = useState<string>(filterableHeaders[1] || '')
@@ -61,6 +83,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
   const [filter2Value, setFilter2Value] = useState<string>('')
   const [openFilter1, setOpenFilter1] = useState(false)
   const [openFilter2, setOpenFilter2] = useState(false)
+  const [dateRange, setDateRange] = useState<{ start: string; end: string; preset: string }>({ start: '', end: '', preset: 'all' })
   const filter1Ref = useRef<HTMLDivElement>(null)
   const filter2Ref = useRef<HTMLDivElement>(null)
 
@@ -103,15 +126,85 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     if (filter2 && filter2Value) {
       result = result.filter(row => String(row[filter2]) === filter2Value)
     }
+
+    if (dateHeader && (dateRange.start || dateRange.end)) {
+      result = result.filter(row => {
+        const rowDate = parseDate(String(row[dateHeader]))
+        if (!rowDate) return false
+        
+        if (dateRange.start) {
+          const startD = new Date(dateRange.start)
+          if (rowDate < startD) return false
+        }
+        if (dateRange.end) {
+          const endD = new Date(dateRange.end)
+          endD.setHours(23, 59, 59, 999)
+          if (rowDate > endD) return false
+        }
+        return true
+      })
+    }
     
     return result
-  }, [data, filter1, filter1Value, filter2, filter2Value])
+  }, [data, filter1, filter1Value, filter2, filter2Value, dateRange, dateHeader])
+
+  const handlePresetChange = (preset: string) => {
+    const today = new Date()
+    let start = ''
+    let end = ''
+    
+    if (preset === 'thisMonth') {
+      start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
+      end = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0]
+    } else if (preset === 'thisYear') {
+      start = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0]
+      end = new Date(today.getFullYear(), 11, 31).toISOString().split('T')[0]
+    }
+    
+    setDateRange({ preset, start, end })
+  }
 
   const clearFilters = () => {
     setFilter1(filterableHeaders[0] || '')
     setFilter2(filterableHeaders[1] || '')
     setFilter1Value('')
     setFilter2Value('')
+    setDateRange({ preset: 'all', start: '', end: '' })
+  }
+
+  const handleChartClick = (entry: any, type: 'date' | 'category' | 'pie') => {
+    if (!entry) return
+    
+    let chartValue = ''
+    let chartHeader = ''
+    
+    if (type === 'pie') {
+      chartValue = entry.name
+      chartHeader = categoryHeader || filterableHeaders[0] || ''
+    } else if (type === 'date' && dateHeader) {
+      chartValue = entry.activeLabel || entry.activePayload?.[0]?.payload?.date || entry.date
+      chartHeader = dateHeader || ''
+    } else if (type === 'category' && categoryHeader) {
+      chartValue = entry.activeLabel || entry.activePayload?.[0]?.payload?.category || entry.category
+      chartHeader = categoryHeader || ''
+    } else {
+      // Tenta usar qualquer label ativo se falhar na dedução do tipo
+      chartValue = entry.activeLabel
+      chartHeader = dateHeader || categoryHeader || filterableHeaders[0] || ''
+    }
+
+    if (chartHeader && chartValue) {
+      // Desativa o filtro se ele já estiver selecionado
+      if (filter1 === chartHeader && filter1Value === chartValue) {
+        setFilter1Value('')
+      } else if (filter2 === chartHeader && filter2Value === chartValue) {
+        setFilter2Value('')
+      } else {
+        // Senão defina como filtro 1
+        setFilter1(chartHeader)
+        setFilter1Value(chartValue)
+      }
+    }
   }
   
   const stats = useMemo(() => {
@@ -148,38 +241,27 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     return { numericHeaders, statsMap }
   }, [filteredData, headers])
 
-  // Dados para gráfico de barras/linhas melhorado
-  const chartData = useMemo(() => {
-    if (!stats || stats.numericHeaders.length === 0) return []
+  // Dados para gráfico temporal (AreaChart)
+  const trendData = useMemo(() => {
+    if (!stats || stats.numericHeaders.length === 0 || !dateHeader) return []
 
-    // Se houver coluna de data, agrupar por data
-    const dateHeader = headers.find(h => 
-      h.toLowerCase().includes('data') || 
-      h.toLowerCase().includes('date') ||
-      h.toLowerCase().includes('dia')
-    )
-
-    if (dateHeader) {
-      const grouped: Record<string, any> = {}
-      filteredData.forEach(row => {
-        const date = row[dateHeader] || 'Sem data'
-        if (!grouped[date]) {
-          grouped[date] = { date, ...stats.numericHeaders.reduce((acc, h) => ({ ...acc, [h]: 0 }), {}) }
-        }
-        stats.numericHeaders.forEach(header => {
-          grouped[date][header] = (grouped[date][header] || 0) + (Number(row[header]) || 0)
-        })
+    const grouped: Record<string, any> = {}
+    filteredData.forEach(row => {
+      const date = row[dateHeader] || 'Sem data'
+      if (!grouped[date]) {
+        grouped[date] = { date, ...stats.numericHeaders.reduce((acc, h) => ({ ...acc, [h]: 0 }), {}) }
+      }
+      stats.numericHeaders.forEach(header => {
+        grouped[date][header] = (grouped[date][header] || 0) + (Number(row[header]) || 0)
       })
-      return Object.values(grouped).slice(0, 15)
-    }
+    })
+    
+    return Object.values(grouped).sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(0, 15)
+  }, [filteredData, stats, dateHeader])
 
-    // Se houver coluna de categoria, agrupar por categoria
-    const categoryHeader = headers.find(h => 
-      h.toLowerCase().includes('categoria') || 
-      h.toLowerCase().includes('category') ||
-      h.toLowerCase().includes('tipo') ||
-      h.toLowerCase().includes('setor')
-    )
+  // Dados para gráfico de barras/linhas comparativo (ComposedChart)
+  const categoryData = useMemo(() => {
+    if (!stats || stats.numericHeaders.length === 0) return []
 
     if (categoryHeader) {
       const grouped: Record<string, any> = {}
@@ -192,10 +274,12 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
           grouped[category][header] = (grouped[category][header] || 0) + (Number(row[header]) || 0)
         })
       })
-      return Object.values(grouped).slice(0, 10)
+      
+      const firstNum = stats.numericHeaders[0]
+      return Object.values(grouped).sort((a, b) => (b[firstNum] || 0) - (a[firstNum] || 0)).slice(0, 10)
     }
 
-    // Caso padrão: primeiros registros
+    // Caso padrão: primeiros registros se não tiver categoria
     return filteredData.slice(0, 10).map((row, index) => {
       const chartRow: any = { index: `#${index + 1}` }
       stats.numericHeaders.slice(0, 3).forEach(header => {
@@ -203,37 +287,29 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
       })
       return chartRow
     })
-  }, [filteredData, data, stats, headers])
+  }, [filteredData, stats, categoryHeader])
 
   // Dados para gráfico de pizza melhorado
   const pieData = useMemo(() => {
     if (!stats || stats.numericHeaders.length === 0) return []
+    const firstNumericHeader = stats.numericHeaders[0]
 
     // Tentar encontrar coluna de categoria primeiro
-    const categoryHeader = headers.find(h => 
-      h.toLowerCase().includes('categoria') || 
-      h.toLowerCase().includes('category') ||
-      h.toLowerCase().includes('tipo') ||
-      h.toLowerCase().includes('status') ||
-      h.toLowerCase().includes('região') ||
-      h.toLowerCase().includes('regiao')
-    )
-
     if (categoryHeader) {
-      const categoryCounts: Record<string, number> = {}
+      const categorySums: Record<string, number> = {}
       filteredData.forEach(row => {
         const category = String(row[categoryHeader] || 'Outros')
-        categoryCounts[category] = (categoryCounts[category] || 0) + 1
+        const val = Number(row[firstNumericHeader]) || 0
+        categorySums[category] = (categorySums[category] || 0) + val
       })
 
-      return Object.entries(categoryCounts)
+      return Object.entries(categorySums)
         .sort(([, a], [, b]) => b - a)
         .slice(0, 6)
-        .map(([name, value]) => ({ name, value }))
+        .map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
     }
 
-    // Se não houver categoria, usar primeira coluna numérica agregada
-    const firstNumericHeader = stats.numericHeaders[0]
+    // Se não houver categoria, usar primeira coluna numérica agregada já declarada
     if (!firstNumericHeader) return []
 
     // Agrupar por faixas de valores
@@ -294,6 +370,54 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
 
   return (
     <div className="data-visualization">
+      {dateHeader && (
+        <div className="filters-section" style={{marginBottom: '0'}}>
+          <div className="date-filter-container">
+            <div className="date-filter-label">
+              <strong>Período:</strong>
+            </div>
+            <div className="date-presets">
+              <button 
+                className={`filter-button preset-btn ${dateRange.preset === 'all' ? 'active' : ''}`} 
+                onClick={() => setDateRange({ preset: 'all', start: '', end: '' })}
+              >
+                Todos
+              </button>
+              <button 
+                className={`filter-button preset-btn ${dateRange.preset === 'thisMonth' ? 'active' : ''}`} 
+                onClick={() => handlePresetChange('thisMonth')}
+              >
+                Este Mês
+              </button>
+              <button 
+                className={`filter-button preset-btn ${dateRange.preset === 'thisYear' ? 'active' : ''}`} 
+                onClick={() => handlePresetChange('thisYear')}
+              >
+                Este Ano
+              </button>
+            </div>
+            <div className="date-custom-range">
+              <label>
+                De: 
+                <input 
+                  type="date" 
+                  value={dateRange.start} 
+                  onChange={e => setDateRange(prev => ({ ...prev, preset: 'custom', start: e.target.value }))} 
+                />
+              </label>
+              <label>
+                Até: 
+                <input 
+                  type="date" 
+                  value={dateRange.end} 
+                  onChange={e => setDateRange(prev => ({ ...prev, preset: 'custom', end: e.target.value }))} 
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
       {filterableHeaders.length > 0 && (
         <div className="filters-section">
           <div className="filters-container">
@@ -419,7 +543,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
               </div>
             )}
 
-            {(filter1Value || filter2Value) && (
+            {(filter1Value || filter2Value || dateRange.start || dateRange.end) && (
               <button onClick={clearFilters} className="clear-filters-btn">
                 <X size={16} />
                 Limpar
@@ -468,19 +592,24 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
 
       {stats && stats.numericHeaders.length > 0 && (
         <>
+          <div className="charts-info-banner">
+            <Filter size={16} />
+            <span><strong>Dica:</strong> Você pode clicar nos elementos ou legendas dos gráficos para aplicar filtros diretamente aos dados.</span>
+          </div>
           <div className="charts-section">
-            {chartData.length > 0 && (
+            {categoryData.length > 0 && (
               <div className="chart-card">
-                <h3>Análise Comparativa</h3>
+                <h3>Análise Comparativa {categoryHeader ? `por ${categoryHeader}` : ''}</h3>
                 <ResponsiveContainer width="100%" height={350}>
-                  <ComposedChart data={chartData} style={{ cursor: 'pointer' }}>
+                  <ComposedChart data={categoryData} style={{ cursor: 'pointer' }} onClick={(e) => handleChartClick(e, categoryData[0]?.category ? 'category' : 'date')}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#dadce0" opacity={0.3} />
                     <XAxis 
-                      dataKey={chartData[0]?.date ? 'date' : chartData[0]?.category ? 'category' : 'index'} 
+                      dataKey={categoryData[0]?.category ? 'category' : 'index'} 
                       stroke="#5f6368"
                       tick={{ fill: '#5f6368', fontSize: 12 }}
                       angle={-45}
                       textAnchor="end"
+                      interval={0}
                       height={80}
                     />
                     <YAxis 
@@ -529,11 +658,11 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
               </div>
             )}
 
-            {chartData.length > 0 && (
+            {trendData.length > 0 && (
               <div className="chart-card">
                 <h3>Tendência Temporal</h3>
                 <ResponsiveContainer width="100%" height={350}>
-                  <AreaChart data={chartData} style={{ cursor: 'pointer' }}>
+                  <AreaChart data={trendData} style={{ cursor: 'pointer' }} onClick={(e) => handleChartClick(e, 'date')}>
                     <defs>
                       {stats.numericHeaders.slice(0, 3).map((header, index) => (
                         <linearGradient key={header} id={`color${index}`} x1="0" y1="0" x2="0" y2="1">
@@ -544,7 +673,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#dadce0" opacity={0.3} />
                     <XAxis 
-                      dataKey={chartData[0]?.date ? 'date' : chartData[0]?.category ? 'category' : 'index'} 
+                      dataKey="date"
                       stroke="#5f6368"
                       tick={{ fill: '#5f6368', fontSize: 12 }}
                       angle={-45}
@@ -618,6 +747,8 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                       fill="#8884d8"
                       dataKey="value"
                       paddingAngle={2}
+                      onClick={(entry) => handleChartClick(entry, 'pie')}
+                      style={{ cursor: 'pointer' }}
                     >
                       {pieData.map((_entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
