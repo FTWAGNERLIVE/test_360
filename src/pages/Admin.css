@@ -854,6 +854,26 @@
     align-items: flex-start;
   }
 
+  .migration-banner {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+  }
+
+  .migration-info {
+    align-items: center;
+  }
+
+  .migration-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .admin-stats {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
   .admin-table-container {
     overflow-x: auto;
   }
@@ -864,17 +884,38 @@
 
   .admin-actions {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .search-box {
     min-width: 100%;
+    width: 100%;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .action-buttons button {
+    width: 100%;
+    justify-content: center;
   }
 
   .admin-tabs {
     overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;  /* IE and Edge */
+    padding-bottom: 5px;
+    margin-bottom: 20px;
+  }
+
+  .admin-tabs::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
   }
 
   .admin-tabs button {
     white-space: nowrap;
+    padding: 10px 16px;
   }
 }

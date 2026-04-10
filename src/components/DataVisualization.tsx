@@ -19,13 +19,18 @@ const formatNumber = (value: number) => {
 }
 
 const parseDate = (dateStr: string) => {
-  if (!dateStr) return null
-  if (String(dateStr).match(/^\d{4}-\d{2}-\d{2}/)) {
-    const parts = String(dateStr).split('T')[0].split('-')
+  if (!dateStr || dateStr === 'null' || dateStr === 'undefined') return null
+  const s = String(dateStr).trim()
+  
+  // Formato ISO ou similar: 2024-01-01...
+  if (s.match(/^\d{4}-\d{2}-\d{2}/)) {
+    const parts = s.split('T')[0].split('-')
     return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2].substring(0, 2)))
   }
-  if (String(dateStr).includes('/')) {
-    const parts = String(dateStr).split(' ')[0].split('/')
+  
+  // Formato PT-BR: 01/01/2024
+  if (s.includes('/')) {
+    const parts = s.split(' ')[0].split('/')
     if (parts.length === 3) {
       if (parts[0].length <= 2 && parts[2].length === 4) {
         return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]))
@@ -35,17 +40,45 @@ const parseDate = (dateStr: string) => {
       }
     }
   }
-  const d = new Date(dateStr)
+
+  // Tentar Date.parse nativo
+  const d = new Date(s)
   return isNaN(d.getTime()) ? null : d
+}
+
+// Limpeza de valores numéricos que podem vir formatados (R$ 1.000,50)
+const cleanNumber = (val: any): number => {
+  if (typeof val === 'number') return val
+  if (!val) return 0
+  const cleaned = String(val)
+    .replace(/[R$\s]/g, '')
+    // Se tiver vírgula e ponto, ponto é milhar, vírgula é decimal
+    if (cleaned.includes(',') && cleaned.includes('.')) {
+      const num = Number(cleaned.replace(/\./g, '').replace(',', '.'))
+      return isNaN(num) ? 0 : num
+    }
+    // Se tiver apenas vírgula, provavelmente é o separador decimal
+    if (cleaned.includes(',') && !cleaned.includes('.')) {
+      const num = Number(cleaned.replace(',', '.'))
+      return isNaN(num) ? 0 : num
+    }
+    const num = Number(cleaned)
+    return isNaN(num) ? 0 : num
 }
 
 export default function DataVisualization({ data, headers }: DataVisualizationProps) {
   // Extract specific headers explicitly so we can use them in the charts for cross-filtering
-  const dateHeader = useMemo(() => headers.find(h => 
-    h.toLowerCase().includes('data') || 
-    h.toLowerCase().includes('date') ||
-    h.toLowerCase().includes('dia')
-  ), [headers])
+  const dateHeader = useMemo(() => headers.find(h => {
+    const low = h.toLowerCase()
+    return low.includes('data') || 
+           low.includes('date') ||
+           low.includes('dia') ||
+           low.includes('mês') ||
+           low.includes('mes') ||
+           low.includes('ano') ||
+           low.includes('período') ||
+           low.includes('periodo')
+  }), [headers])
 
   const categoryHeader = useMemo(() => headers.find(h => 
     h.toLowerCase().includes('categoria') || 
@@ -83,6 +116,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
   const [filter2Value, setFilter2Value] = useState<string>('')
   const [openFilter1, setOpenFilter1] = useState(false)
   const [openFilter2, setOpenFilter2] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
   const [dateRange, setDateRange] = useState<{ start: string; end: string; preset: string }>({ start: '', end: '', preset: 'all' })
   const filter1Ref = useRef<HTMLDivElement>(null)
   const filter2Ref = useRef<HTMLDivElement>(null)
@@ -127,6 +161,13 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
       result = result.filter(row => String(row[filter2]) === filter2Value)
     }
 
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase()
+      result = result.filter(row => 
+        headers.some(h => String(row[h] || '').toLowerCase().includes(term))
+      )
+    }
+
     if (dateHeader && (dateRange.start || dateRange.end)) {
       result = result.filter(row => {
         const rowDate = parseDate(String(row[dateHeader]))
@@ -146,7 +187,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     }
     
     return result
-  }, [data, filter1, filter1Value, filter2, filter2Value, dateRange, dateHeader])
+  }, [data, filter1, filter1Value, filter2, filter2Value, dateRange, dateHeader, searchTerm, headers])
 
   const handlePresetChange = (preset: string) => {
     const today = new Date()
@@ -170,6 +211,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     setFilter1Value('')
     setFilter2Value('')
     setDateRange({ preset: 'all', start: '', end: '' })
+    setSearchTerm('')
   }
 
   const handleChartClick = (entry: any, type: 'date' | 'category' | 'pie') => {
@@ -194,6 +236,11 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     }
 
     if (chartHeader && chartValue) {
+      if (type === 'pie' && chartValue === 'Outros') {
+        // Não aplica filtro para a categoria agrupada "Outros"
+        return
+      }
+      
       // Desativa o filtro se ele já estiver selecionado
       if (filter1 === chartHeader && filter1Value === chartValue) {
         setFilter1Value('')
@@ -212,7 +259,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
 
     const numericHeaders = headers.filter(header => {
       const sample = data[0]?.[header]
-      return !isNaN(Number(sample)) && sample !== '' && sample !== null
+      return !isNaN(cleanNumber(sample)) && sample !== '' && sample !== null
     })
 
     const statsMap: Record<string, { sum: number; count: number; min: number; max: number }> = {}
@@ -247,16 +294,30 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
 
     const grouped: Record<string, any> = {}
     filteredData.forEach(row => {
-      const date = row[dateHeader] || 'Sem data'
-      if (!grouped[date]) {
-        grouped[date] = { date, ...stats.numericHeaders.reduce((acc, h) => ({ ...acc, [h]: 0 }), {}) }
+      const rawDate = row[dateHeader]
+      const parsedDate = parseDate(String(rawDate))
+      
+      if (!parsedDate) return
+
+      // Chave de agrupamento normalizada YYYY-MM-DD
+      const dateKey = parsedDate.toISOString().split('T')[0]
+      
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = { 
+          date: parsedDate.toLocaleDateString('pt-BR'),
+          sortKey: parsedDate.getTime(),
+          ...stats.numericHeaders.reduce((acc, h) => ({ ...acc, [h]: 0 }), {}) 
+        }
       }
+      
       stats.numericHeaders.forEach(header => {
-        grouped[date][header] = (grouped[date][header] || 0) + (Number(row[header]) || 0)
+        grouped[dateKey][header] = (grouped[dateKey][header] || 0) + cleanNumber(row[header])
       })
     })
     
-    return Object.values(grouped).sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(0, 15)
+    return Object.values(grouped)
+      .sort((a: any, b: any) => a.sortKey - b.sortKey)
+      .slice(0, 30) // Mostra até 30 pontos no tempo
   }, [filteredData, stats, dateHeader])
 
   // Dados para gráfico de barras/linhas comparativo (ComposedChart)
@@ -276,7 +337,21 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
       })
       
       const firstNum = stats.numericHeaders[0]
-      return Object.values(grouped).sort((a, b) => (b[firstNum] || 0) - (a[firstNum] || 0)).slice(0, 10)
+      const sortedValues = Object.values(grouped).sort((a, b) => (b[firstNum] || 0) - (a[firstNum] || 0))
+      
+      if (sortedValues.length > 4) {
+        const top4 = sortedValues.slice(0, 4)
+        const others = sortedValues.slice(4)
+        
+        const othersEntry: any = { category: 'Outros' }
+        stats.numericHeaders.forEach(header => {
+          othersEntry[header] = others.reduce((sum, item) => sum + (item[header] || 0), 0)
+        })
+        
+        return [...top4, othersEntry]
+      }
+      
+      return sortedValues
     }
 
     // Caso padrão: primeiros registros se não tiver categoria
@@ -303,10 +378,31 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
         categorySums[category] = (categorySums[category] || 0) + val
       })
 
-      return Object.entries(categorySums)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 6)
-        .map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
+      const sortedEntries = Object.entries(categorySums).sort(([, a], [, b]) => b - a)
+      
+      if (sortedEntries.length > 4) {
+        const top4 = sortedEntries.slice(0, 4)
+        const others = sortedEntries.slice(4)
+        
+        let othersSum = 0
+        others.forEach(([, val]) => {
+          othersSum += val
+        })
+        
+        const finalData = top4.map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
+        
+        if (othersSum > 0) {
+          const index = finalData.findIndex(item => item.name === 'Outros')
+          if (index >= 0) {
+            finalData[index].value = Number((finalData[index].value + othersSum).toFixed(2))
+          } else {
+            finalData.push({ name: 'Outros', value: Number(othersSum.toFixed(2)) })
+          }
+        }
+        return finalData
+      }
+
+      return sortedEntries.map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
     }
 
     // Se não houver categoria, usar primeira coluna numérica agregada já declarada
@@ -543,7 +639,24 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
               </div>
             )}
 
-            {(filter1Value || filter2Value || dateRange.start || dateRange.end) && (
+            <div className="search-filter" style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto' }}>
+              <input 
+                type="text" 
+                placeholder="Buscar dados..." 
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '20px',
+                  border: '1px solid var(--border)',
+                  outline: 'none',
+                  fontSize: '14px',
+                  minWidth: '200px'
+                }}
+              />
+            </div>
+
+            {(filter1Value || filter2Value || dateRange.start || dateRange.end || searchTerm) && (
               <button onClick={clearFilters} className="clear-filters-btn">
                 <X size={16} />
                 Limpar
@@ -771,6 +884,12 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                       height={36}
                       iconType="circle"
                       wrapperStyle={{ cursor: 'pointer' }}
+                      onClick={(e: any) => {
+                        // O payload da legenda no recharts passa o nome no campo "value"
+                        if (e && e.value) {
+                          handleChartClick({ name: e.value }, 'pie')
+                        }
+                      }}
                     />
                   </PieChart>
                 </ResponsiveContainer>

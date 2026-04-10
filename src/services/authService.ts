@@ -200,7 +200,29 @@ export async function login(email: string, password: string): Promise<UserData> 
     }
   }
 
-  // Se não for admin hardcoded, tentar Firebase
+  // Fallback temporário para cliente sem Firebase
+  const CLIENT_CREDENTIALS = {
+    email: 'cliente@creattive.com',
+    password: 'cliente123'
+  }
+
+  if (email === CLIENT_CREDENTIALS.email && password === CLIENT_CREDENTIALS.password) {
+    const trialEndDate = new Date()
+    trialEndDate.setDate(trialEndDate.getDate() + 15) // 15 dias para cliente
+    
+    return {
+      id: 'temp-client-' + Date.now(),
+      email: CLIENT_CREDENTIALS.email,
+      name: 'Cliente Teste',
+      role: 'user',
+      onboardingCompleted: true,
+      createdAt: new Date(),
+      trialEndDate,
+      onboardingData: undefined
+    }
+  }
+
+  // Se não for admin ou cliente hardcoded, tentar Firebase
   if (!auth || !db) {
     console.error('Firebase não está configurado. Verifique as variáveis de ambiente no Vercel.')
     throw new Error('Firebase não está configurado. Verifique as configurações do servidor.')

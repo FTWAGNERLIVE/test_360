@@ -414,22 +414,7 @@ export default function Admin() {
       </header>
 
       <main className="admin-main">
-        {migrationStatus && !migrationStatus.completed && migrationStatus.firebaseReady && (
-          <div className="migration-banner">
-            <Database size={20} />
-            <div className="migration-info">
-              <strong>Migração Disponível</strong>
-              <span>{migrationStatus.message}</span>
-            </div>
-            <button
-              onClick={handleExecuteMigration}
-              className="migration-btn"
-              disabled={migrationLoading}
-            >
-              {migrationLoading ? 'Migrando...' : 'Migrar para Firebase'}
-            </button>
-          </div>
-        )}
+
 
         <div className="admin-tabs">
           <button 
