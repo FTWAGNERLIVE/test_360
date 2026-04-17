@@ -56,9 +56,9 @@ export const chatWithGemini = async (
   try {
     const dataContext = prepareDataContext(data, headers);
     
-    // Configura o modelo de forma estável (v1)
+    // Configura o modelo gemini-pro (mais estável para todas as contas)
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash" 
+      model: "gemini-pro" 
     }, { apiVersion: "v1" });
 
     // Preparamos as mensagens iniciais para dar o contexto ao modelo
