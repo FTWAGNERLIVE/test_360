@@ -50,49 +50,45 @@ export const chatWithGemini = async (
   headers: string[]
 ) => {
   if (!API_KEY) {
-    return "Erro: Chave de API do Gemini não configurada. Por favor, adicione VITE_GEMINI_API_KEY ao seu arquivo .env.";
+    return "Erro: Chave de API do Gemini não configurada. Por favor, adicione VITE_GEMINI_API_KEY ao seu arquivo .env e REINICIE o terminal (npm run dev).";
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const dataContext = prepareDataContext(data, headers);
-
-    // Format history for Gemini
-    // Gemini history uses 'parts' with 'text'
-    const contents = [
-      {
-        role: "user",
-        parts: [{ text: `AQUI ESTÃO OS DADOS QUE VOCÊ DEVE ANALISAR:\n${dataContext}\n\nAgora, responda à seguinte pergunta do usuário.` }]
-      },
-      {
-        role: "model",
-        parts: [{ text: "Entendido. Sou o Agente 360 e estou pronto para analisar seus dados. Como posso ajudar?" }]
-      },
-      ...history.map(msg => ({
-        role: msg.role === "user" ? "user" : "model",
-        parts: [{ text: msg.content }]
-      })),
-      {
-        role: "user",
-        parts: [{ text: userMessage }]
-      }
-    ];
-
-    const result = await model.generateContent({
-      contents,
-      generationConfig: {
-        maxOutputTokens: 1000,
-        temperature: 0.2, // Lower temperature for more analytical/factual responses
-      },
+    
+    // Configura o modelo com instruções de sistema
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      systemInstruction: dataContext
     });
 
+    // Converte o histórico para o formato do Gemini (user / model)
+    const geminiHistory = history.map(msg => ({
+      role: msg.role === "user" ? "user" : "model",
+      parts: [{ text: msg.content }]
+    }));
+
+    // Inicia um chat com o histórico
+    const chat = model.startChat({
+      history: geminiHistory,
+    });
+
+    const result = await chat.sendMessage(userMessage);
     const response = await result.response;
     return response.text();
   } catch (error: any) {
     console.error("Erro ao chamar o Gemini:", error);
-    if (error.message?.includes("API key not valid")) {
-      return "Erro: Chave de API do Gemini inválida. Verifique suas configurações.";
+    
+    // Erros comuns de chave de API
+    if (error.message?.includes("API key not valid") || error.message?.includes("invalid API key")) {
+      return "Erro: Chave de API do Gemini inválida ou expirada. Verifique se copiou corretamente para o .env.";
     }
-    return "Desculpe, ocorreu um erro ao processar sua análise com o Gemini. Tente novamente em instantes.";
+    
+    // Erro de segurança ou região (algumas chaves podem ter restrições)
+    if (error.message?.includes("User location is not supported")) {
+      return "Erro: O Google Gemini ainda não suporta sua região ou requer o uso de uma VPN/Configuração diferente.";
+    }
+
+    return "Desculpe, ocorreu um erro ao processar sua análise. Verifique se reiniciou o servidor e se sua chave de API está ativa no Google AI Studio.";
   }
 };
