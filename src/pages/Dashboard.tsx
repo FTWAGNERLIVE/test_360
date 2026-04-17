@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { LogOut, FileText, BarChart3, MessageCircle, Clock, CheckCircle2, HelpCircle, Send, X } from 'lucide-react'
+import { LogOut, FileText, BarChart3, MessageCircle, Clock, CheckCircle2, HelpCircle, Send, X, LayoutDashboard } from 'lucide-react'
 import CSVUploader from '../components/CSVUploader'
 import DataVisualization from '../components/DataVisualization'
 import ChatBot from '../components/ChatBot'
@@ -177,6 +177,16 @@ export default function Dashboard() {
           <span className="company-name">por Creattive</span>
         </div>
         <div className="header-right">
+          {user?.role === 'admin' && !isImpersonating && (
+            <button 
+              onClick={() => window.location.href = '/admin'} 
+              className="back-admin-header-btn"
+              title="Voltar ao Painel Administrativo"
+            >
+              <LayoutDashboard size={20} />
+              Voltar ao Admin
+            </button>
+          )}
           <span className="user-name">{effectiveUser?.name}</span>
           <button onClick={logout} className="logout-button">
             <LogOut size={20} />
