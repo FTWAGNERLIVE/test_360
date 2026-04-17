@@ -14,7 +14,7 @@ export interface ChatMessage {
   content: string;
 }
 
-const prepareDataContext = (data: any[], headers: string[]) => {
+const prepareDataContext = (data: any[], headers: string[], onboardingData?: any) => {
   const totalRecords = data.length;
   const columns = headers.join(", ");
   
@@ -26,20 +26,35 @@ const prepareDataContext = (data: any[], headers: string[]) => {
     return simplifiedRow;
   });
 
+  let onboardingContext = "";
+  if (onboardingData && Object.keys(onboardingData).length > 0) {
+    const formattedData = Object.entries(onboardingData)
+      .map(([key, value]) => `- ${key}: ${value}`)
+      .join("\n");
+      
+    onboardingContext = `
+CONTEXTO DO NEGÓCIO E OBJETIVOS (Baseado no Questionário de Onboarding):
+${formattedData}
+
+Instrução especial: Como consultor estratégico de negócios ("Agente 360"), você tem acesso acima às respostas que o usuário forneceu no onboarding. Por favor, SEMPRE considere essas respostas. Direcione ativamente suas análises e respostas para ajudar o usuário a superar os desafios e alcançar os objetivos específicos citados no questionário.
+`;
+  }
+
   return `
 CONTEXTO DO DATASET (Farol 360):
 - Total de registros: ${totalRecords}
 - Colunas disponíveis: ${columns}
 - Amostra dos dados (primeiras 10 linhas):
 ${JSON.stringify(sampleData, null, 2)}
+${onboardingContext}
 
 INSTRUÇÕES:
 1. Você é o Agente 360 da empresa Creattive, um assistente de análise de dados inteligente.
-2. Sua função é responder perguntas estritamente baseadas nos dados fornecidos acima.
+2. Sua função é responder perguntas estritamente baseadas nos dados fornecidos acima e no contexto de negócio do usuário se disponível.
 3. Se o usuário perguntar algo que não pode ser respondido com os dados, explique educadamente que você só tem acesso aos dados carregados no dashboard.
-4. Mantenha um tom profissional, prestativo e analítico.
+4. Mantenha um tom profissional, prestativo e analítico, altamente focado em resultados de negócio.
 5. Use markdown para formatar suas respostas (negrito, listas, tabelas se necessário).
-6. Tente identificar tendências ou pontos interessantes nos dados se o usuário pedir uma análise geral.
+6. Tente identificar tendências ou pontos interessantes nos dados associando com os objetivos do usuário.
 7. O usuário é o cliente da Creattive usando o sistema Farol 360.
 `;
 };
@@ -48,14 +63,15 @@ export const chatWithGroq = async (
   userMessage: string, 
   history: ChatMessage[], 
   data: any[], 
-  headers: string[]
+  headers: string[],
+  onboardingData?: any
 ) => {
   if (!API_KEY) {
     return "Erro: Chave de API do Groq não configurada. Por favor, adicione VITE_GROQ_API_KEY ao seu arquivo .env e reinicie o servidor com 'npm run dev'.";
   }
 
   try {
-    const dataContext = prepareDataContext(data, headers);
+    const dataContext = prepareDataContext(data, headers, onboardingData);
     
     const systemMessage = {
       role: "system",

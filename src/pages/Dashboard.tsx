@@ -290,7 +290,7 @@ export default function Dashboard() {
         </div>
 
         {showChat && csvData.length > 0 && (
-          <ChatBot data={csvData} headers={csvHeaders} />
+          <ChatBot data={csvData} headers={csvHeaders} onboardingData={effectiveUser?.onboardingData} />
         )}
 
         {showSupport && (

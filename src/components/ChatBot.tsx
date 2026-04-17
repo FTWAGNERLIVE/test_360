@@ -13,9 +13,10 @@ interface Message {
 interface ChatBotProps {
   data: any[]
   headers: string[]
+  onboardingData?: any
 }
 
-export default function ChatBot({ data, headers }: ChatBotProps) {
+export default function ChatBot({ data, headers, onboardingData }: ChatBotProps) {
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -59,7 +60,7 @@ export default function ChatBot({ data, headers }: ChatBotProps) {
         content: msg.content
       })).slice(1) // Skip first assistant message
 
-      const response = await chatWithGroq(currentInput, history, data, headers)
+      const response = await chatWithGroq(currentInput, history, data, headers, onboardingData)
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
