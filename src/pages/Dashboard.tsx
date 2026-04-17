@@ -43,9 +43,11 @@ export default function Dashboard() {
             setShowSavedMessage(true)
             setTimeout(() => setShowSavedMessage(false), 5000)
             
-            // Sincronizar com localStorage como cache
-            localStorage.setItem(`csvData_${user.id}`, JSON.stringify(firestoreData.csvData))
-            localStorage.setItem(`csvHeaders_${user.id}`, JSON.stringify(firestoreData.csvHeaders))
+            // Sincronizar com localStorage como cache (apenas se for o próprio usuário)
+            if (!isImpersonating && effectiveUser?.id) {
+              localStorage.setItem(`csvData_${effectiveUser.id}`, JSON.stringify(firestoreData.csvData))
+              localStorage.setItem(`csvHeaders_${effectiveUser.id}`, JSON.stringify(firestoreData.csvHeaders))
+            }
             
             setLoadingCSV(false)
             return
