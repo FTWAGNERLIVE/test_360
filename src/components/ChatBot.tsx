@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, Bot, User, Loader } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+
 import './ChatBot.css'
 
 interface Message {
@@ -16,7 +16,7 @@ interface ChatBotProps {
 }
 
 export default function ChatBot({ data, headers }: ChatBotProps) {
-  const { user } = useAuth()
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
