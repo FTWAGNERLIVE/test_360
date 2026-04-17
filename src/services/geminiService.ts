@@ -58,9 +58,9 @@ export const chatWithGemini = async (
   try {
     const dataContext = prepareDataContext(data, headers);
     
-    // Configuração de produção estável (v1) com modelo altamente compatível
+    // Configuração de produção estável (v1) com modelo 1.5 flash
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-pro" 
+      model: "gemini-1.5-flash" 
     }, { apiVersion: "v1" });
 
     // Mensagens de inicialização
