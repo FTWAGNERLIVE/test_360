@@ -68,7 +68,7 @@ export const chatWithGroq = async (
     }));
 
     const response = await groq.chat.completions.create({
-      model: "llama3-8b-8192", // Modelo da Meta, extremamente rápido e grátis via Groq
+      model: "llama-3.1-8b-instant", // Atualizado para o modelo suportado mais recente
       messages: [
         systemMessage,
         ...formattedHistory,
