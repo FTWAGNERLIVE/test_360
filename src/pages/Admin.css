@@ -919,3 +919,23 @@
     padding: 10px 16px;
   }
 }
+.view-client-dashboard-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #fbbc04;
+  color: #000;
+  border: 1px solid #fbbc04;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-client-dashboard-btn:hover:not(:disabled) {
+  background: #e6a800;
+  border-color: #e6a800;
+  transform: translateY(-1px);
+}

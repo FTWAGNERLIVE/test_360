@@ -33,7 +33,7 @@ interface UserAccount {
 }
 
 export default function Admin() {
-  const { user, logout, getAllOnboardingData, getAllUsers, resetUserPassword, isTrialExpired, getTrialDaysRemaining } = useAuth()
+  const { user, logout, getAllOnboardingData, getAllUsers, resetUserPassword, isTrialExpired, getTrialDaysRemaining, impersonateUser } = useAuth()
   const navigate = useNavigate()
   const [onboardingData, setOnboardingData] = useState<OnboardingRecord[]>([])
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>([])
@@ -783,6 +783,23 @@ export default function Admin() {
                                 >
                                   <User size={14} />
                                   {updateRoleLoading === account.id ? 'Atualizando...' : 'Tornar Vendas'}
+                                </button>
+                              )}
+                              {account.role === 'user' && (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await impersonateUser(account.id)
+                                      navigate('/dashboard')
+                                    } catch (err: any) {
+                                      alert(err.message || 'Erro ao acessar dashboard do cliente')
+                                    }
+                                  }}
+                                  className="view-client-dashboard-btn"
+                                  title="Ver visão do cliente"
+                                >
+                                  <Eye size={14} />
+                                  Ver Dash
                                 </button>
                               )}
                               <button

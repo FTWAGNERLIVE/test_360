@@ -25,7 +25,8 @@ export async function saveCSVData(
   csvData: any[], 
   csvHeaders: string[], 
   csvFileName?: string,
-  csvFileContent?: string
+  csvFileContent?: string,
+  targetUserId?: string
 ): Promise<void> {
   if (!db) {
     throw new Error('Firebase não está configurado')
@@ -35,7 +36,7 @@ export async function saveCSVData(
     throw new Error('Usuário não autenticado. Faça login novamente.')
   }
 
-  const userId = auth.currentUser.uid
+  const userId = targetUserId || auth.currentUser.uid
   const csvDataDoc: Omit<CSVData, 'uploadedAt' | 'updatedAt'> & { uploadedAt: Timestamp, updatedAt: Timestamp } = {
     userId,
     csvData,
@@ -78,7 +79,7 @@ export async function saveCSVData(
 /**
  * Carrega os dados do CSV do Firestore
  */
-export async function loadCSVData(): Promise<CSVData | null> {
+export async function loadCSVData(targetUserId?: string): Promise<CSVData | null> {
   if (!db) {
     throw new Error('Firebase não está configurado')
   }
@@ -87,7 +88,7 @@ export async function loadCSVData(): Promise<CSVData | null> {
     throw new Error('Usuário não autenticado. Faça login novamente.')
   }
 
-  const userId = auth.currentUser.uid
+  const userId = targetUserId || auth.currentUser.uid
 
   try {
     console.log('🔍 Buscando dados do CSV no Firestore...', { userId })
@@ -137,7 +138,7 @@ export async function loadCSVData(): Promise<CSVData | null> {
 /**
  * Remove os dados do CSV do Firestore
  */
-export async function deleteCSVData(): Promise<void> {
+export async function deleteCSVData(targetUserId?: string): Promise<void> {
   if (!db) {
     throw new Error('Firebase não está configurado')
   }
@@ -146,7 +147,7 @@ export async function deleteCSVData(): Promise<void> {
     throw new Error('Usuário não autenticado. Faça login novamente.')
   }
 
-  const userId = auth.currentUser.uid
+  const userId = targetUserId || auth.currentUser.uid
 
   try {
     console.log('🗑️ Removendo dados do CSV do Firestore...', { userId })

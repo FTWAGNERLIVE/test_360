@@ -9,7 +9,7 @@ import { saveCSVData, loadCSVData, deleteCSVData } from '../services/csvService'
 import './Dashboard.css'
 
 export default function Dashboard() {
-  const { user, logout } = useAuth()
+  const { user, logout, impersonatedUser, impersonateUser } = useAuth()
   const [csvData, setCsvData] = useState<any[]>([])
   const [csvHeaders, setCsvHeaders] = useState<string[]>([])
   const [showChat, setShowChat] = useState(false)
@@ -21,10 +21,13 @@ export default function Dashboard() {
   const [supportSuccess, setSupportSuccess] = useState(false)
   const [loadingCSV, setLoadingCSV] = useState(true)
 
+  const effectiveUser = impersonatedUser || user
+  const isImpersonating = !!impersonatedUser
+
   // Carregar dados salvos ao montar o componente
   useEffect(() => {
     const loadSavedData = async () => {
-      if (!user?.id) {
+      if (!effectiveUser?.id) {
         setLoadingCSV(false)
         return
       }
@@ -32,7 +35,7 @@ export default function Dashboard() {
       try {
         // Primeiro tentar carregar do Firestore
         try {
-          const firestoreData = await loadCSVData()
+          const firestoreData = await loadCSVData(effectiveUser.id)
           if (firestoreData && firestoreData.csvData.length > 0 && firestoreData.csvHeaders.length > 0) {
             console.log('✅ Dados do CSV carregados do Firestore')
             setCsvData(firestoreData.csvData)
@@ -51,32 +54,34 @@ export default function Dashboard() {
           console.warn('⚠️ Erro ao carregar do Firestore, tentando localStorage:', firestoreError)
         }
 
-        // Fallback: tentar carregar do localStorage
-        const savedData = localStorage.getItem(`csvData_${user.id}`)
-        const savedHeaders = localStorage.getItem(`csvHeaders_${user.id}`)
-        
-        if (savedData && savedHeaders) {
-          try {
-            const parsedData = JSON.parse(savedData)
-            const parsedHeaders = JSON.parse(savedHeaders)
-            
-            if (parsedData.length > 0 && parsedHeaders.length > 0) {
-              console.log('✅ Dados do CSV carregados do localStorage')
-              setCsvData(parsedData)
-              setCsvHeaders(parsedHeaders)
-              setShowSavedMessage(true)
-              setTimeout(() => setShowSavedMessage(false), 5000)
+        // Fallback: tentar carregar do localStorage (apenas para o próprio usuário)
+        if (!isImpersonating && effectiveUser?.id) {
+          const savedData = localStorage.getItem(`csvData_${effectiveUser.id}`)
+          const savedHeaders = localStorage.getItem(`csvHeaders_${effectiveUser.id}`)
+          
+          if (savedData && savedHeaders) {
+            try {
+              const parsedData = JSON.parse(savedData)
+              const parsedHeaders = JSON.parse(savedHeaders)
               
-              // Tentar sincronizar com Firestore em background
-              try {
-                await saveCSVData(parsedData, parsedHeaders)
-                console.log('✅ Dados sincronizados com Firestore')
-              } catch (syncError) {
-                console.warn('⚠️ Erro ao sincronizar com Firestore:', syncError)
+              if (parsedData.length > 0 && parsedHeaders.length > 0) {
+                console.log('✅ Dados do CSV carregados do localStorage')
+                setCsvData(parsedData)
+                setCsvHeaders(parsedHeaders)
+                setShowSavedMessage(true)
+                setTimeout(() => setShowSavedMessage(false), 5000)
+                
+                // Tentar sincronizar com Firestore em background
+                try {
+                  await saveCSVData(parsedData, parsedHeaders)
+                  console.log('✅ Dados sincronizados com Firestore')
+                } catch (syncError) {
+                  console.warn('⚠️ Erro ao sincronizar com Firestore:', syncError)
+                }
               }
+            } catch (error) {
+              console.error('Erro ao carregar dados salvos:', error)
             }
-          } catch (error) {
-            console.error('Erro ao carregar dados salvos:', error)
           }
         }
       } catch (error) {
@@ -93,20 +98,18 @@ export default function Dashboard() {
     setCsvData(data)
     setCsvHeaders(headers)
     
-    // Salvar dados no localStorage (cache local)
-    if (user?.id) {
-      localStorage.setItem(`csvData_${user.id}`, JSON.stringify(data))
-      localStorage.setItem(`csvHeaders_${user.id}`, JSON.stringify(headers))
+    // Salvar dados no localStorage (cache local) - apenas se for o próprio usuário
+    if (effectiveUser?.id && !isImpersonating) {
+      localStorage.setItem(`csvData_${effectiveUser.id}`, JSON.stringify(data))
+      localStorage.setItem(`csvHeaders_${effectiveUser.id}`, JSON.stringify(headers))
     }
     
-    // Salvar no Firestore (sincronização entre dispositivos)
+    // Salvar no Firestore
     try {
-      await saveCSVData(data, headers, fileName, fileContent)
+      await saveCSVData(data, headers, fileName, fileContent, effectiveUser?.id)
       console.log('✅ Dados do CSV salvos no Firestore com sucesso!')
     } catch (error: any) {
       console.error('❌ Erro ao salvar no Firestore:', error)
-      // Não bloquear o usuário se falhar - os dados já estão no localStorage
-      console.warn('⚠️ Dados salvos apenas localmente. Tente novamente mais tarde.')
     }
     
     setShowSavedMessage(false)
@@ -116,19 +119,18 @@ export default function Dashboard() {
     setCsvData([])
     setCsvHeaders([])
     
-    // Remover dados salvos do localStorage
-    if (user?.id) {
-      localStorage.removeItem(`csvData_${user.id}`)
-      localStorage.removeItem(`csvHeaders_${user.id}`)
+    // Remover dados salvos do localStorage - apenas se for o próprio usuário
+    if (effectiveUser?.id && !isImpersonating) {
+      localStorage.removeItem(`csvData_${effectiveUser.id}`)
+      localStorage.removeItem(`csvHeaders_${effectiveUser.id}`)
     }
     
     // Remover dados do Firestore
     try {
-      await deleteCSVData()
+      await deleteCSVData(effectiveUser?.id)
       console.log('✅ Dados do CSV removidos do Firestore')
     } catch (error: any) {
       console.error('❌ Erro ao remover do Firestore:', error)
-      // Não bloquear o usuário se falhar
     }
   }
 
@@ -173,13 +175,34 @@ export default function Dashboard() {
           <span className="company-name">por Creattive</span>
         </div>
         <div className="header-right">
-          <span className="user-name">{user?.name}</span>
+          <span className="user-name">{effectiveUser?.name}</span>
           <button onClick={logout} className="logout-button">
             <LogOut size={20} />
             Sair
           </button>
         </div>
       </header>
+
+      {isImpersonating && (
+        <div className="impersonation-banner">
+          <div className="banner-content">
+            <div className="banner-text">
+              <Clock size={18} />
+              <span>Você está visualizando o dashboard de: <strong>{effectiveUser?.name}</strong> ({effectiveUser?.email})</span>
+            </div>
+            <button 
+              className="back-to-admin-btn"
+              onClick={async () => {
+                await impersonateUser(null)
+                // Redirecionar para admin será automático pelo App.tsx ou podemos navegar
+                window.location.href = '/admin'
+              }}
+            >
+              Voltar ao Admin
+            </button>
+          </div>
+        </div>
+      )}
 
       <main className="dashboard-main">
         {user?.role === 'user' && (

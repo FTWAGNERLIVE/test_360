@@ -426,3 +426,52 @@
     font-size: 14px;
   }
 }
+.impersonation-banner {
+  background: #fbbc04;
+  color: #000;
+  padding: 10px 32px;
+  position: sticky;
+  top: 73px;
+  z-index: 99;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.banner-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.banner-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.back-to-admin-btn {
+  background: #000;
+  color: #fff;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.back-to-admin-btn:hover {
+  background: #333;
+  transform: scale(1.02);
+}
+
+@media (max-width: 768px) {
+  .banner-content {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+}

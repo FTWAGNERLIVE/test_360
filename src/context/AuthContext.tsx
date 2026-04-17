@@ -24,6 +24,7 @@ export interface OnboardingData {
 
 interface AuthContextType {
   user: User | null
+  impersonatedUser: User | null
   login: (email: string, password: string) => Promise<boolean>
   loginWithGoogle: () => Promise<boolean>
   createAccount: (email: string, password: string, name: string) => Promise<boolean>
@@ -31,6 +32,7 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<void>
   resetUserPassword: (userId: string) => Promise<void>
   completeOnboarding: (data: OnboardingData) => Promise<void>
+  impersonateUser: (userId: string | null) => Promise<void>
   isLoading: boolean
   getAllOnboardingData: () => Promise<Array<OnboardingData & { userId: string; email: string; timestamp: string }>>
   getAllUsers: () => Promise<User[]>
@@ -42,6 +44,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [impersonatedUser, setImpersonatedUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -81,7 +84,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return true
     } catch (error: any) {
       console.error('Erro no login:', error)
-      // Re-throw para que o componente Login possa exibir a mensagem de erro específica
       throw error
     }
   }
@@ -131,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Erro no logout:', error)
     }
     setUser(null)
+    setImpersonatedUser(null)
   }
 
   const handleResetPassword = async (email: string): Promise<void> => {
@@ -157,7 +160,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const completeOnboarding = async (data: OnboardingData) => {
     if (user) {
-      // Atualizar no Firebase
       await updateUserData(user.id, {
         onboardingCompleted: true,
         onboardingData: data
@@ -172,10 +174,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const impersonateUser = async (userId: string | null) => {
+    if (!userId) {
+      setImpersonatedUser(null)
+      return
+    }
+
+    try {
+      const users = await handleGetAllUsers()
+      const userToImpersonate = users.find(u => u.id === userId)
+      if (userToImpersonate) {
+        setImpersonatedUser(userToImpersonate)
+      } else {
+        throw new Error('Usuário não encontrado para visualização')
+      }
+    } catch (error) {
+      console.error('Erro ao buscar usuário para visualização:', error)
+      throw error
+    }
+  }
+
   const getAllOnboardingData = async () => {
     const data = await getFirestoreOnboardingData()
     return data.map(item => ({
       ...item,
+      userId: item.userId || '',
+      email: item.email || '',
       timestamp: item.timestamp instanceof Date 
         ? item.timestamp.toISOString() 
         : typeof item.timestamp === 'string' 
@@ -186,9 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleGetAllUsers = async (): Promise<User[]> => {
     try {
-      console.log('🔄 AuthContext: Buscando todos os usuários...')
       const users = await getAllUsers()
-      console.log(`✅ AuthContext: ${users.length} usuários encontrados`)
       return users.map(u => ({
         id: u.id,
         email: u.email,
@@ -200,12 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         createdAt: u.createdAt
       }))
     } catch (error: any) {
-      console.error('❌ AuthContext: Erro ao buscar usuários:', {
-        code: error.code,
-        message: error.message,
-        error: error
-      })
-      // Não retornar array vazio silenciosamente - deixar o erro propagar para o Admin.tsx
+      console.error('❌ AuthContext: Erro ao buscar usuários:', error)
       throw error
     }
   }
@@ -213,6 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{ 
       user, 
+      impersonatedUser,
       login, 
       loginWithGoogle,
       createAccount,
@@ -220,6 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       resetPassword: handleResetPassword,
       resetUserPassword: handleResetUserPassword,
       completeOnboarding, 
+      impersonateUser,
       isLoading, 
       getAllOnboardingData,
       getAllUsers: handleGetAllUsers,
