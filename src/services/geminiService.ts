@@ -56,11 +56,11 @@ export const chatWithGemini = async (
   try {
     const dataContext = prepareDataContext(data, headers);
     
-    // Configura o modelo com instruções de sistema
+    // Configura o modelo de forma mais compatível
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: "gemini-1.5-flash-latest",
       systemInstruction: dataContext
-    });
+    }, { apiVersion: "v1" });
 
     // Converte o histórico para o formato do Gemini (user / model)
     const geminiHistory = history.map(msg => ({
