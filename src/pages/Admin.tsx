@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Download, User, Building2, Phone, Mail, Calendar, FileText, RefreshCw, Key, Clock, AlertTriangle, CheckCircle, MessageSquare, Users, Shield, Eye, XCircle, UserPlus } from 'lucide-react'
+import { LogOut, Download, User, Building2, Phone, Mail, Calendar, FileText, RefreshCw, Key, Clock, AlertTriangle, CheckCircle, MessageSquare, Users, Shield, Eye, XCircle, UserPlus, BarChart3 } from 'lucide-react'
 import { getAllOnboardingData as getFirestoreData, ClientStatus } from '../services/firestoreService'
 import { getAllSupportMessages, updateSupportMessageStatus, SupportMessage } from '../services/supportService'
 import { createAccount, updateUserData } from '../services/authService'
@@ -365,10 +365,20 @@ export default function Admin() {
             <h1>Painel Administrativo - Farol 360</h1>
             <p>Creattive - Gestão de Usuários</p>
           </div>
-          <button onClick={handleLogout} className="logout-button">
-            <LogOut size={20} />
-            Sair
-          </button>
+          <div className="header-actions">
+            <button 
+              onClick={() => navigate('/dashboard')} 
+              className="analyst-view-btn"
+              title="Acessar ferramenta de análise de dados"
+            >
+              <BarChart3 size={20} />
+              Minha Visão de Analista
+            </button>
+            <button onClick={handleLogout} className="logout-button">
+              <LogOut size={20} />
+              Sair
+            </button>
+          </div>
         </div>
       </header>
 
