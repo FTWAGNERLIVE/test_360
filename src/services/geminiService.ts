@@ -53,6 +53,8 @@ export const chatWithGemini = async (
     return "Erro: Chave de API do Gemini não configurada. Por favor, adicione VITE_GEMINI_API_KEY ao seu arquivo .env e REINICIE o terminal (npm run dev).";
   }
 
+  console.log("🔑 Debug API Key (início):", API_KEY.substring(0, 7) + "...");
+
   try {
     const dataContext = prepareDataContext(data, headers);
     
