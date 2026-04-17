@@ -1,10 +1,11 @@
 import OpenAI from "openai";
 
-const API_KEY = import.meta.env.VITE_OPENAI_API_KEY || "";
+const API_KEY = import.meta.env.VITE_GROQ_API_KEY || "";
 
-// dangerouslyAllowBrowser é necessário para rodar no frontend (React)
-const openai = new OpenAI({
+// O SDK da OpenAI é compatível com o Groq, basta apontar para a base URL deles!
+const groq = new OpenAI({
   apiKey: API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
   dangerouslyAllowBrowser: true,
 });
 
@@ -43,14 +44,14 @@ INSTRUÇÕES:
 `;
 };
 
-export const chatWithOpenAI = async (
+export const chatWithGroq = async (
   userMessage: string, 
   history: ChatMessage[], 
   data: any[], 
   headers: string[]
 ) => {
   if (!API_KEY) {
-    return "Erro: Chave de API da OpenAI não configurada. Por favor, adicione VITE_OPENAI_API_KEY ao seu arquivo .env e crie a chave no site da OpenAI.";
+    return "Erro: Chave de API do Groq não configurada. Por favor, adicione VITE_GROQ_API_KEY ao seu arquivo .env e reinicie o servidor com 'npm run dev'.";
   }
 
   try {
@@ -66,8 +67,8 @@ export const chatWithOpenAI = async (
       content: msg.content
     }));
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo", // Modelo rápido e excelente para dados
+    const response = await groq.chat.completions.create({
+      model: "llama3-8b-8192", // Modelo da Meta, extremamente rápido e grátis via Groq
       messages: [
         systemMessage,
         ...formattedHistory,
@@ -79,16 +80,12 @@ export const chatWithOpenAI = async (
 
     return response.choices[0]?.message?.content || "Desculpe, não consegui formular uma resposta.";
   } catch (error: any) {
-    console.error("❌ Erro ao chamar a OpenAI:", error);
+    console.error("❌ Erro ao chamar o Groq:", error);
 
-    if (error.status === 401 || error.message?.includes("Incorrect API key")) {
-      return "Erro: Sua chave de API da OpenAI é inválida. Acesse platform.openai.com/api-keys para gerar uma correta.";
+    if (error.status === 401 || error.message?.includes("Invalid API Key")) {
+      return "Erro: Sua chave de API do Groq é inválida. Acesse console.groq.com/keys para pegar a chave correta.";
     }
 
-    if (error.status === 429 || error.message?.includes("insufficient_quota")) {
-      return "Erro: O limite de créditos da sua conta da OpenAI acabou. Você precisa adicionar fundos em platform.openai.com.";
-    }
-
-    return "Ops! Ocorreu um erro na conexão com a OpenAI. Verifique sua chave de API e tente novamente.";
+    return "Ops! Ocorreu um erro na conexão com a inteligência artificial. Verifique sua conexão e sua chave de API.";
   }
 };

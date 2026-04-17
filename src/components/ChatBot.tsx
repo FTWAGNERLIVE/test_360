@@ -51,7 +51,7 @@ export default function ChatBot({ data, headers }: ChatBotProps) {
 
     try {
       // Import dynamic integration
-      const { chatWithOpenAI } = await import('../services/openaiService')
+      const { chatWithGroq } = await import('../services/groqService')
       
       // Prepare history for API
       const history = messages.map(msg => ({
@@ -59,7 +59,7 @@ export default function ChatBot({ data, headers }: ChatBotProps) {
         content: msg.content
       })).slice(1) // Skip first assistant message
 
-      const response = await chatWithOpenAI(currentInput, history, data, headers)
+      const response = await chatWithGroq(currentInput, history, data, headers)
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
