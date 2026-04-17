@@ -53,66 +53,49 @@ export const chatWithGemini = async (
     return "Erro: Chave de API do Gemini não configurada. Por favor, adicione VITE_GEMINI_API_KEY ao seu arquivo .env e REINICIE o terminal (npm run dev).";
   }
 
-  // Lista de modelos para tentar (fallback chain)
-  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
-  let lastError = null;
+  try {
+    const dataContext = prepareDataContext(data, headers);
+    
+    // Configuração de produção estável (v1)
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash" 
+    }, { apiVersion: "v1" });
 
-  for (const modelName of modelsToTry) {
-    try {
-      console.log(`🤖 Tentando chat com o modelo: ${modelName}...`);
-      const dataContext = prepareDataContext(data, headers);
-      
-      const model = genAI.getGenerativeModel({ model: modelName });
-
-      // Mensagens de inicialização
-      const startMessages = [
-        {
-          role: "user",
-          parts: [{ text: `AQUI ESTÃO OS DADOS QUE VOCÊ DEVE ANALISAR:\n${dataContext}\n\nEntendido sua função como Agente 360?` }]
-        },
-        {
-          role: "model",
-          parts: [{ text: "Entendido. Sou o Agente 360 da Creattive. Analisei os dados fornecidos e estou pronto para responder suas perguntas com base nesse dataset." }]
-        }
-      ];
-
-      const historyMessages = history.map(msg => ({
-        role: msg.role === "user" ? "user" : "model",
-        parts: [{ text: msg.content }]
-      }));
-
-      const chat = model.startChat({
-        history: [...startMessages, ...historyMessages],
-      });
-
-      const result = await chat.sendMessage(userMessage);
-      const response = await result.response;
-      return response.text();
-    } catch (error: any) {
-      lastError = error;
-      console.warn(`⚠️ Erro com o modelo ${modelName}:`, error.message);
-      
-      // Se o erro for 404 (Not Found), tentamos o próximo modelo da lista
-      if (error.message?.includes("404") || error.message?.includes("not found")) {
-        continue;
+    // Mensagens de inicialização
+    const startMessages = [
+      {
+        role: "user",
+        parts: [{ text: `AQUI ESTÃO OS DADOS QUE VOCÊ DEVE ANALISAR:\n${dataContext}\n\nEntendido sua função como Agente 360?` }]
+      },
+      {
+        role: "model",
+        parts: [{ text: "Entendido. Sou o Agente 360 da Creattive. Analisei os dados fornecidos e estou pronto para responder suas perguntas com base nesse dataset." }]
       }
-      
-      // Se for erro de chave ou permissão, paramos por aqui
-      if (error.message?.includes("API key not valid") || error.message?.includes("access denied")) {
-        break;
-      }
-      
-      // Para outros erros (como quota), também paramos
-      break;
+    ];
+
+    const historyMessages = history.map(msg => ({
+      role: msg.role === "user" ? "user" : "model",
+      parts: [{ text: msg.content }]
+    }));
+
+    const chat = model.startChat({
+      history: [...startMessages, ...historyMessages],
+    });
+
+    const result = await chat.sendMessage(userMessage);
+    const response = await result.response;
+    return response.text();
+  } catch (error: any) {
+    console.error("❌ Erro ao chamar o Gemini:", error);
+    
+    if (error.message?.includes("404")) {
+      return "Erro 404: O modelo Gemini 1.5 Flash não foi encontrado. Verifique se sua chave de API está ativa e se você reiniciou o servidor com 'npm run dev -- --force'.";
     }
-  }
 
-  // Se chegou aqui, todos os modelos falharam
-  console.error("❌ Todos os modelos do Gemini falharam:", lastError);
-  
-  if (lastError?.message?.includes("API key not valid")) {
-    return "Erro: Sua chave de API do Gemini é inválida. Por favor, gere uma nova no Google AI Studio e verifique o arquivo .env.";
-  }
+    if (error.message?.includes("API key not valid")) {
+      return "Erro: Sua chave de API do Gemini é inválida. Por favor, gere uma nova no Google AI Studio e verifique o arquivo .env.";
+    }
 
-  return "Ops! Ocorreu um erro na análise de dados após tentar vários modelos do Gemini. Verifique sua conexão e sua chave de API.";
+    return "Ops! Ocorreu um erro na análise de dados. Verifique sua conexão e sua chave de API.";
+  }
 };
