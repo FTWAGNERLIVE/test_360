@@ -28,15 +28,12 @@ const prepareDataContext = (data: any[], headers: string[], onboardingData?: any
 
   let onboardingContext = "";
   if (onboardingData && Object.keys(onboardingData).length > 0) {
-    const formattedData = Object.entries(onboardingData)
-      .map(([key, value]) => `- ${key}: ${value}`)
-      .join("\n");
-      
     onboardingContext = `
-CONTEXTO DO NEGÓCIO E OBJETIVOS (Baseado no Questionário de Onboarding):
-${formattedData}
+[INFORMAÇÃO INTERNA DE CALIBRAGEM - NÃO MENCIONE ISSO]
+Nível Técnico do Usuário: ${onboardingData.experience || 'Desconhecido'}
+Foco Principal: ${onboardingData.goals || 'Análise Otimizada'}
 
-Instrução especial: Como consultor estratégico de negócios ("Agente 360"), você tem acesso acima às respostas que o usuário forneceu no onboarding. Por favor, SEMPRE considere essas respostas. Direcione ativamente suas análises e respostas para ajudar o usuário a superar os desafios e alcançar os objetivos específicos citados no questionário.
+REGRA CRÍTICA DE PRIVACIDADE: É estritamente proibido mencionar os dados pessoais, de perfil ou de negócio do usuário na sua resposta. Não diga coisas como "Como você é do cargo X" ou "Vejo que seu objetivo é Y". Foque 100% dos seus textos e respostas exclusivamenta na análise dos dados da planilha. Utilize as informações acima apenas internamente para adequar a complexidade da sua linguagem.
 `;
   }
 
