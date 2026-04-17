@@ -56,8 +56,10 @@ export const chatWithGemini = async (
   try {
     const dataContext = prepareDataContext(data, headers);
     
-    // Configura o modelo de forma simples (sem systemInstruction para evitar erro 400)
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Configura o modelo de forma estável (v1)
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash" 
+    }, { apiVersion: "v1" });
 
     // Preparamos as mensagens iniciais para dar o contexto ao modelo
     const startMessages = [
