@@ -56,21 +56,32 @@ export const chatWithGemini = async (
   try {
     const dataContext = prepareDataContext(data, headers);
     
-    // Configura o modelo de forma mais compatível
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash-latest",
-      systemInstruction: dataContext
-    }, { apiVersion: "v1" });
+    // Configura o modelo de forma simples (sem systemInstruction para evitar erro 400)
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // Converte o histórico para o formato do Gemini (user / model)
-    const geminiHistory = history.map(msg => ({
+    // Preparamos as mensagens iniciais para dar o contexto ao modelo
+    const startMessages = [
+      {
+        role: "user",
+        parts: [{ text: `AQUI ESTÃO OS DADOS QUE VOCÊ DEVE ANALISAR:\n${dataContext}\n\nEntendido sua função como Agente 360?` }]
+      },
+      {
+        role: "model",
+        parts: [{ text: "Entendido. Sou o Agente 360 da Creattive. Analisei os dados fornecidos e estou pronto para responder suas perguntas com base nesse dataset." }]
+      }
+    ];
+
+    // Converte o histórico real do chat
+    const historyMessages = history.map(msg => ({
       role: msg.role === "user" ? "user" : "model",
       parts: [{ text: msg.content }]
     }));
 
-    // Inicia um chat com o histórico
+    // Combina tudo
+    const fullHistory = [...startMessages, ...historyMessages];
+
     const chat = model.startChat({
-      history: geminiHistory,
+      history: fullHistory,
     });
 
     const result = await chat.sendMessage(userMessage);
@@ -79,16 +90,15 @@ export const chatWithGemini = async (
   } catch (error: any) {
     console.error("Erro ao chamar o Gemini:", error);
     
-    // Erros comuns de chave de API
-    if (error.message?.includes("API key not valid") || error.message?.includes("invalid API key")) {
-      return "Erro: Chave de API do Gemini inválida ou expirada. Verifique se copiou corretamente para o .env.";
-    }
-    
-    // Erro de segurança ou região (algumas chaves podem ter restrições)
-    if (error.message?.includes("User location is not supported")) {
-      return "Erro: O Google Gemini ainda não suporta sua região ou requer o uso de uma VPN/Configuração diferente.";
+    // Erros específicos
+    if (error.message?.includes("404")) {
+      return "Erro: O modelo gemini-1.5-flash não foi encontrado. Verifique se sua chave tem acesso à versão 1.5.";
     }
 
-    return "Desculpe, ocorreu um erro ao processar sua análise. Verifique se reiniciou o servidor e se sua chave de API está ativa no Google AI Studio.";
+    if (error.message?.includes("API key not valid")) {
+      return "Erro: Sua chave de API do Gemini é inválida. Gere uma nova no Google AI Studio.";
+    }
+
+    return "Ops! Ocorreu um erro na análise. Tente perguntar de forma mais simples ou carregue o arquivo novamente.";
   }
 };
