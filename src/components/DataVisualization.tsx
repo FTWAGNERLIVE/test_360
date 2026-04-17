@@ -49,23 +49,18 @@ const parseDate = (dateStr: string) => {
 // Limpeza de valores numéricos que podem vir formatados (R$ 1.000,50)
 const cleanNumber = (val: any): number => {
   if (typeof val === 'number') return val
-  if (!val) return 0
-  const cleaned = String(val)
+  if (val === null || val === undefined || val === '') return NaN
+  const cleaned = String(val).trim()
     .replace(/[R$\s]/g, '')
-    // Se tiver vírgula e ponto, ponto é milhar, vírgula é decimal
-    if (cleaned.includes(',') && cleaned.includes('.')) {
-      const num = Number(cleaned.replace(/\./g, '').replace(',', '.'))
-      return isNaN(num) ? 0 : num
-    }
-    // Se tiver apenas vírgula, provavelmente é o separador decimal
-    if (cleaned.includes(',') && !cleaned.includes('.')) {
-      const num = Number(cleaned.replace(',', '.'))
-      return isNaN(num) ? 0 : num
-    }
-    const num = Number(cleaned)
-    return isNaN(num) ? 0 : num
+  
+  if (cleaned.includes(',') && cleaned.includes('.')) {
+    return Number(cleaned.replace(/\./g, '').replace(',', '.'))
+  }
+  if (cleaned.includes(',') && !cleaned.includes('.')) {
+    return Number(cleaned.replace(',', '.'))
+  }
+  return Number(cleaned)
 }
-
 export default function DataVisualization({ data, headers }: DataVisualizationProps) {
   // Extract specific headers explicitly so we can use them in the charts for cross-filtering
   const dateHeader = useMemo(() => headers.find(h => {
@@ -101,8 +96,9 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     // Se não encontrou, pegar as primeiras 2 colunas não numéricas
     if (relevant.length < 2) {
       const nonNumeric = headers.filter(h => {
-        const sample = data[0]?.[h]
-        return isNaN(Number(sample)) && sample !== '' && sample !== null && !relevant.includes(h)
+        const validRow = data.find(r => r[h] !== null && r[h] !== undefined && r[h] !== '')
+        const sample = validRow ? validRow[h] : undefined
+        return sample !== undefined && isNaN(cleanNumber(sample)) && !relevant.includes(h)
       })
       relevant.push(...nonNumeric.slice(0, 2 - relevant.length))
     }
@@ -221,36 +217,32 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     let chartHeader = ''
     
     if (type === 'pie') {
-      chartValue = entry.name
+      chartValue = String(entry.name || '')
       chartHeader = categoryHeader || filterableHeaders[0] || ''
-    } else if (type === 'date' && dateHeader) {
-      chartValue = entry.activeLabel || entry.activePayload?.[0]?.payload?.date || entry.date
-      chartHeader = dateHeader || ''
-    } else if (type === 'category' && categoryHeader) {
-      chartValue = entry.activeLabel || entry.activePayload?.[0]?.payload?.category || entry.category
-      chartHeader = categoryHeader || ''
+    } else if (type === 'date') {
+      chartValue = String(entry.activeLabel || entry.activePayload?.[0]?.payload?.date || entry.date || '')
+      chartHeader = dateHeader || filterableHeaders[0] || ''
+    } else if (type === 'category') {
+      chartValue = String(entry.activeLabel || entry.activePayload?.[0]?.payload?.category || entry.category || '')
+      chartHeader = categoryHeader || filterableHeaders[0] || ''
     } else {
-      // Tenta usar qualquer label ativo se falhar na dedução do tipo
-      chartValue = entry.activeLabel
+      chartValue = String(entry.activeLabel || '')
       chartHeader = dateHeader || categoryHeader || filterableHeaders[0] || ''
     }
 
-    if (chartHeader && chartValue) {
-      if (type === 'pie' && chartValue === 'Outros') {
-        // Não aplica filtro para a categoria agrupada "Outros"
-        return
-      }
-      
-      // Desativa o filtro se ele já estiver selecionado
-      if (filter1 === chartHeader && filter1Value === chartValue) {
-        setFilter1Value('')
-      } else if (filter2 === chartHeader && filter2Value === chartValue) {
-        setFilter2Value('')
-      } else {
-        // Senão defina como filtro 1
-        setFilter1(chartHeader)
-        setFilter1Value(chartValue)
-      }
+    if (!chartHeader || !chartValue || chartValue === 'undefined' || chartValue === 'null') return;
+
+    if (type === 'pie' && chartValue === 'Outros') {
+      return
+    }
+    
+    if (filter1 === chartHeader && filter1Value === chartValue) {
+      setFilter1Value('')
+    } else if (filter2 === chartHeader && filter2Value === chartValue) {
+      setFilter2Value('')
+    } else {
+      setFilter1(chartHeader)
+      setFilter1Value(chartValue)
     }
   }
   
@@ -258,8 +250,9 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     if (data.length === 0) return null
 
     const numericHeaders = headers.filter(header => {
-      const sample = data[0]?.[header]
-      return !isNaN(cleanNumber(sample)) && sample !== '' && sample !== null
+      const validRow = data.find(row => row[header] !== null && row[header] !== undefined && row[header] !== '')
+      const sample = validRow ? validRow[header] : undefined
+      return sample !== undefined && !isNaN(cleanNumber(sample))
     })
 
     const statsMap: Record<string, { sum: number; count: number; min: number; max: number }> = {}
@@ -544,8 +537,9 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                       >
                         <option value="">Selecione uma coluna</option>
                         {headers.filter(h => {
-                          const sample = data[0]?.[h]
-                          return isNaN(Number(sample)) && sample !== '' && sample !== null
+                          const validRow = data.find(r => r[h] !== null && r[h] !== undefined && r[h] !== '')
+                          const sample = validRow ? validRow[h] : undefined
+                          return sample !== undefined && isNaN(cleanNumber(sample))
                         }).map(h => (
                           <option key={h} value={h}>{h}</option>
                         ))}
@@ -605,8 +599,9 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                       >
                         <option value="">Selecione uma coluna</option>
                         {headers.filter(h => {
-                          const sample = data[0]?.[h]
-                          return isNaN(Number(sample)) && sample !== '' && sample !== null
+                          const validRow = data.find(r => r[h] !== null && r[h] !== undefined && r[h] !== '')
+                          const sample = validRow ? validRow[h] : undefined
+                          return sample !== undefined && isNaN(cleanNumber(sample))
                         }).map(h => (
                           <option key={h} value={h}>{h}</option>
                         ))}
