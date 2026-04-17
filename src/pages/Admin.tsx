@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Download, User, Building2, Phone, Mail, Calendar, FileText, RefreshCw, Key, Clock, AlertTriangle, CheckCircle, MessageSquare, Users, Shield, Eye, XCircle, UserPlus, Database } from 'lucide-react'
+import { LogOut, Download, User, Building2, Phone, Mail, Calendar, FileText, RefreshCw, Key, Clock, AlertTriangle, CheckCircle, MessageSquare, Users, Shield, Eye, XCircle, UserPlus } from 'lucide-react'
 import { getAllOnboardingData as getFirestoreData, ClientStatus } from '../services/firestoreService'
 import { getAllSupportMessages, updateSupportMessageStatus, SupportMessage } from '../services/supportService'
 import { createAccount, updateUserData } from '../services/authService'
-import { executeMigration, isFirebaseReady, isMigrationCompleted } from '../services/migrationService'
-import { db } from '../config/firebase'
+
 import './Admin.css'
 
 interface OnboardingRecord {
@@ -57,12 +56,7 @@ export default function Admin() {
   const [newAdminName, setNewAdminName] = useState('')
   const [newAdminPassword, setNewAdminPassword] = useState('')
   const [createAdminLoading, setCreateAdminLoading] = useState(false)
-  const [migrationStatus, setMigrationStatus] = useState<{
-    completed: boolean
-    firebaseReady: boolean
-    message: string
-  } | null>(null)
-  const [migrationLoading, setMigrationLoading] = useState(false)
+
 
   const loadData = async () => {
     if (!user || user.role !== 'admin') {
@@ -316,45 +310,10 @@ export default function Admin() {
 
   useEffect(() => {
     loadData()
-    checkMigrationStatus()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
-  const checkMigrationStatus = async () => {
-    const firebaseReady = await isFirebaseReady()
-    const completed = isMigrationCompleted()
-    setMigrationStatus({
-      completed,
-      firebaseReady: !!firebaseReady && !!db,
-      message: completed 
-        ? 'Migração já foi concluída. Dados locais foram removidos.' 
-        : firebaseReady && db
-          ? 'Firebase está configurado. Clique para migrar dados locais.'
-          : 'Firebase não está configurado. Dados estão sendo salvos localmente.'
-    })
-  }
 
-  const handleExecuteMigration = async () => {
-    if (!confirm('Tem certeza que deseja migrar os dados locais para o Firebase? Após a migração, os dados locais serão removidos.')) {
-      return
-    }
-
-    setMigrationLoading(true)
-    try {
-      const result = await executeMigration()
-      if (result.success) {
-        alert(`Migração concluída com sucesso!\n\n${result.message}\n\nDados locais foram removidos.`)
-        await checkMigrationStatus()
-        await loadData() // Recarregar dados do Firebase
-      } else {
-        alert(`Erro na migração: ${result.message}`)
-      }
-    } catch (error: any) {
-      alert(`Erro ao executar migração: ${error.message}`)
-    } finally {
-      setMigrationLoading(false)
-    }
-  }
 
   const handleLogout = () => {
     logout()
