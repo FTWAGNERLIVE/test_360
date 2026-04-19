@@ -231,6 +231,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('❌ AuthContext: Erro ao buscar usuários:', error)
       throw error
     }
+  }
+
   const handleUpdatePassword = async (password: string): Promise<void> => {
     await firebaseUpdatePassword(password)
     if (user) {
