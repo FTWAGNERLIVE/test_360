@@ -8,9 +8,7 @@ import {
   sendEmailVerification,
   signInWithPopup,
   GoogleAuthProvider,
-  updatePassword,
-  EmailAuthProvider,
-  linkWithCredential
+  updatePassword
 } from 'firebase/auth'
 import { doc, getDoc, setDoc, updateDoc, collection, getDocs, Timestamp } from 'firebase/firestore'
 import { auth, db } from '../config/firebase'
@@ -50,8 +48,8 @@ export async function createAccount(email: string, password: string, name: strin
   let firebaseUser: any = null
 
   try {
-    // Criar usuário no Firebase Auth
-    // Log removido por segurança
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+    firebaseUser = userCredential.user
   } catch (error: any) {
     console.error('Erro completo ao criar usuário no Firebase Auth:', {
       code: error.code,
