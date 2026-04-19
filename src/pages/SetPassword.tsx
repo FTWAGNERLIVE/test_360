@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { Key, Shield, CheckCircle, AlertCircle, Sparkles, Search } from 'lucide-react'
-import './Login.css' // Reutilizando os estilos base do login para consistência
+import { Key, Shield, CheckCircle, AlertCircle, Sparkles, Search, Eye, EyeOff } from 'lucide-react'
+import './Login.css'
 
 export default function SetPassword() {
   const { updatePassword, logout, user } = useAuth()
@@ -12,6 +12,8 @@ export default function SetPassword() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,30 +79,48 @@ export default function SetPassword() {
           <form onSubmit={handleSubmit} className="login-form">
             <div className="form-group">
               <label htmlFor="password">Nova Senha</label>
-              <div className="input-with-icon">
+              <div className="input-container">
                 <input
                   id="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Mínimo 8 caracteres"
                   required
                   minLength={8}
                 />
+                <button 
+                  type="button" 
+                  className="password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
               </div>
             </div>
 
             <div className="form-group">
               <label htmlFor="confirmPassword">Confirmar Senha</label>
-              <input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Repita a senha"
-                required
-                minLength={8}
-              />
+              <div className="input-container">
+                <input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repita a senha"
+                  required
+                  minLength={8}
+                />
+                <button 
+                  type="button" 
+                  className="password-toggle"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
 
             {error && (
@@ -151,9 +171,58 @@ export default function SetPassword() {
         .setup-welcome p {
           font-size: 14px;
           color: var(--text-secondary);
+          line-height: 1.5;
+          max-width: 300px;
+          margin: 0 auto;
         }
-        .input-with-icon {
+        .input-container {
           position: relative;
+          display: flex;
+          align-items: center;
+        }
+        .input-container input {
+          width: 100%;
+          padding-right: 48px !important;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          transition: all 0.2s;
+        }
+        .input-container input:focus {
+          background: #fff;
+          border-color: var(--primary);
+          box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        .password-toggle {
+          position: absolute;
+          right: 12px;
+          background: none;
+          border: none;
+          color: #94a3b8;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px;
+          border-radius: 6px;
+          transition: all 0.2s;
+        }
+        .password-toggle:hover {
+          color: var(--primary);
+          background: var(--primary-light);
+        }
+        .btn-secondary {
+          background: #f1f5f9;
+          color: #475569;
+          border: none;
+          padding: 12px;
+          border-radius: 8px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .btn-secondary:hover {
+          background: #e2e8f0;
+          color: #1e293b;
         }
       `}</style>
     </div>
