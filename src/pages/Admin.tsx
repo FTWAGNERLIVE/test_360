@@ -110,8 +110,8 @@ export default function Admin() {
 
       // Carregar contas de usuários
       try {
-        // console.log('🔄 Contas carregadas')
-        setUserAccounts(users.map(u => ({
+        const users = await getAllUsers()
+        setUserAccounts(users.map((u: any) => ({
           id: u.id,
           email: u.email,
           name: u.name,

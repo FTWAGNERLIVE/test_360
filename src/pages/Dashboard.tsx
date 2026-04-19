@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { LogOut, FileText, Search, Sparkles, Clock, CheckCircle2, HelpCircle, Send, X, LayoutDashboard } from 'lucide-react'
+import { LogOut, FileText, Search, Sparkles, Clock, CheckCircle2, HelpCircle, Send, X, LayoutDashboard, MessageCircle } from 'lucide-react'
 import CSVUploader from '../components/CSVUploader'
 import DataVisualization from '../components/DataVisualization'
 import ChatBot from '../components/ChatBot'
