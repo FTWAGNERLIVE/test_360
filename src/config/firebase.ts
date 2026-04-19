@@ -33,35 +33,14 @@ if (isFirebaseConfigured) {
     // Verificar se projectId está correto (CRÍTICO!)
     const expectedProjectId = 'farol-360'
     
-    if (firebaseConfig.projectId === firebaseConfig.storageBucket || 
-        firebaseConfig.projectId.includes('firebasestorage')) {
-      console.error('❌ ERRO CRÍTICO: projectId está incorreto!')
-      console.error('📋 projectId atual (ERRADO):', firebaseConfig.projectId)
-      console.error('📋 projectId correto:', expectedProjectId)
-      console.error('🔧 CORRIJA no Vercel: Settings → Environment Variables → VITE_FIREBASE_PROJECT_ID')
-      console.error('🔧 Deve ser: farol-360 (não farol-360.firebasestorage.app)')
-    }
+      console.error('❌ ERRO: Configuração do projeto inconsistente!')
     
-    console.log('✅ Firebase inicializado com sucesso:', {
-      projectId: firebaseConfig.projectId,
-      authDomain: firebaseConfig.authDomain,
-      hasDb: !!db,
-      hasAuth: !!auth,
-      apiKey: firebaseConfig.apiKey.substring(0, 10) + '...'
-    })
+    // console.log('✅ Firebase inicializado')
     
     // Alerta sobre configuração do Firestore
-    if (firebaseConfig.projectId === expectedProjectId) {
-      console.log('✅ projectId está correto:', expectedProjectId)
-    } else {
-      console.error('❌ projectId está INCORRETO! Isso pode causar problemas de conexão!')
-    }
+      // console.log('✅ Configuração validada')
     
-    console.log('🔍 Configuração do Firestore:', {
-      projectId: firebaseConfig.projectId,
-      authDomain: firebaseConfig.authDomain,
-      storageBucket: firebaseConfig.storageBucket
-    })
+    // Log de configuração removido por segurança
     
     // Não chamar enableNetwork na inicialização - deixar o Firestore gerenciar automaticamente
     // O Firestore já tenta conectar automaticamente quando necessário

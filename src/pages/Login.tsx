@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { BarChart3, Sparkles } from 'lucide-react'
+import { Search, Sparkles } from 'lucide-react'
 import './Login.css'
 
 export default function Login() {
@@ -110,8 +110,8 @@ export default function Login() {
       return
     }
 
-    if (signUpPassword.length < 6) {
-      setError('A senha deve ter pelo menos 6 caracteres')
+    if (signUpPassword.length < 8) {
+      setError('A senha deve ter pelo menos 8 caracteres')
       setSignUpLoading(false)
       return
     }
@@ -168,11 +168,12 @@ export default function Login() {
       <div className="login-card">
         <div className="login-header">
           <div className="logo">
-            <BarChart3 size={40} />
+            <Search size={40} />
             <Sparkles size={24} className="sparkle" />
           </div>
-          <h1>Farol 360</h1>
-          <p className="subtitle">Creattive - Análise Inteligente de Dados</p>
+          <h1>Lupa <span className="brand-accent">Analytics AI</span></h1>
+          <p className="subtitle">Lupa AI - Análise Inteligente de Dados</p>
+          <span className="developer-tag">Desenvolvido por FTWagner</span>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
@@ -340,9 +341,9 @@ export default function Login() {
                       type="password"
                       value={signUpPassword}
                       onChange={(e) => setSignUpPassword(e.target.value)}
-                      placeholder="Mínimo 6 caracteres"
+                      placeholder="Mínimo 8 caracteres"
                       required
-                      minLength={6}
+                      minLength={8}
                     />
                   </div>
 
@@ -355,7 +356,7 @@ export default function Login() {
                       onChange={(e) => setSignUpConfirmPassword(e.target.value)}
                       placeholder="Digite a senha novamente"
                       required
-                      minLength={6}
+                      minLength={8}
                     />
                   </div>
                   

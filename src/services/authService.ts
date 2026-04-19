@@ -7,7 +7,10 @@ import {
   User as FirebaseUser,
   sendEmailVerification,
   signInWithPopup,
-  GoogleAuthProvider
+  GoogleAuthProvider,
+  updatePassword,
+  EmailAuthProvider,
+  linkWithCredential
 } from 'firebase/auth'
 import { doc, getDoc, setDoc, updateDoc, collection, getDocs, Timestamp } from 'firebase/firestore'
 import { auth, db } from '../config/firebase'
@@ -21,6 +24,7 @@ export interface UserData {
   createdAt: Date
   trialEndDate: Date
   onboardingData?: any
+  passwordSet?: boolean
 }
 
 const USERS_COLLECTION = 'users'
@@ -47,12 +51,7 @@ export async function createAccount(email: string, password: string, name: strin
 
   try {
     // Criar usuário no Firebase Auth
-    console.log('Tentando criar usuário com email:', email)
-    console.log('Auth configurado:', !!auth)
-    
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password)
-    firebaseUser = userCredential.user
-    console.log('Usuário criado com sucesso:', firebaseUser.uid)
+    // Log removido por segurança
   } catch (error: any) {
     console.error('Erro completo ao criar usuário no Firebase Auth:', {
       code: error.code,
@@ -67,7 +66,7 @@ export async function createAccount(email: string, password: string, name: strin
     } else if (error.code === 'auth/invalid-email') {
       throw new Error('Email inválido. Verifique o formato do email.')
     } else if (error.code === 'auth/weak-password') {
-      throw new Error('A senha é muito fraca. Use uma senha com pelo menos 6 caracteres.')
+      throw new Error('A senha é muito fraca. Use uma senha com pelo menos 8 caracteres.')
     } else if (error.code === 'auth/operation-not-allowed') {
       throw new Error('Operação não permitida. Verifique se o método de autenticação por email/senha está habilitado no Firebase Console.')
     } else if (error.code === 'auth/unauthorized-domain') {
@@ -102,13 +101,7 @@ export async function createAccount(email: string, password: string, name: strin
 
   try {
     // Criar documento do usuário no Firestore
-    console.log('💾 Salvando documento do usuário no Firestore...')
-    console.log('📋 Dados do usuário:', {
-      uid: firebaseUser.uid,
-      email: firebaseUser.email,
-      name: name || email.split('@')[0],
-      role: role
-    })
+    // Log de dados sensíveis removido
     
     const userData: Omit<UserData, 'id'> = {
       email: firebaseUser.email!,
@@ -116,7 +109,8 @@ export async function createAccount(email: string, password: string, name: strin
       role: role,
       onboardingCompleted: role !== 'user', // Admin e vendas não precisam de onboarding
       createdAt: new Date(),
-      trialEndDate
+      trialEndDate,
+      passwordSet: true
     }
 
     await setDoc(doc(db, USERS_COLLECTION, firebaseUser.uid), {
@@ -125,7 +119,7 @@ export async function createAccount(email: string, password: string, name: strin
       trialEndDate: Timestamp.fromDate(trialEndDate)
     })
     
-    console.log('✅ Documento do usuário salvo com sucesso no Firestore!')
+    // Log removido
   } catch (error: any) {
     console.error('❌ Erro ao criar documento no Firestore:', {
       code: error.code,
@@ -169,7 +163,8 @@ export async function createAccount(email: string, password: string, name: strin
     role: role,
     onboardingCompleted: role !== 'user',
     createdAt: new Date(),
-    trialEndDate
+    trialEndDate,
+    passwordSet: true
   }
 }
 
@@ -314,7 +309,8 @@ export async function login(email: string, password: string): Promise<UserData> 
     onboardingCompleted: userData.onboardingCompleted || false,
     createdAt: userData.createdAt?.toDate() || new Date(),
     trialEndDate,
-    onboardingData: userData.onboardingData
+    onboardingData: userData.onboardingData,
+    passwordSet: userData.passwordSet !== undefined ? userData.passwordSet : true
   }
 }
 
@@ -393,7 +389,8 @@ export async function loginWithGoogle(): Promise<UserData> {
       onboardingCompleted: userData.onboardingCompleted || false,
       createdAt: userData.createdAt?.toDate() || new Date(),
       trialEndDate,
-      onboardingData: userData.onboardingData
+      onboardingData: userData.onboardingData,
+      passwordSet: userData.passwordSet !== undefined ? userData.passwordSet : true
     }
   } else {
     // Novo usuário - criar documento no Firestore
@@ -422,8 +419,35 @@ export async function loginWithGoogle(): Promise<UserData> {
 
     return {
       id: firebaseUser.uid,
-      ...newUserData
+      ...newUserData,
+      passwordSet: false
     }
+  }
+}
+
+/**
+ * Definir ou atualizar senha do usuário
+ */
+export async function updateAccountPassword(password: string): Promise<void> {
+  const user = auth?.currentUser
+  if (!user || !db) {
+    throw new Error('Usuário não autenticado ou Firebase não configurado')
+  }
+
+  try {
+    // Atualizar no Firebase Auth
+    await updatePassword(user, password)
+
+    // Atualizar no Firestore
+    await updateDoc(doc(db, USERS_COLLECTION, user.uid), {
+      passwordSet: true
+    })
+  } catch (error: any) {
+    console.error('Erro ao atualizar senha:', error)
+    if (error.code === 'auth/requires-recent-login') {
+      throw new Error('Por segurança, esta operação requer um login recente. Por favor, saia e entre novamente.')
+    }
+    throw error
   }
 }
 
@@ -485,7 +509,7 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
       return
     }
 
-    console.log('🔐 onAuthStateChange: Usuário autenticado:', firebaseUser.email)
+    // console.log('🔐 onAuthStateChange: Sessão verificada')
 
     try {
       // Não chamar enableNetwork - o Firestore gerencia a conexão automaticamente
@@ -544,7 +568,7 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
         const userData = userDoc.data()
         const trialEndDate = userData.trialEndDate?.toDate() || new Date()
         
-        console.log('✅ Dados do usuário encontrados no Firestore')
+        // console.log('✅ Dados carregados')
         
         callback({
           id: firebaseUser.uid,
@@ -558,7 +582,7 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
         })
       } else {
         // Documento não existe - criar automaticamente
-        console.log('📝 Documento do usuário não encontrado no Firestore. Criando automaticamente...')
+        // console.log('📝 Novo perfil')
         const trialEndDate = new Date()
         trialEndDate.setDate(trialEndDate.getDate() + 15)
         
@@ -573,7 +597,7 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
         
         try {
           await setDoc(doc(db, USERS_COLLECTION, firebaseUser.uid), newUserData)
-          console.log('✅ Documento do usuário criado com sucesso no Firestore')
+          // console.log('✅ Perfil criado')
           
           callback({
             id: firebaseUser.uid,
@@ -657,15 +681,14 @@ export async function getAllUsers(): Promise<UserData[]> {
   }
 
   try {
-    console.log('🔍 Buscando todos os usuários da coleção users...')
+    // Log de carregamento interno removido por segurança
     const usersSnapshot = await getDocs(collection(db, USERS_COLLECTION))
-    console.log(`✅ Encontrados ${usersSnapshot.size} documentos na coleção users`)
     
     const users: UserData[] = []
 
     usersSnapshot.forEach((doc) => {
       const data = doc.data()
-      console.log(`📄 Processando usuário: ${doc.id} - ${data.email}`)
+      // Processamento interno de usuários
       users.push({
         id: doc.id,
         email: data.email,
@@ -678,7 +701,7 @@ export async function getAllUsers(): Promise<UserData[]> {
       })
     })
 
-    console.log(`✅ Total de ${users.length} usuários processados`)
+    // Log removido
     return users
   } catch (error: any) {
     console.error('❌ Erro ao buscar usuários:', {

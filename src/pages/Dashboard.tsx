@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { LogOut, FileText, BarChart3, MessageCircle, Clock, CheckCircle2, HelpCircle, Send, X, LayoutDashboard } from 'lucide-react'
+import { LogOut, FileText, Search, Sparkles, Clock, CheckCircle2, HelpCircle, Send, X, LayoutDashboard } from 'lucide-react'
 import CSVUploader from '../components/CSVUploader'
 import DataVisualization from '../components/DataVisualization'
 import ChatBot from '../components/ChatBot'
@@ -37,7 +37,7 @@ export default function Dashboard() {
         try {
           const firestoreData = await loadCSVData(effectiveUser.id)
           if (firestoreData && firestoreData.csvData.length > 0 && firestoreData.csvHeaders.length > 0) {
-            console.log('✅ Dados do CSV carregados do Firestore')
+            // console.log('✅ CSV carregado')
             setCsvData(firestoreData.csvData)
             setCsvHeaders(firestoreData.csvHeaders)
             setShowSavedMessage(true)
@@ -67,7 +67,7 @@ export default function Dashboard() {
               const parsedHeaders = JSON.parse(savedHeaders)
               
               if (parsedData.length > 0 && parsedHeaders.length > 0) {
-                console.log('✅ Dados do CSV carregados do localStorage')
+                // console.log('✅ Cache carregado')
                 setCsvData(parsedData)
                 setCsvHeaders(parsedHeaders)
                 setShowSavedMessage(true)
@@ -76,7 +76,7 @@ export default function Dashboard() {
                 // Tentar sincronizar com Firestore em background
                 try {
                   await saveCSVData(parsedData, parsedHeaders)
-                  console.log('✅ Dados sincronizados com Firestore')
+                  // console.log('✅ Sincronizado')
                 } catch (syncError) {
                   console.warn('⚠️ Erro ao sincronizar com Firestore:', syncError)
                 }
@@ -109,7 +109,7 @@ export default function Dashboard() {
     // Salvar no Firestore
     try {
       await saveCSVData(data, headers, fileName, fileContent, effectiveUser?.id)
-      console.log('✅ Dados do CSV salvos no Firestore com sucesso!')
+      // console.log('✅ Salvo')
     } catch (error: any) {
       console.error('❌ Erro ao salvar no Firestore:', error)
     }
@@ -130,7 +130,7 @@ export default function Dashboard() {
     // Remover dados do Firestore
     try {
       await deleteCSVData(effectiveUser?.id)
-      console.log('✅ Dados do CSV removidos do Firestore')
+      // console.log('✅ Removido')
     } catch (error: any) {
       console.error('❌ Erro ao remover do Firestore:', error)
     }
@@ -172,9 +172,11 @@ export default function Dashboard() {
     <div className="dashboard-container">
       <header className="dashboard-header">
         <div className="header-left">
-          <BarChart3 size={28} />
-          <h1>Farol 360</h1>
-          <span className="company-name">por Creattive</span>
+          <div className="logo-wrapper">
+            <Search size={28} className="logo-icon" />
+            <Sparkles size={14} className="logo-sparkle" />
+          </div>
+          <h1>Lupa <span className="brand-accent">Analytics AI</span></h1>
         </div>
         <div className="header-right">
           {user?.role === 'admin' && !isImpersonating && (

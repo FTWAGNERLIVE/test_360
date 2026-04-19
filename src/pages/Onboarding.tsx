@@ -127,7 +127,7 @@ export default function Onboarding() {
         // Executar salvamento primeiro (mais crítico)
         try {
           await saveOnboardingData(onboardingData)
-          console.log('✅ Dados de onboarding salvos com sucesso')
+          // console.log('✅ Onboarding salvo')
         } catch (saveError: any) {
           console.error('❌ Erro ao salvar dados de onboarding:', saveError)
           throw saveError // Re-throw para ser capturado pelo catch externo
@@ -202,8 +202,8 @@ export default function Onboarding() {
         </div>
 
         <div className="onboarding-header">
-          <h1>Bem-vindo ao Farol 360!</h1>
-          <p>Preencha este formulário para personalizar sua análise</p>
+          <h1>Bem-vindo ao Lupa Analytics AI!</h1>
+          <p>Personalize sua análise inteligente • Desenvolvido por FTWagner</p>
           {user?.role === 'user' && (
             <div className="test-info">
               <Clock size={14} />

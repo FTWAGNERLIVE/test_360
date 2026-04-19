@@ -151,8 +151,8 @@ export default function Vendas() {
       <header className="admin-header">
         <div className="admin-header-content">
           <div>
-            <h1>Painel de Vendas - Farol 360</h1>
-            <p>Creattive - Gestão de Clientes</p>
+            <h1>Painel de Vendas - Lupa Analytics AI</h1>
+            <p>Gestão de Clientes • Desenvolvido por FTWagner</p>
           </div>
           <button onClick={handleLogout} className="logout-button">
             <LogOut size={20} />

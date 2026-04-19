@@ -48,17 +48,12 @@ export async function saveCSVData(
   }
 
   try {
-    console.log('💾 Salvando dados do CSV no Firestore...', {
-      userId,
-      dataRows: csvData.length,
-      headers: csvHeaders.length,
-      fileName: csvFileName
-    })
+    // console.log('💾 Salvando CSV')
 
     // Salvar no Firestore (um documento por usuário, sempre atualizado)
     await setDoc(doc(db, CSV_DATA_COLLECTION, userId), csvDataDoc)
     
-    console.log('✅ Dados do CSV salvos com sucesso no Firestore!')
+    // console.log('✅ CSV salvo')
   } catch (error: any) {
     console.error('❌ Erro ao salvar dados do CSV:', {
       code: error.code,
@@ -91,12 +86,12 @@ export async function loadCSVData(targetUserId?: string): Promise<CSVData | null
   const userId = targetUserId || auth.currentUser.uid
 
   try {
-    console.log('🔍 Buscando dados do CSV no Firestore...', { userId })
+    // console.log('🔍 Buscando CSV')
 
     const csvDataDoc = await getDoc(doc(db, CSV_DATA_COLLECTION, userId))
     
     if (!csvDataDoc.exists()) {
-      console.log('ℹ️ Nenhum dado do CSV encontrado no Firestore')
+      // console.log('ℹ️ Sem dados CSV')
       return null
     }
 
@@ -111,11 +106,7 @@ export async function loadCSVData(targetUserId?: string): Promise<CSVData | null
       updatedAt: data.updatedAt?.toDate() || new Date()
     }
 
-    console.log('✅ Dados do CSV carregados com sucesso!', {
-      dataRows: csvData.csvData.length,
-      headers: csvData.csvHeaders.length,
-      fileName: csvData.csvFileName
-    })
+    // console.log('✅ CSV carregado')
 
     return csvData
   } catch (error: any) {
@@ -150,7 +141,7 @@ export async function deleteCSVData(targetUserId?: string): Promise<void> {
   const userId = targetUserId || auth.currentUser.uid
 
   try {
-    console.log('🗑️ Removendo dados do CSV do Firestore...', { userId })
+    // console.log('🗑️ Removendo CSV')
 
     await setDoc(doc(db, CSV_DATA_COLLECTION, userId), {
       userId,
@@ -161,7 +152,7 @@ export async function deleteCSVData(targetUserId?: string): Promise<void> {
       updatedAt: Timestamp.now()
     }, { merge: true })
     
-    console.log('✅ Dados do CSV removidos com sucesso!')
+    // console.log('✅ CSV removido')
   } catch (error: any) {
     console.error('❌ Erro ao remover dados do CSV:', {
       code: error.code,

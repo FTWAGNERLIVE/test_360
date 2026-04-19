@@ -5,6 +5,7 @@ import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import Admin from './pages/Admin'
 import Vendas from './pages/Vendas'
+import SetPassword from './pages/SetPassword'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { checkAndMigrate } from './services/migrationService'
 
@@ -17,6 +18,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/login" replace />
+  }
+
+  if (!user.passwordSet) {
+    return <Navigate to="/set-password" replace />
   }
 
   if (!user.onboardingCompleted) {
@@ -67,6 +72,8 @@ function AppRoutes() {
               <Navigate to="/admin" replace />
             ) : user.role === 'vendas' ? (
               <Navigate to="/vendas" replace />
+            ) : !user.passwordSet ? (
+              <Navigate to="/set-password" replace />
             ) : user.onboardingCompleted ? (
               <Navigate to="/dashboard" replace />
             ) : (
@@ -80,14 +87,28 @@ function AppRoutes() {
       <Route 
         path="/onboarding" 
         element={
-          user && !user.onboardingCompleted ? (
+          user && user.passwordSet && !user.onboardingCompleted ? (
             <Onboarding />
           ) : user && user.onboardingCompleted ? (
             <Navigate to="/dashboard" replace />
+          ) : user && !user.passwordSet ? (
+            <Navigate to="/set-password" replace />
           ) : (
             <Navigate to="/login" replace />
           )
         } 
+      />
+      <Route
+        path="/set-password"
+        element={
+          user && !user.passwordSet ? (
+            <SetPassword />
+          ) : user && user.passwordSet ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
       />
       <Route
         path="/dashboard"

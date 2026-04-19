@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Download, User, Building2, Phone, Mail, Calendar, FileText, RefreshCw, Key, Clock, AlertTriangle, CheckCircle, MessageSquare, Users, Shield, Eye, XCircle, UserPlus, BarChart3 } from 'lucide-react'
+import { LogOut, Download, User, Building2, Phone, Mail, Calendar, FileText, RefreshCw, Key, Clock, AlertTriangle, CheckCircle, MessageSquare, Users, Shield, Eye, XCircle, UserPlus, Search } from 'lucide-react'
 import { getAllOnboardingData as getFirestoreData, ClientStatus } from '../services/firestoreService'
 import { getAllSupportMessages, updateSupportMessageStatus, SupportMessage } from '../services/supportService'
 import { createAccount, updateUserData } from '../services/authService'
@@ -110,9 +110,7 @@ export default function Admin() {
 
       // Carregar contas de usuários
       try {
-        console.log('🔄 Carregando contas de usuários...')
-        const users = await getAllUsers()
-        console.log(`✅ ${users.length} contas carregadas com sucesso`)
+        // console.log('🔄 Contas carregadas')
         setUserAccounts(users.map(u => ({
           id: u.id,
           email: u.email,
@@ -216,8 +214,8 @@ export default function Admin() {
     }
 
     // Validar senha mínima
-    if (newVendasPassword.length < 6) {
-      alert('A senha deve ter pelo menos 6 caracteres')
+    if (newVendasPassword.length < 8) {
+      alert('A senha deve ter pelo menos 8 caracteres')
       return
     }
 
@@ -247,8 +245,8 @@ export default function Admin() {
     }
 
     // Validar senha mínima
-    if (newAdminPassword.length < 6) {
-      alert('A senha deve ter pelo menos 6 caracteres')
+    if (newAdminPassword.length < 8) {
+      alert('A senha deve ter pelo menos 8 caracteres')
       return
     }
 
@@ -362,8 +360,8 @@ export default function Admin() {
       <header className="admin-header">
         <div className="admin-header-content">
           <div>
-            <h1>Painel Administrativo - Farol 360</h1>
-            <p>Creattive - Gestão de Usuários</p>
+            <h1>Painel Administrativo - Lupa Analytics AI</h1>
+            <p>Gestão de Usuários • Desenvolvido por FTWagner</p>
           </div>
           <div className="header-actions">
             <button 
@@ -371,7 +369,7 @@ export default function Admin() {
               className="analyst-view-btn"
               title="Acessar ferramenta de análise de dados"
             >
-              <BarChart3 size={20} />
+              <Search size={20} />
               Minha Visão de Analista
             </button>
             <button onClick={handleLogout} className="logout-button">
@@ -469,7 +467,7 @@ export default function Admin() {
                       onChange={(e) => setNewAdminPassword(e.target.value)}
                       placeholder="Senha temporária"
                       required
-                      minLength={6}
+                      minLength={8}
                     />
                   </div>
                   <button
@@ -518,7 +516,7 @@ export default function Admin() {
                       onChange={(e) => setNewVendasPassword(e.target.value)}
                       placeholder="Senha temporária"
                       required
-                      minLength={6}
+                      minLength={8}
                     />
                   </div>
                   <button

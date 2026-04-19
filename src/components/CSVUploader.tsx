@@ -210,7 +210,7 @@ Teclado,Periféricos,6000,2024-01-19,Norte`
         {isProcessing ? (
           <>
             <div className="spinner"></div>
-            <p>Processando arquivo com Farol 360...</p>
+            <p>Processando arquivo com Lupa Analytics AI...</p>
           </>
         ) : (
           <>

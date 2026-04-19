@@ -66,7 +66,7 @@ async function migrateUsers(): Promise<number> {
         userExists = !existingUsers.empty
       } catch (error) {
         // Se der erro na query, assumir que não existe
-        console.warn(`Erro ao verificar usuário ${email}:`, error)
+        // console.warn(`Erro ao verificar usuário`)
       }
 
       if (!userExists && userData) {
@@ -99,7 +99,7 @@ async function migrateUsers(): Promise<number> {
           // Se o usuário já existe no Auth, tentar criar apenas o documento
           if (authError.code === 'auth/email-already-in-use') {
             // Buscar o UID do usuário existente seria complexo, então vamos pular
-            console.log(`Usuário ${email} já existe no Firebase Auth, pulando migração`)
+            // console.log(`Usuário já existe`)
           } else {
             throw authError
           }
@@ -108,7 +108,7 @@ async function migrateUsers(): Promise<number> {
     } catch (error: any) {
       // Se o usuário já existe, ignorar erro
       if (error.code !== 'auth/email-already-in-use') {
-        console.error(`Erro ao migrar usuário ${email}:`, error)
+        // console.error(`Erro ao migrar usuário`)
       }
       // Continuar com próximo usuário mesmo se houver erro
     }
@@ -323,7 +323,7 @@ export async function checkAndMigrate(): Promise<void> {
       // Se não houver dados locais, marcar como concluída sem tentar acessar Firestore
       if (!hasLocalData) {
         markMigrationCompleted()
-        console.log('ℹ️ Nenhum dado local para migrar. Migração marcada como concluída.')
+        // console.log('ℹ️ Migração concluída')
         return
       }
 
@@ -331,13 +331,13 @@ export async function checkAndMigrate(): Promise<void> {
       if (result.success) {
         // Só marcar como concluída se realmente migrou algo ou se não havia dados
         if (result.usersMigrated > 0 || result.onboardingMigrated > 0 || result.supportMigrated > 0) {
-          console.log('✅ Migração automática concluída:', result.message)
+          // console.log('✅ Migração concluída')
         } else {
           // Se não migrou nada mas não deu erro, pode ser que não havia dados ou Firestore estava offline
-          console.log('ℹ️ Migração executada:', result.message)
+          // console.log('ℹ️ Migração executada')
         }
       } else {
-        console.log('ℹ️ Migração não executada:', result.message)
+        // console.log('ℹ️ Migração não executada')
       }
     } catch (error: any) {
       // Se o erro for de Firestore offline, não marcar como concluída para tentar novamente depois
