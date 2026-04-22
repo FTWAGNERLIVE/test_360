@@ -215,6 +215,9 @@ export async function login(email: string, password: string): Promise<UserData> 
     }
   }
 
+  // Limpar espaços em branco do email
+  const cleanEmail = email.trim()
+
   // Se não for admin ou cliente hardcoded, tentar Firebase
   if (!auth || !db) {
     console.error('Firebase não está configurado. Verifique as variáveis de ambiente no Vercel.')
@@ -223,7 +226,7 @@ export async function login(email: string, password: string): Promise<UserData> 
 
   let userCredential
   try {
-    userCredential = await signInWithEmailAndPassword(auth, email, password)
+    userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password)
   } catch (error: any) {
     console.error('Erro no Firebase Auth:', {
       code: error.code,
