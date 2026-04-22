@@ -113,20 +113,63 @@ export default function CSVUploader({ onFileUploaded, onboardingData }: CSVUploa
         const firstSheetName = workbook.SheetNames[0]
         const worksheet = workbook.Sheets[firstSheetName]
         
-        // Converte para JSON (array de objetos)
-        const data = XLSX.utils.sheet_to_json(worksheet) as any[]
+        // Lê como array 2D para inspecionar a estrutura
+        const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]
+        
+        // Heurística para detectar o "Relatório Financeiro do Clube" (que é todo desestruturado)
+        const isRelatorioBaguncado = rawData.slice(0, 20).some(row => {
+          if (!row) return false;
+          const rowStr = row.join(' ').toLowerCase();
+          return rowStr.includes('tempo atraso') || 
+                 rowStr.includes('categoria associado') ||
+                 rowStr.includes('parcelas em atraso');
+        });
+
+        let data: any[] = [];
+        let headers: string[] = [];
+
+        if (isRelatorioBaguncado) {
+          console.log('Detectado relatório financeiro desestruturado. Limpando dados...');
+          headers = ["Número", "Nome", "Categoria Associado", "Tempo Atraso", "Parcelas em atraso", "Data", "Total"];
+          
+          for (let i = 0; i < rawData.length; i++) {
+            const row = rawData[i];
+            if (!row || row.length < 5) continue;
+            
+            // Baseado na estrutura do XLS analisado
+            const numero = row[2];
+            const nome = row[4];
+            
+            if (numero && nome && String(numero).trim() !== 'Número' && String(nome).trim() !== 'Nome') {
+              data.push({
+                "Número": String(numero).trim(),
+                "Nome": String(nome).trim(),
+                "Categoria Associado": row[13] || '',
+                "Tempo Atraso": row[14] || '',
+                "Parcelas em atraso": row[19] || '',
+                "Data": row[23] || '',
+                "Total": row[28] || 0
+              });
+            }
+          }
+        } else {
+          // Converte para JSON padrão (array de objetos) se for uma planilha normal
+          data = XLSX.utils.sheet_to_json(worksheet) as any[];
+          if (data.length > 0) {
+            headers = Object.keys(data[0]);
+          }
+        }
         
         if (data.length === 0) {
-          setError('A planilha Excel está vazia')
+          setError('A planilha Excel está vazia ou não possui dados reconhecíveis')
           setIsProcessing(false)
           return
         }
 
-        // Pega os cabeçalhos das chaves do primeiro objeto
-        const headers = Object.keys(data[0])
-
         // Opcional: Converter dados de volta para CSV como string para passar no fileContent se precisar
-        const csvContent = XLSX.utils.sheet_to_csv(worksheet)
+        const csvContent = isRelatorioBaguncado 
+          ? Papa.unparse(data) // Gera um CSV limpo do relatório
+          : XLSX.utils.sheet_to_csv(worksheet);
 
         setTimeout(() => {
           onFileUploaded(data, headers, file.name, csvContent)
