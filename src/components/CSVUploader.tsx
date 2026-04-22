@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { Upload, FileCheck, AlertCircle, Download } from 'lucide-react'
 import Papa from 'papaparse'
+import * as XLSX from 'xlsx'
 import './CSVUploader.css'
 
 interface OnboardingData {
@@ -52,52 +53,90 @@ export default function CSVUploader({ onFileUploaded, onboardingData }: CSVUploa
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const processFile = async (file: File) => {
-    if (!file.name.endsWith('.csv')) {
-      setError('Por favor, envie apenas arquivos CSV')
+    const isCsv = file.name.endsWith('.csv')
+    const isExcel = file.name.endsWith('.xls') || file.name.endsWith('.xlsx')
+
+    if (!isCsv && !isExcel) {
+      setError('Por favor, envie apenas arquivos CSV ou Excel (.xls, .xlsx)')
       return
     }
 
     setIsProcessing(true)
     setError('')
 
-    // Ler o conteúdo do arquivo como texto para salvar depois
+    // Tentar ler o conteúdo como texto para o caso de CSV (para histórico/salvamento)
     let fileContent = ''
-    try {
-      fileContent = await file.text()
-    } catch (error) {
-      console.warn('⚠️ Não foi possível ler o conteúdo do arquivo:', error)
+    if (isCsv) {
+      try {
+        fileContent = await file.text()
+      } catch (error) {
+        console.warn('⚠️ Não foi possível ler o conteúdo do arquivo:', error)
+      }
     }
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        if (results.errors.length > 0) {
-          setError('Erro ao processar o arquivo CSV. Verifique o formato.')
+    if (isCsv) {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          if (results.errors.length > 0) {
+            setError('Erro ao processar o arquivo CSV. Verifique o formato.')
+            setIsProcessing(false)
+            return
+          }
+
+          const data = results.data as any[]
+          const headers = results.meta.fields || []
+
+          if (data.length === 0) {
+            setError('O arquivo CSV está vazio')
+            setIsProcessing(false)
+            return
+          }
+
+          setTimeout(() => {
+            onFileUploaded(data, headers, file.name, fileContent)
+            setIsProcessing(false)
+          }, 1500)
+        },
+        error: (error) => {
+          setError('Erro ao ler o arquivo CSV: ' + error.message)
           setIsProcessing(false)
-          return
         }
-
-        const data = results.data as any[]
-        const headers = results.meta.fields || []
-
+      })
+    } else if (isExcel) {
+      try {
+        const buffer = await file.arrayBuffer()
+        const workbook = XLSX.read(buffer, { type: 'array' })
+        
+        // Pega a primeira planilha
+        const firstSheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[firstSheetName]
+        
+        // Converte para JSON (array de objetos)
+        const data = XLSX.utils.sheet_to_json(worksheet) as any[]
+        
         if (data.length === 0) {
-          setError('O arquivo CSV está vazio')
+          setError('A planilha Excel está vazia')
           setIsProcessing(false)
           return
         }
 
-        // Simular processamento
+        // Pega os cabeçalhos das chaves do primeiro objeto
+        const headers = Object.keys(data[0])
+
+        // Opcional: Converter dados de volta para CSV como string para passar no fileContent se precisar
+        const csvContent = XLSX.utils.sheet_to_csv(worksheet)
+
         setTimeout(() => {
-          onFileUploaded(data, headers, file.name, fileContent)
+          onFileUploaded(data, headers, file.name, csvContent)
           setIsProcessing(false)
         }, 1500)
-      },
-      error: (error) => {
-        setError('Erro ao ler o arquivo: ' + error.message)
+      } catch (err: any) {
+        setError('Erro ao ler a planilha Excel: ' + (err.message || 'Formato inválido'))
         setIsProcessing(false)
       }
-    })
+    }
   }
 
   const handleDrop = async (e: React.DragEvent) => {
@@ -202,7 +241,7 @@ Teclado,Periféricos,6000,2024-01-19,Norte`
         <input
           ref={fileInputRef}
           type="file"
-          accept=".csv"
+          accept=".csv,.xls,.xlsx"
           onChange={handleFileSelect}
           style={{ display: 'none' }}
         />
@@ -216,9 +255,9 @@ Teclado,Periféricos,6000,2024-01-19,Norte`
           <>
             <Upload size={48} className="upload-icon" />
             <p className="upload-text">
-              <strong>Clique aqui</strong> ou arraste um arquivo CSV
+              <strong>Clique aqui</strong> ou arraste uma planilha
             </p>
-            <p className="upload-hint">Formatos suportados: .csv</p>
+            <p className="upload-hint">Formatos suportados: .csv, .xls, .xlsx</p>
           </>
         )}
       </div>
