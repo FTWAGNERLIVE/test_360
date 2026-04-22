@@ -26,6 +26,7 @@ export class GoogleAuthService {
 
     if (!CLIENT_ID) {
       console.warn('VITE_GOOGLE_CLIENT_ID não configurado no .env');
+      return; // Não inicializa se não houver Client ID
     }
 
     this.tokenClient = window.google.accounts.oauth2.initTokenClient({
