@@ -576,7 +576,8 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
           onboardingCompleted: userData.onboardingCompleted || false,
           createdAt: userData.createdAt?.toDate() || new Date(),
           trialEndDate,
-          onboardingData: userData.onboardingData
+          onboardingData: userData.onboardingData,
+          passwordSet: userData.passwordSet !== undefined ? userData.passwordSet : true
         })
       } else {
         // Documento não existe - criar automaticamente
@@ -590,7 +591,8 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
           role: 'user' as const,
           onboardingCompleted: false,
           createdAt: Timestamp.now(),
-          trialEndDate: Timestamp.fromDate(trialEndDate)
+          trialEndDate: Timestamp.fromDate(trialEndDate),
+          passwordSet: false
         }
         
         try {
@@ -604,7 +606,8 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
             role: 'user',
             onboardingCompleted: false,
             createdAt: new Date(),
-            trialEndDate
+            trialEndDate,
+            passwordSet: false
           })
         } catch (createError: any) {
           console.warn('⚠️ Não foi possível criar documento no Firestore, usando dados básicos:', createError)
@@ -616,7 +619,8 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
             role: 'user',
             onboardingCompleted: false,
             createdAt: new Date(),
-            trialEndDate
+            trialEndDate,
+            passwordSet: false
           })
         }
       }
@@ -640,7 +644,8 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
           role: 'user',
           onboardingCompleted: false,
           createdAt: new Date(),
-          trialEndDate
+          trialEndDate,
+          passwordSet: true // fallback to avoid redirect loop when offline
         })
       } else if (error.code === 'permission-denied') {
         console.error('Permissão negada ao buscar dados do usuário. Verifique as regras do Firestore.')
@@ -655,7 +660,8 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
           role: 'user',
           onboardingCompleted: false,
           createdAt: new Date(),
-          trialEndDate
+          trialEndDate,
+          passwordSet: true // fallback to avoid redirect loop on permission error
         })
       } else {
         console.error('Erro ao buscar dados do usuário:', {
