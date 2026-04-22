@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { LogOut, FileText, Search, Sparkles, Clock, CheckCircle2, HelpCircle, Send, X, LayoutDashboard, MessageCircle } from 'lucide-react'
 import CSVUploader from '../components/CSVUploader'
+import GoogleSheetsImporter from '../components/GoogleSheetsImporter'
 import DataVisualization from '../components/DataVisualization'
 import ChatBot from '../components/ChatBot'
 import { sendSupportMessage } from '../services/supportService'
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [supportLoading, setSupportLoading] = useState(false)
   const [supportSuccess, setSupportSuccess] = useState(false)
   const [loadingCSV, setLoadingCSV] = useState(true)
+  const [importMethod, setImportMethod] = useState<'file' | 'url'>('file')
 
   const effectiveUser = impersonatedUser || user
   const isImpersonating = !!impersonatedUser
@@ -245,12 +247,34 @@ export default function Dashboard() {
             <div className="upload-section">
               <div className="upload-card">
                 <FileText size={48} className="upload-icon" />
-                <h2>Faça upload do seu arquivo CSV</h2>
-                <p>Envie seus dados para análise inteligente com IA</p>
-                <CSVUploader 
-                  onFileUploaded={handleFileUploaded} 
-                  onboardingData={user?.onboardingData}
-                />
+                <h2>Conecte seus dados</h2>
+                <p>Escolha como deseja enviar seus dados para análise inteligente</p>
+                
+                <div className="import-method-tabs">
+                  <button 
+                    className={`method-tab ${importMethod === 'file' ? 'active' : ''}`}
+                    onClick={() => setImportMethod('file')}
+                  >
+                    Arquivo CSV
+                  </button>
+                  <button 
+                    className={`method-tab ${importMethod === 'url' ? 'active' : ''}`}
+                    onClick={() => setImportMethod('url')}
+                  >
+                    Google Sheets
+                  </button>
+                </div>
+
+                {importMethod === 'file' ? (
+                  <CSVUploader 
+                    onFileUploaded={handleFileUploaded} 
+                    onboardingData={user?.onboardingData}
+                  />
+                ) : (
+                  <GoogleSheetsImporter 
+                    onDataLoaded={handleFileUploaded}
+                  />
+                )}
               </div>
             </div>
           ) : (
