@@ -7,6 +7,7 @@ import DataVisualization from '../components/DataVisualization'
 import ChatBot from '../components/ChatBot'
 import { sendSupportMessage } from '../services/supportService'
 import { saveCSVData, loadCSVData, deleteCSVData } from '../services/csvService'
+import { createPaymentLink } from '../services/paymentService'
 import './Dashboard.css'
 
 export default function Dashboard() {
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const [supportSuccess, setSupportSuccess] = useState(false)
   const [loadingCSV, setLoadingCSV] = useState(true)
   const [importMethod, setImportMethod] = useState<'file' | 'url'>('file')
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false)
 
   const effectiveUser = impersonatedUser || user
   const isImpersonating = !!impersonatedUser
@@ -191,11 +193,55 @@ export default function Dashboard() {
               Voltar ao Admin
             </button>
           )}
-          <span className="user-name">{effectiveUser?.name}</span>
-          <button onClick={logout} className="logout-button">
-            <LogOut size={20} />
-            Sair
-          </button>
+
+          <div className="profile-dropdown-container">
+            <button 
+              className="profile-trigger" 
+              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+            >
+              <div className="user-avatar">{effectiveUser?.name?.charAt(0).toUpperCase()}</div>
+              <span className="user-name">{effectiveUser?.name}</span>
+            </button>
+            
+            {showProfileDropdown && (
+              <div className="profile-dropdown-menu">
+                <div className="profile-header">
+                  <strong>{effectiveUser?.name}</strong>
+                  <span>{effectiveUser?.email}</span>
+                </div>
+                
+                <div className="profile-plan">
+                  <span>Plano Atual:</span>
+                  {user?.role === 'user' ? (
+                    user?.isPro ? (
+                      <span className="pro-badge-large">PRO</span>
+                    ) : (
+                      <span className="base-badge">Base</span>
+                    )
+                  ) : (
+                    <span className="admin-badge">Admin</span>
+                  )}
+                </div>
+
+                {user?.role === 'user' && !user?.isPro && (
+                  <button 
+                    onClick={() => createPaymentLink('pro')} 
+                    className="dropdown-upgrade-btn"
+                  >
+                    <Sparkles size={16} />
+                    Fazer Upgrade para PRO
+                  </button>
+                )}
+
+                <div className="dropdown-divider"></div>
+                
+                <button onClick={logout} className="dropdown-logout-btn">
+                  <LogOut size={16} />
+                  Sair da Conta
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 

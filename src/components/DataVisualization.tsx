@@ -847,9 +847,18 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => 
-                        percent > 0.05 ? `${name}\n${(percent * 100).toFixed(1)}%` : ''
-                      }
+                      label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                        if (percent < 0.05) return null;
+                        const RADIAN = Math.PI / 180;
+                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                        return (
+                          <text x={x} y={y} fill="#ffffff" textAnchor="middle" dominantBaseline="central" fontSize="13" fontWeight="bold" style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.6)' }}>
+                            {`${(percent * 100).toFixed(1)}%`}
+                          </text>
+                        );
+                      }}
                       outerRadius={120}
                       innerRadius={40}
                       fill="#8884d8"

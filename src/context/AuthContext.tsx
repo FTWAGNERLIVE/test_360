@@ -12,6 +12,7 @@ export interface User {
   trialEndDate?: Date
   createdAt?: Date
   passwordSet?: boolean
+  isPro?: boolean
 }
 
 export interface OnboardingData {
@@ -61,7 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           onboardingCompleted: firebaseUser.onboardingCompleted,
           onboardingData: firebaseUser.onboardingData,
           trialEndDate: firebaseUser.trialEndDate,
-          passwordSet: firebaseUser.passwordSet
+          passwordSet: firebaseUser.passwordSet,
+          isPro: firebaseUser.isPro
         })
       } else {
         setUser(null)

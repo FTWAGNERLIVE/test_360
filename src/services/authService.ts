@@ -23,6 +23,7 @@ export interface UserData {
   trialEndDate: Date
   onboardingData?: any
   passwordSet?: boolean
+  isPro?: boolean
 }
 
 const USERS_COLLECTION = 'users'
@@ -310,8 +311,8 @@ export async function login(email: string, password: string): Promise<UserData> 
     onboardingCompleted: userData.onboardingCompleted || false,
     createdAt: userData.createdAt?.toDate() || new Date(),
     trialEndDate,
-    onboardingData: userData.onboardingData,
-    passwordSet: userData.passwordSet !== undefined ? userData.passwordSet : true
+    passwordSet: userData.passwordSet !== undefined ? userData.passwordSet : true,
+    isPro: userData.isPro || false
   }
 }
 
@@ -390,8 +391,8 @@ export async function loginWithGoogle(): Promise<UserData> {
       onboardingCompleted: userData.onboardingCompleted || false,
       createdAt: userData.createdAt?.toDate() || new Date(),
       trialEndDate,
-      onboardingData: userData.onboardingData,
-      passwordSet: userData.passwordSet !== undefined ? userData.passwordSet : true
+      passwordSet: userData.passwordSet !== undefined ? userData.passwordSet : true,
+      isPro: userData.isPro || false
     }
   } else {
     // Novo usuário - criar documento no Firestore
@@ -579,8 +580,8 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
           onboardingCompleted: userData.onboardingCompleted || false,
           createdAt: userData.createdAt?.toDate() || new Date(),
           trialEndDate,
-          onboardingData: userData.onboardingData,
-          passwordSet: userData.passwordSet !== undefined ? userData.passwordSet : true
+          passwordSet: userData.passwordSet !== undefined ? userData.passwordSet : true,
+          isPro: userData.isPro || false
         })
       } else {
         // Documento não existe - criar automaticamente
@@ -704,7 +705,8 @@ export async function getAllUsers(): Promise<UserData[]> {
         onboardingCompleted: data.onboardingCompleted || false,
         createdAt: data.createdAt?.toDate() || new Date(),
         trialEndDate: data.trialEndDate?.toDate() || new Date(),
-        onboardingData: data.onboardingData
+        onboardingData: data.onboardingData,
+        isPro: data.isPro || false
       })
     })
 

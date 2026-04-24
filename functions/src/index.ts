@@ -5,7 +5,7 @@ import * as admin from "firebase-admin";
 admin.initializeApp();
 const db = admin.firestore();
 
-const MP_ACCESS_TOKEN = "APP_USR-6855382522338667-042321-73722d34984e886a3f854545ec977eb5-378580699";
+const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN as string;
 
 /**
  * 1. CLOUD FUNCTION PARA CRIAR O LINK DINÂMICO
