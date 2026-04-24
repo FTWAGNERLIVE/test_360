@@ -41,6 +41,7 @@ interface AuthContextType {
   isTrialExpired: (trialEndDate: Date) => boolean
   getTrialDaysRemaining: (trialEndDate: Date) => number
   updatePassword: (password: string) => Promise<void>
+  updateProfile: (data: Partial<User>) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -245,6 +246,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const updateProfile = async (data: Partial<User>): Promise<void> => {
+    if (user) {
+      await updateUserData(user.id, data)
+      setUser({ ...user, ...data })
+    }
+  }
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -262,7 +270,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       getAllUsers: handleGetAllUsers,
       isTrialExpired,
       getTrialDaysRemaining,
-      updatePassword: handleUpdatePassword
+      updatePassword: handleUpdatePassword,
+      updateProfile
     }}>
       {children}
     </AuthContext.Provider>
