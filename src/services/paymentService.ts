@@ -1,5 +1,4 @@
 import { getAuth } from "firebase/auth";
-import { getFunctions, httpsCallable } from "firebase/functions";
 import { app } from "../config/firebase"; // Ajuste o caminho se necessário
 
 export const createPaymentLink = async (planoId?: string) => {
