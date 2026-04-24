@@ -12,19 +12,26 @@ export const createPaymentLink = async (planoId?: string) => {
   }
 
   try {
-    console.log("Gerando link dinâmico de pagamento do Mercado Pago...");
+    console.log("Gerando link dinâmico de pagamento do Mercado Pago (Vercel API)...");
     
-    const functions = getFunctions(app);
-    // Chama a nossa nova Cloud Function
-    const createMercadoPagoLink = httpsCallable(functions, 'createMercadoPagoLink');
-    
-    const result = await createMercadoPagoLink({ planoId: planoId || 'pro' });
-    const data = result.data as { checkoutUrl: string };
+    const response = await fetch('/api/payment/create-preference', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId: user.uid,
+        planoId: planoId || 'pro'
+      })
+    });
+
+    const data = await response.json();
 
     if (data.checkoutUrl) {
       // Redireciona para o Mercado Pago
       window.location.href = data.checkoutUrl; 
     } else {
+      console.error("Erro na API:", data);
       alert("Erro ao gerar link de pagamento.");
     }
   } catch (error) {
