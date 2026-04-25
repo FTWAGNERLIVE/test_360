@@ -20,28 +20,43 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 16px;
-  margin-bottom: 16px;
+  border-radius: 12px;
+  padding: 6px 16px;
+  margin-bottom: 20px;
+  min-height: 44px;
 }
 
 .date-filter-label {
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 8px;
 }
 
 .date-presets {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .preset-btn {
-  padding: 6px 12px;
-  font-size: 13px;
-  width: auto;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.preset-btn:hover {
+  background: rgba(66, 133, 244, 0.1);
+  color: var(--primary);
 }
 
 .preset-btn.active {
@@ -53,26 +68,30 @@
 .date-custom-range {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   margin-left: auto;
+  border-left: 1px solid var(--border);
+  padding-left: 16px;
 }
 
 .date-custom-range label {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text-secondary);
 }
 
 .date-custom-range input[type="date"] {
-  padding: 6px 12px;
+  padding: 4px 8px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 12px;
   outline: none;
+  width: 130px;
 }
 
 .date-custom-range input[type="date"]:focus {
