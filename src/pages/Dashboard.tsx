@@ -433,8 +433,12 @@ export default function Dashboard() {
             className="support-toggle"
             onClick={() => setShowSupport(!showSupport)}
           >
-            <HelpCircle size={24} />
-            {showSupport ? 'Fechar' : 'Suporte'}
+            <div className="support-toggle-icon">
+              <HelpCircle size={24} />
+            </div>
+            <span className="support-toggle-text">
+              {showSupport ? 'Fechar' : 'Suporte'}
+            </span>
           </button>
         </div>
 

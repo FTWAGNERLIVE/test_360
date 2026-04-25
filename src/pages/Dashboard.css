@@ -332,31 +332,6 @@
   transform: translateY(-5px);
 }
 
-.chat-toggle-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 64px;
-  height: 64px;
-  animation: pulseLupa 2s infinite ease-in-out;
-}
-
-.chat-toggle-text {
-  font-size: 16px;
-  font-weight: 600;
-  white-space: nowrap;
-  opacity: 0;
-  transform: translateX(20px);
-  transition: opacity 0.3s, transform 0.3s;
-  pointer-events: none;
-}
-
-.chat-toggle:hover .chat-toggle-text {
-  opacity: 1;
-  transform: translateX(0);
-  transition-delay: 0.1s;
-}
-
 .support-toggle {
   width: 64px;
   height: 64px;
@@ -370,24 +345,61 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 10px 25px rgba(52, 168, 83, 0.4);
-  transition: all 0.3s;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  overflow: hidden;
 }
 
 .support-toggle:hover {
+  width: 160px;
+  padding: 0 20px;
+  justify-content: flex-start;
   transform: translateY(-5px);
   box-shadow: 0 15px 35px rgba(52, 168, 83, 0.5);
 }
 
-@keyframes pulseLupa {
-  0%, 100% {
-    transform: scale(1);
-    filter: brightness(1);
-  }
-  50% {
-    transform: scale(1.15);
-    filter: brightness(1.3) drop-shadow(0 0 8px rgba(255, 255, 255, 0.6));
-  }
+.chat-toggle-text,
+.support-toggle-text {
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  width: 0;
+  transform: translateX(20px);
+  transition: opacity 0.3s, transform 0.3s, width 0.3s;
+  pointer-events: none;
+  overflow: hidden;
 }
+
+.chat-toggle:hover .chat-toggle-text,
+.support-toggle:hover .support-toggle-text {
+  opacity: 1;
+  width: auto;
+  transform: translateX(0);
+  margin-left: 12px;
+  transition-delay: 0.1s;
+}
+
+.chat-toggle-icon,
+.support-toggle-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+
+.chat-toggle-icon {
+  animation: pulseLupa 2s infinite ease-in-out;
+}
+
+@keyframes pulseLupa {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.15); filter: brightness(1.3) drop-shadow(0 0 8px rgba(255, 255, 255, 0.6)); }
+}
+
+
+
 
 
 .support-modal {
