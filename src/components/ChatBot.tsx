@@ -1,5 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Send, Bot, User, Loader } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { isTrialExpired } from '../services/authService'
 
 import './ChatBot.css'
 
@@ -17,12 +19,20 @@ interface ChatBotProps {
 }
 
 export default function ChatBot({ data, headers, onboardingData }: ChatBotProps) {
+  const { user } = useAuth()
+  
+  // Limite de 60 linhas para o Chat se não for PRO ou Trial Ativo
+  const limitedData = useMemo(() => {
+    const hasFullAccess = !user || user.role === 'admin' || user.role === 'vendas' || user.isPro || (user.trialEndDate && !isTrialExpired(new Date(user.trialEndDate)))
+    if (hasFullAccess) return data
+    return data.slice(0, 60)
+  }, [data, user])
 
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: `Olá! Sou o Agente 360, seu assistente de análise de dados. Analisei seu arquivo CSV com ${data.length} registros e ${headers.length} colunas. Como posso ajudá-lo hoje?`,
+      content: `Olá! Sou o Agente 360, seu assistente de análise de dados. Analisei seu arquivo CSV com ${limitedData.length} registros e ${headers.length} colunas. Como posso ajudá-lo hoje?`,
       timestamp: new Date()
     }
   ])
@@ -60,7 +70,7 @@ export default function ChatBot({ data, headers, onboardingData }: ChatBotProps)
         content: msg.content
       })).slice(1) // Skip first assistant message
 
-      const response = await chatWithGroq(currentInput, history, data, headers, onboardingData)
+      const response = await chatWithGroq(currentInput, history, limitedData, headers, onboardingData)
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),

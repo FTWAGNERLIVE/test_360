@@ -26,61 +26,69 @@ export default async function handler(req, res) {
     const payload = req.body;
     let statusPagamento = "";
     let userId = "";
-    let valorTransacao = 0;
-    let transactionId = "";
-
-    // Lógica para capturar o ID do pagamento
-    const paymentId = payload.data?.id || req.query.id || req.body.id;
     
-    if (!paymentId || isNaN(paymentId)) {
-      return res.status(200).send("Sem ID de pagamento válido");
-    }
+    // Captura o ID e o Tipo (Assinatura ou Pagamento Avulso)
+    const resourceId = payload.data?.id || req.query.id || req.body.id;
+    const topic = payload.type || payload.topic || "payment";
 
-    // Consulta a API do Mercado Pago para detalhes
-    const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-      headers: { "Authorization": `Bearer ${MP_ACCESS_TOKEN}` }
-    });
+    if (!resourceId) return res.status(200).send("Sem ID");
 
-    if (!mpResponse.ok) {
-      return res.status(200).send("Erro ao consultar MP, mas OK");
-    }
+    // SE FOR ASSINATURA (PREAPPROVAL)
+    if (topic === "subscription_preapproval" || topic === "preapproval") {
+      const response = await fetch(`https://api.mercadopago.com/preapproval/${resourceId}`, {
+        headers: { "Authorization": `Bearer ${MP_ACCESS_TOKEN}` }
+      });
+      const data = await response.json();
+      
+      statusPagamento = data.status; // 'authorized' quando ativa
+      userId = data.external_reference;
 
-    const paymentData = await mpResponse.json();
+      if (statusPagamento === "authorized" && userId) {
+        await activateProUser(userId, resourceId, "Subscription");
+      }
+    } 
+    // SE FOR PAGAMENTO AVULSO OU MENSALIDADE
+    else if (topic === "payment") {
+      const response = await fetch(`https://api.mercadopago.com/v1/payments/${resourceId}`, {
+        headers: { "Authorization": `Bearer ${MP_ACCESS_TOKEN}` }
+      });
+      const data = await response.json();
+      
+      statusPagamento = data.status; // 'approved'
+      userId = data.external_reference;
 
-    statusPagamento = paymentData.status;
-    userId = paymentData.external_reference; // O ID do usuário que passamos no link
-    valorTransacao = paymentData.transaction_amount;
-    transactionId = paymentId.toString();
-
-    // Se aprovado, ativa o PRO no Firestore
-    if (statusPagamento === "approved" && userId) {
-      const userRef = db.collection("users").doc(userId);
-      const userDoc = await userRef.get();
-
-      if (userDoc.exists) {
-        await userRef.update({
-          isPro: true,
-          subscriptionStatus: "active",
-          lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        // Salva log de pagamento
-        await userRef.collection("payments").doc(transactionId).set({
-          transactionId,
-          amount: valorTransacao,
-          status: statusPagamento,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          gateway: "Mercado Pago"
-        });
-
-        console.log(`Sucesso: Assinatura ativada para o usuário ${userId}`);
+      if (statusPagamento === "approved" && userId) {
+        await activateProUser(userId, resourceId, "Monthly Payment");
       }
     }
 
-    return res.status(200).send("Webhook processado");
-
+    return res.status(200).send("OK");
   } catch (error) {
     console.error("Erro no Webhook:", error);
-    return res.status(200).send("Erro interno, mas recebido");
+    return res.status(200).send("Error handled");
   }
+}
+
+// Função auxiliar para ativar o usuário no Firestore
+async function activateProUser(userId, transactionId, type) {
+  const userRef = db.collection("users").doc(userId);
+  const userDoc = await userRef.get();
+
+  if (userDoc.exists) {
+    await userRef.update({
+      isPro: true,
+      subscriptionStatus: "active",
+      subscriptionType: "recurring",
+      lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    await userRef.collection("payments").doc(transactionId).set({
+      transactionId,
+      status: "approved",
+      type: type,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      gateway: "Mercado Pago"
+    });
+  }
+}
 }

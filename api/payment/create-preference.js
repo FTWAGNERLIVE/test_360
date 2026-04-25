@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { userId, planoId } = req.body;
+  const { userId, userEmail, planoId } = req.body;
 
   if (!userId) {
     return res.status(400).json({ error: 'User ID is required' });
@@ -27,42 +27,38 @@ export default async function handler(req, res) {
   const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
 
   try {
-    const preference = {
-      items: [
-        {
-          title: `LupaAI - Plano ${planoId === 'pro' ? 'PRO' : 'Premium'}`,
-          quantity: 1,
-          currency_id: "BRL",
-          unit_price: 49.90
-        }
-      ],
+    // Criação de ASSINATURA (Preapproval)
+    const subscriptionData = {
+      reason: `LupaAI - Assinatura Mensal PRO`,
       external_reference: userId,
-      // URL de Webhook dinâmica (usa a URL da própria Vercel)
-      notification_url: `https://${req.headers.host}/api/payment/webhook`,
-      back_urls: {
-        success: `https://${req.headers.host}/dashboard`,
-        failure: `https://${req.headers.host}/dashboard`,
-        pending: `https://${req.headers.host}/dashboard`
+      payer_email: userEmail || "teste@exemplo.com",
+      auto_recurring: {
+        frequency: 1,
+        frequency_type: "months",
+        transaction_amount: 49.90,
+        currency_id: "BRL"
       },
-      auto_return: "approved"
+      back_url: `https://${req.headers.host}/dashboard`,
+      status: "pending"
     };
 
-    const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
+    const response = await fetch("https://api.mercadopago.com/preapproval", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${MP_ACCESS_TOKEN}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(preference)
+      body: JSON.stringify(subscriptionData)
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Erro MP:", data);
+      console.error("Erro MP (Assinatura):", data);
       return res.status(500).json({ error: 'Mercado Pago error', details: data });
     }
 
+    // O link de pagamento da assinatura fica em 'init_point'
     return res.status(200).json({ checkoutUrl: data.init_point });
   } catch (error) {
     console.error("Erro interno:", error);

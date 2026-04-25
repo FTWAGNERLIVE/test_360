@@ -2,6 +2,8 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
 import { Bar, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart } from 'recharts'
 import { TrendingUp, Database, BarChart3 as BarChartIcon, X, Mail, Filter, ChevronDown } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { isTrialExpired } from '../services/authService'
 import './DataVisualization.css'
 
 interface DataVisualizationProps {
@@ -62,6 +64,18 @@ const cleanNumber = (val: any): number => {
   return Number(cleaned)
 }
 export default function DataVisualization({ data, headers }: DataVisualizationProps) {
+  const { user } = useAuth()
+  
+  // Lógica de Limite: PRO, Admin ou Trial Ativo (15 dias) não têm limites. Base tem 60 linhas.
+  const hasFullAccess = useMemo(() => {
+    if (!user || user.role === 'admin' || user.role === 'vendas') return true
+    if (user.isPro) return true
+    if (user.trialEndDate && !isTrialExpired(new Date(user.trialEndDate))) return true
+    return false
+  }, [user])
+
+  const rowLimit = hasFullAccess ? 1000000 : 60
+
   // Extract specific headers explicitly so we can use them in the charts for cross-filtering
   const dateHeader = useMemo(() => headers.find(h => {
     const low = h.toLowerCase()
@@ -185,6 +199,11 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     return result
   }, [data, filter1, filter1Value, filter2, filter2Value, dateRange, dateHeader, searchTerm, headers])
 
+  // Dados limitados conforme o plano (Base: 60, Trial/PRO: sem limite)
+  const limitedData = useMemo(() => {
+    return filteredData.slice(0, rowLimit)
+  }, [filteredData, rowLimit])
+
   const handlePresetChange = (preset: string) => {
     const today = new Date()
     let start = ''
@@ -247,10 +266,10 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
   }
   
   const stats = useMemo(() => {
-    if (data.length === 0) return null
+    if (limitedData.length === 0) return null
 
     const numericHeaders = headers.filter(header => {
-      const validRow = data.find(row => row[header] !== null && row[header] !== undefined && row[header] !== '')
+      const validRow = limitedData.find(row => row[header] !== null && row[header] !== undefined && row[header] !== '')
       const sample = validRow ? validRow[header] : undefined
       return sample !== undefined && !isNaN(cleanNumber(sample))
     })
@@ -266,7 +285,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
       }
     })
 
-    filteredData.forEach(row => {
+    limitedData.forEach(row => {
       numericHeaders.forEach(header => {
         const value = Number(row[header])
         if (!isNaN(value)) {
@@ -279,14 +298,14 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     })
 
     return { numericHeaders, statsMap }
-  }, [filteredData, headers])
+  }, [limitedData, headers])
 
   // Dados para gráfico temporal (AreaChart)
   const trendData = useMemo(() => {
     if (!stats || stats.numericHeaders.length === 0 || !dateHeader) return []
 
     const grouped: Record<string, any> = {}
-    filteredData.forEach(row => {
+    limitedData.forEach(row => {
       const rawDate = row[dateHeader]
       const parsedDate = parseDate(String(rawDate))
       
@@ -311,7 +330,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     return Object.values(grouped)
       .sort((a: any, b: any) => a.sortKey - b.sortKey)
       .slice(0, 30) // Mostra até 30 pontos no tempo
-  }, [filteredData, stats, dateHeader])
+  }, [limitedData, stats, dateHeader])
 
   // Dados para gráfico de barras/linhas comparativo (ComposedChart)
   const categoryData = useMemo(() => {
@@ -319,7 +338,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
 
     if (categoryHeader) {
       const grouped: Record<string, any> = {}
-      filteredData.forEach(row => {
+      limitedData.forEach(row => {
         const category = row[categoryHeader] || 'Outros'
         if (!grouped[category]) {
           grouped[category] = { category, ...stats.numericHeaders.reduce((acc, h) => ({ ...acc, [h]: 0 }), {}) }
@@ -355,7 +374,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
       })
       return chartRow
     })
-  }, [filteredData, stats, categoryHeader])
+  }, [limitedData, stats, categoryHeader])
 
   // Dados para gráfico de pizza melhorado
   const pieData = useMemo(() => {
@@ -365,7 +384,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     // Tentar encontrar coluna de categoria primeiro
     if (categoryHeader) {
       const categorySums: Record<string, number> = {}
-      filteredData.forEach(row => {
+      limitedData.forEach(row => {
         const category = String(row[categoryHeader] || 'Outros')
         const val = Number(row[firstNumericHeader]) || 0
         categorySums[category] = (categorySums[category] || 0) + val
@@ -410,7 +429,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
       'Muito Alto': 0
     }
 
-    const values = filteredData.map(row => Number(row[firstNumericHeader]) || 0).filter(v => v > 0)
+    const values = limitedData.map(row => Number(row[firstNumericHeader]) || 0).filter(v => v > 0)
     if (values.length === 0) return []
 
     const max = Math.max(...values)
@@ -429,14 +448,14 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
     return Object.entries(ranges)
       .filter(([, count]) => count > 0)
         .map(([name, value]) => ({ name, value }))
-  }, [filteredData, stats, headers])
+  }, [limitedData, stats, headers])
 
   // Estatísticas resumidas
   const summaryStats = useMemo(() => {
     if (!stats || stats.numericHeaders.length === 0) return null
 
     return stats.numericHeaders.map(header => {
-      const values = filteredData.map(row => Number(row[header]) || 0).filter(v => !isNaN(v) && v > 0)
+      const values = limitedData.map(row => Number(row[header]) || 0).filter(v => !isNaN(v) && v > 0)
       if (values.length === 0) return null
 
       const sum = values.reduce((a, b) => a + b, 0)
@@ -446,7 +465,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
 
       return { header, avg, max, min, sum, count: values.length }
     }).filter(Boolean)
-  }, [filteredData, stats])
+  }, [limitedData, stats])
 
   if (data.length === 0) {
     return (
@@ -933,7 +952,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
           )}
 
           <div className="data-table-section">
-            <h3>Dados ({filteredData.length > 20 ? 'Primeiros 20 registros' : `${filteredData.length} registros`})</h3>
+            <h3>Dados ({filteredData.length > rowLimit ? `Primeiros ${rowLimit} registros` : `${filteredData.length} registros`})</h3>
             <div className="table-wrapper">
               <table className="data-table">
                 <thead>
@@ -944,7 +963,7 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredData.slice(0, 20).map((row, index) => (
+                  {filteredData.slice(0, rowLimit).map((row, index) => (
                     <tr key={index}>
                       {headers.map(header => (
                         <td key={header}>{row[header] || '-'}</td>
@@ -954,17 +973,19 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
                 </tbody>
               </table>
             </div>
-            {filteredData.length > 20 && (
+            {filteredData.length > rowLimit && (
               <div className="table-limit-notice">
                 <Mail size={16} />
-                <span>Se deseja que seja lido mais do que 20 linhas, entre em contato com nosso time de vendas</span>
+                <span>Se deseja que seja lido mais do que {rowLimit} linhas, faça o upgrade para o plano PRO.</span>
                 <a 
-                  href="https://www.linkedin.com/company/creattive-tecnologia/posts/?feedView=all" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
+                  href="#upgrade" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    document.querySelector('.profile-dropdown-container')?.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+                  }}
                   className="contact-link"
                 >
-                  Contatar Time de Vendas
+                  Upgrade para PRO
                 </a>
               </div>
             )}

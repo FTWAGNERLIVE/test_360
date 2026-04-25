@@ -8,6 +8,7 @@ import ChatBot from '../components/ChatBot'
 import { sendSupportMessage } from '../services/supportService'
 import { saveCSVData, loadCSVData, deleteCSVData } from '../services/csvService'
 import { createPaymentLink } from '../services/paymentService'
+import { isTrialExpired, getTrialDaysRemaining } from '../services/authService'
 import './Dashboard.css'
 
 export default function Dashboard() {
@@ -216,7 +217,11 @@ export default function Dashboard() {
                     user?.isPro ? (
                       <span className="pro-badge-large">PRO</span>
                     ) : (
-                      <span className="base-badge">Base</span>
+                      user?.trialEndDate && !isTrialExpired(new Date(user.trialEndDate)) ? (
+                        <span className="trial-badge">Teste Grátis</span>
+                      ) : (
+                        <span className="base-badge">Base</span>
+                      )
                     )
                   ) : (
                     <span className="admin-badge">Admin</span>
@@ -229,7 +234,7 @@ export default function Dashboard() {
                     className="dropdown-upgrade-btn"
                   >
                     <Sparkles size={16} />
-                    Fazer Upgrade para PRO
+                    {user?.trialEndDate && !isTrialExpired(new Date(user.trialEndDate)) ? 'Ativar Plano PRO' : 'Fazer Upgrade para PRO'}
                   </button>
                 )}
 
@@ -267,10 +272,14 @@ export default function Dashboard() {
       )}
 
       <main className="dashboard-main">
-        {user?.role === 'user' && (
-          <div className="test-notice">
+        {user?.role === 'user' && !user?.isPro && (
+          <div className={`test-notice ${user?.trialEndDate && isTrialExpired(new Date(user.trialEndDate)) ? 'expired' : ''}`}>
             <Clock size={16} />
-            <span>Período de teste: 15 dias</span>
+            <span>
+              {user?.trialEndDate && !isTrialExpired(new Date(user.trialEndDate)) 
+                ? `Você está no período de teste: ${getTrialDaysRemaining(new Date(user.trialEndDate))} dias restantes` 
+                : 'Seu período de teste expirou. Você está no plano Base limitado.'}
+            </span>
           </div>
         )}
         
@@ -344,11 +353,15 @@ export default function Dashboard() {
         <div className="dashboard-actions">
           {csvData.length > 0 && (
             <button
-              className="chat-toggle"
+              className={`chat-toggle ${showChat ? 'active' : ''}`}
               onClick={() => setShowChat(!showChat)}
             >
-              <MessageCircle size={24} />
-              {showChat ? 'Ocultar' : 'Abrir'} Chat
+              <div className="chat-toggle-icon">
+                <Search size={24} />
+              </div>
+              <span className="chat-toggle-text">
+                {showChat ? 'Ocultar Chat' : 'Converse com a Lupa'}
+              </span>
             </button>
           )}
           

@@ -20,6 +20,7 @@ export const createPaymentLink = async (planoId?: string) => {
       },
       body: JSON.stringify({
         userId: user.uid,
+        userEmail: user.email,
         planoId: planoId || 'pro'
       })
     });
