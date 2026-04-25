@@ -108,3 +108,53 @@ export const chatWithGroq = async (
     return "Ops! Ocorreu um erro na conexão com a inteligência artificial. Verifique sua conexão e sua chave de API.";
   }
 };
+
+/**
+ * SMART DISCOVERY: Analisa a estrutura e gera insights iniciais com o menor gasto de tokens possível.
+ */
+export const getSmartDiscovery = async (
+  headers: string[],
+  data: any[],
+  onboardingData?: any
+) => {
+  if (!API_KEY) return null;
+
+  try {
+    // Pegamos apenas os nomes das colunas e as 5 primeiras linhas (Economia de tokens!)
+    const sample = data.slice(0, 5);
+    
+    const prompt = `
+Analise a estrutura deste CSV:
+Colunas: ${headers.join(", ")}
+Amostra (5 linhas): ${JSON.stringify(sample)}
+Empresa: ${onboardingData?.companyName || 'N/A'} - Setor: ${onboardingData?.industry || 'N/A'}
+
+Responda EXCLUSIVAMENTE um objeto JSON (sem textos antes ou depois) com:
+1. "insights": Lista de 3 frases curtas e impactantes com insights de negócio iniciais.
+2. "columnMapping": Um objeto onde a CHAVE é o nome da coluna e o VALOR é o tipo ("currency", "date", "number", "category" ou "text").
+
+Exemplo de formato esperado:
+{
+  "insights": ["Tendência de alta em X", "O setor Y representa 40% do total", "A média de Z está acima do esperado"],
+  "columnMapping": {"Preço": "currency", "Data": "date"}
+}
+`;
+
+    const response = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: [
+        { role: "system", content: "Você é um motor de análise de dados que responde apenas em JSON puro." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.1, // Temperatura baixa para ser mais preciso e consistente
+      max_tokens: 500,
+      response_format: { type: "json_object" }
+    });
+
+    const content = response.choices[0]?.message?.content || "{}";
+    return JSON.parse(content);
+  } catch (error) {
+    console.error("Smart Discovery Error:", error);
+    return null;
+  }
+};

@@ -9,6 +9,7 @@ import './DataVisualization.css'
 interface DataVisualizationProps {
   data: any[]
   headers: string[]
+  smartMapping?: Record<string, string>
 }
 
 const COLORS = ['#4285F4', '#EA4335', '#FBBC04', '#34A853', '#4285F4', '#EA4335']
@@ -63,7 +64,8 @@ const cleanNumber = (val: any): number => {
   }
   return Number(cleaned)
 }
-export default function DataVisualization({ data, headers }: DataVisualizationProps) {
+
+export default function DataVisualization({ data, headers, smartMapping }: DataVisualizationProps) {
   const { user } = useAuth()
   
   // Lógica de Limite: PRO, Admin ou Trial Ativo (15 dias) não têm limites. Base tem 60 linhas.
@@ -77,28 +79,39 @@ export default function DataVisualization({ data, headers }: DataVisualizationPr
   const rowLimit = hasFullAccess ? 1000000 : 60
 
   // Extract specific headers explicitly so we can use them in the charts for cross-filtering
-  const dateHeader = useMemo(() => headers.find(h => {
-    const low = h.toLowerCase()
-    return low.includes('data') || 
-           low.includes('date') ||
-           low.includes('dia') ||
-           low.includes('mês') ||
-           low.includes('mes') ||
-           low.includes('ano') ||
-           low.includes('período') ||
-           low.includes('periodo')
-  }), [headers])
+  const dateHeader = useMemo(() => {
+    // 1. Prioridade: O que a IA detectou
+    if (smartMapping) {
+      const detected = Object.entries(smartMapping).find(([, type]) => type === 'date')
+      if (detected) return detected[0]
+    }
 
-  const categoryHeader = useMemo(() => headers.find(h => 
-    h.toLowerCase().includes('categoria') || 
-    h.toLowerCase().includes('category') ||
-    h.toLowerCase().includes('tipo') ||
-    h.toLowerCase().includes('status') ||
-    h.toLowerCase().includes('região') ||
-    h.toLowerCase().includes('regiao') ||
-    h.toLowerCase().includes('setor') ||
-    h.toLowerCase().includes('departamento')
-  ), [headers])
+    // 2. Fallback: Busca manual por palavras-chave
+    return headers.find(h => {
+      const low = h.toLowerCase()
+      return low.includes('data') || low.includes('date') || low.includes('dia') || low.includes('mês') || low.includes('mes') || low.includes('ano')
+    })
+  }, [headers, smartMapping])
+
+  const categoryHeader = useMemo(() => {
+    // 1. Prioridade: O que a IA detectou
+    if (smartMapping) {
+      const detected = Object.entries(smartMapping).find(([, type]) => type === 'category')
+      if (detected) return detected[0]
+    }
+
+    // 2. Fallback: Busca manual
+    return headers.find(h => 
+      h.toLowerCase().includes('categoria') || 
+      h.toLowerCase().includes('category') ||
+      h.toLowerCase().includes('tipo') ||
+      h.toLowerCase().includes('status') ||
+      h.toLowerCase().includes('região') ||
+      h.toLowerCase().includes('regiao') ||
+      h.toLowerCase().includes('setor') ||
+      h.toLowerCase().includes('departamento')
+    )
+  }, [headers, smartMapping])
 
   // Identificar colunas mais relevantes para filtros
   const filterableHeaders = useMemo(() => {

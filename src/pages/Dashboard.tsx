@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { LogOut, FileText, Search, Sparkles, Clock, CheckCircle2, HelpCircle, Send, X, LayoutDashboard, MessageCircle } from 'lucide-react'
+import { LogOut, FileText, Search, Sparkles, Clock, CheckCircle2, HelpCircle, Send, X, LayoutDashboard } from 'lucide-react'
 import CSVUploader from '../components/CSVUploader'
 import GoogleSheetsImporter from '../components/GoogleSheetsImporter'
 import DataVisualization from '../components/DataVisualization'
@@ -9,12 +9,15 @@ import { sendSupportMessage } from '../services/supportService'
 import { saveCSVData, loadCSVData, deleteCSVData } from '../services/csvService'
 import { createPaymentLink } from '../services/paymentService'
 import { isTrialExpired, getTrialDaysRemaining } from '../services/authService'
+import { getSmartDiscovery } from '../services/groqService'
 import './Dashboard.css'
 
 export default function Dashboard() {
   const { user, logout, impersonatedUser, impersonateUser } = useAuth()
   const [csvData, setCsvData] = useState<any[]>([])
   const [csvHeaders, setCsvHeaders] = useState<string[]>([])
+  const [smartDiscovery, setSmartDiscovery] = useState<any>(null)
+  const [loadingInsights, setLoadingInsights] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const [showSavedMessage, setShowSavedMessage] = useState(false)
   const [showSupport, setShowSupport] = useState(false)
@@ -48,6 +51,13 @@ export default function Dashboard() {
             setShowSavedMessage(true)
             setTimeout(() => setShowSavedMessage(false), 5000)
             
+            // Disparar Smart Discovery para dados do Firestore
+            setLoadingInsights(true)
+            getSmartDiscovery(firestoreData.csvHeaders, firestoreData.csvData, effectiveUser?.onboardingData)
+              .then(setSmartDiscovery)
+              .catch((err: any) => console.error("Erro no Smart Discovery:", err))
+              .finally(() => setLoadingInsights(false))
+
             // Sincronizar com localStorage como cache (apenas se for o próprio usuário)
             if (!isImpersonating && effectiveUser?.id) {
               localStorage.setItem(`csvData_${effectiveUser.id}`, JSON.stringify(firestoreData.csvData))
@@ -71,21 +81,28 @@ export default function Dashboard() {
               const parsedData = JSON.parse(savedData)
               const parsedHeaders = JSON.parse(savedHeaders)
               
-              if (parsedData.length > 0 && parsedHeaders.length > 0) {
-                // console.log('✅ Cache carregado')
-                setCsvData(parsedData)
-                setCsvHeaders(parsedHeaders)
-                setShowSavedMessage(true)
-                setTimeout(() => setShowSavedMessage(false), 5000)
-                
-                // Tentar sincronizar com Firestore em background
-                try {
-                  await saveCSVData(parsedData, parsedHeaders)
-                  // console.log('✅ Sincronizado')
-                } catch (syncError) {
-                  console.warn('⚠️ Erro ao sincronizar com Firestore:', syncError)
+                if (parsedData.length > 0 && parsedHeaders.length > 0) {
+                  // console.log('✅ Cache carregado')
+                  setCsvData(parsedData)
+                  setCsvHeaders(parsedHeaders)
+                  setShowSavedMessage(true)
+                  setTimeout(() => setShowSavedMessage(false), 5000)
+                  
+                  // Disparar Smart Discovery para dados carregados
+                  setLoadingInsights(true)
+                  getSmartDiscovery(parsedHeaders, parsedData, effectiveUser?.onboardingData)
+                    .then(setSmartDiscovery)
+                    .catch((err: any) => console.error("Erro no Smart Discovery:", err))
+                    .finally(() => setLoadingInsights(false))
+
+                  // Tentar sincronizar com Firestore em background
+                  try {
+                    await saveCSVData(parsedData, parsedHeaders)
+                    // console.log('✅ Sincronizado')
+                  } catch (syncError) {
+                    console.warn('⚠️ Erro ao sincronizar com Firestore:', syncError)
+                  }
                 }
-              }
             } catch (error) {
               console.error('Erro ao carregar dados salvos:', error)
             }
@@ -120,11 +137,25 @@ export default function Dashboard() {
     }
     
     setShowSavedMessage(false)
+
+    // Iniciar Smart Discovery (Insights Iniciais)
+    if (data.length > 0) {
+      setLoadingInsights(true)
+      try {
+        const discovery = await getSmartDiscovery(headers, data, effectiveUser?.onboardingData)
+        setSmartDiscovery(discovery)
+      } catch (err: any) {
+        console.error("Erro no Smart Discovery:", err)
+      } finally {
+        setLoadingInsights(false)
+      }
+    }
   }
 
   const handleClearData = async () => {
     setCsvData([])
     setCsvHeaders([])
+    setSmartDiscovery(null)
     
     // Remover dados salvos do localStorage - apenas se for o próprio usuário
     if (effectiveUser?.id && !isImpersonating) {
@@ -344,7 +375,40 @@ export default function Dashboard() {
                     Carregar Novo Arquivo
                   </button>
                 </div>
-                <DataVisualization data={csvData} headers={csvHeaders} />
+
+                {/* Seção de Insights da Lupa */}
+                {(loadingInsights || (smartDiscovery && smartDiscovery.insights)) && (
+                  <div className="smart-insights-section">
+                    <div className="insights-header">
+                      <Sparkles size={20} className="sparkle-icon" />
+                      <h3>Insights da Lupa</h3>
+                      {loadingInsights && <div className="insights-loader"></div>}
+                    </div>
+                    
+                    {loadingInsights ? (
+                      <div className="insights-skeleton">
+                        <div className="skeleton-item"></div>
+                        <div className="skeleton-item"></div>
+                        <div className="skeleton-item"></div>
+                      </div>
+                    ) : (
+                      <div className="insights-grid">
+                        {smartDiscovery?.insights?.map((insight: string, idx: number) => (
+                          <div key={idx} className="insight-card">
+                            <div className="insight-number">{idx + 1}</div>
+                            <p>{insight}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <DataVisualization 
+                  data={csvData} 
+                  headers={csvHeaders} 
+                  smartMapping={smartDiscovery?.columnMapping}
+                />
               </div>
             </>
           )}
