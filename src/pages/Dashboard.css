@@ -338,8 +338,7 @@
   width: 64px;
   height: 64px;
   padding: 0;
-  background: linear-gradient(-45deg, #34a853, #2d8f47, #34a853, #2d8f47);
-  background-size: 400% 400%;
+  background: linear-gradient(135deg, #34a853, #2d8f47);
   color: white;
   border: none;
   border-radius: 50px;
@@ -350,17 +349,16 @@
   box-shadow: 0 10px 25px rgba(52, 168, 83, 0.4);
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   overflow: hidden;
-  animation: gradientBG 6s ease infinite, pulseGlowSupport 2s infinite;
 }
 
-
 .support-toggle:hover {
-  width: 160px;
+  width: 180px;
   padding: 0 20px;
   justify-content: flex-start;
   transform: translateY(-5px);
   box-shadow: 0 15px 35px rgba(52, 168, 83, 0.5);
 }
+
 
 .chat-toggle-text,
 .support-toggle-text {
@@ -412,11 +410,6 @@
 @keyframes pulseGlowChat {
   0%, 100% { box-shadow: 0 10px 25px rgba(155, 81, 224, 0.4); }
   50% { box-shadow: 0 0 30px rgba(155, 81, 224, 0.8); }
-}
-
-@keyframes pulseGlowSupport {
-  0%, 100% { box-shadow: 0 10px 25px rgba(52, 168, 83, 0.4); }
-  50% { box-shadow: 0 0 30px rgba(52, 168, 83, 0.8); }
 }
 
 
