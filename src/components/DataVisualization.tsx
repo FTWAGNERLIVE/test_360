@@ -178,11 +178,41 @@ export default function DataVisualization({ data, headers, smartMapping, insight
     let result = [...data]
     
     if (filter1 && filter1Value) {
-      result = result.filter(row => String(row[filter1]) === filter1Value)
+      if (filter1Value === 'Outros') {
+        // Logica para filtrar o que NÃO está nos top itens (para o grupo Outros)
+        // Precisamos descobrir quais são os top itens para essa coluna
+        const counts: Record<string, number> = {}
+        data.forEach(row => {
+          const val = String(row[filter1] || '')
+          counts[val] = (counts[val] || 0) + 1
+        })
+        const topValues = Object.entries(counts)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 12)
+          .map(([name]) => name)
+        
+        result = result.filter(row => !topValues.includes(String(row[filter1])))
+      } else {
+        result = result.filter(row => String(row[filter1]) === filter1Value)
+      }
     }
     
     if (filter2 && filter2Value) {
-      result = result.filter(row => String(row[filter2]) === filter2Value)
+      if (filter2Value === 'Outros') {
+        const counts: Record<string, number> = {}
+        data.forEach(row => {
+          const val = String(row[filter2] || '')
+          counts[val] = (counts[val] || 0) + 1
+        })
+        const topValues = Object.entries(counts)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 12)
+          .map(([name]) => name)
+        
+        result = result.filter(row => !topValues.includes(String(row[filter2])))
+      } else {
+        result = result.filter(row => String(row[filter2]) === filter2Value)
+      }
     }
 
     if (searchTerm) {
@@ -265,9 +295,6 @@ export default function DataVisualization({ data, headers, smartMapping, insight
 
     if (!chartHeader || !chartValue || chartValue === 'undefined' || chartValue === 'null') return;
 
-    if (type === 'pie' && chartValue === 'Outros') {
-      return
-    }
     
     if (filter1 === chartHeader && filter1Value === chartValue) {
       setFilter1Value('')
@@ -439,16 +466,16 @@ export default function DataVisualization({ data, headers, smartMapping, insight
 
       const sortedEntries = Object.entries(categorySums).sort(([, a], [, b]) => b - a)
       
-      if (sortedEntries.length > 4) {
-        const top4 = sortedEntries.slice(0, 4)
-        const others = sortedEntries.slice(4)
+      if (sortedEntries.length > 12) {
+        const top12 = sortedEntries.slice(0, 12)
+        const others = sortedEntries.slice(12)
         
         let othersSum = 0
         others.forEach(([, val]) => {
           othersSum += val
         })
         
-        const finalData = top4.map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
+        const finalData = top12.map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
         
         if (othersSum > 0) {
           const index = finalData.findIndex(item => item.name === 'Outros')
