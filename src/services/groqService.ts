@@ -129,14 +129,22 @@ Colunas: ${headers.join(", ")}
 Amostra (5 linhas): ${JSON.stringify(sample)}
 Empresa: ${onboardingData?.companyName || 'N/A'} - Setor: ${onboardingData?.industry || 'N/A'}
 
-Responda EXCLUSIVAMENTE um objeto JSON (sem textos antes ou depois) com:
-1. "insights": Lista de 3 frases curtas e impactantes com insights de negócio iniciais.
-2. "columnMapping": Um objeto onde a CHAVE é o nome da coluna e o VALOR é o tipo ("currency", "date", "number", "category", "text" ou "ignore"). Importante: Identifique a PRINCIPAL coluna de categoria (eixo X) como "category" e a PRINCIPAL coluna temporal como "date". Colunas monetárias úteis para soma devem ser "currency". Colunas de SALDO ACUMULADO devem ser "ignore". Colunas que contêm IDs, Códigos ou Números de Lançamento (ex: '0003223') DEVEM SER CLASSIFICADAS como "text" ou "ignore" para não serem somadas. Outros textos "text".
+Responda EXCLUSIVAMENTE um objeto JSON válido (sem markdown, sem textos antes ou depois) com:
+1. "insights": Lista de 3 frases curtas e impactantes com insights de negócio sobre os dados amostrados.
+2. "columnMapping": Um objeto onde a CHAVE é o nome da coluna e o VALOR é o tipo ("currency", "date", "number", "category", "text" ou "ignore").
+
+REGRAS CRÍTICAS DE MAPEAMENTO:
+- "category": Escolha EXATAMENTE UMA coluna principal para ser o eixo X dos gráficos. Deve ter categorias que se repetem (ex: Setor, Centro de Custo, Conta Contábil, Status). NUNCA use textos longos ou únicos (Histórico, Observação).
+- "date": Escolha EXATAMENTE UMA coluna principal de data.
+- "currency": Apenas colunas com valores financeiros de TRANSAÇÃO (Valor, Débito, Crédito, Preço).
+- "ignore": VOCÊ DEVE IGNORAR (marcar como "ignore") colunas de SALDO ACUMULADO (Saldo), colunas com IDs/Códigos numéricos (Lançamento, Doc, Número) e colunas de controle interno. Somar IDs ou Saldos destrói a análise.
+- "text": Textos livres e descritivos.
+- "number": Apenas quantidades contáveis.
 
 Exemplo de formato esperado:
 {
-  "insights": ["Tendência de alta em X", "O setor Y representa 40% do total", "A média de Z está acima do esperado"],
-  "columnMapping": {"Valor": "currency", "Data": "date", "Setor": "category", "Quantidade": "number", "Saldo (R$)": "ignore"}
+  "insights": ["A conta X concentra as despesas.", "O centro de custo Y é o mais ativo."],
+  "columnMapping": {"Valor": "currency", "Data": "date", "Centro de Custo": "category", "Saldo (R$)": "ignore", "Lançamento": "ignore", "Histórico": "text"}
 }
 `;
 
