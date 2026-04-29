@@ -78,6 +78,14 @@ export default function Onboarding() {
   const [saveError, setSaveError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState(false)
 
+  const formatPhone = (value: string) => {
+    if (!value) return ""
+    value = value.replace(/\D/g, "")
+    value = value.replace(/(\d{2})(\d)/, "($1) $2")
+    value = value.replace(/(\d{5})(\d)/, "$1-$2")
+    return value.substring(0, 15)
+  }
+
   const handleGoalToggle = (goal: string) => {
     setFormData(prev => ({
       ...prev,
@@ -260,8 +268,9 @@ export default function Onboarding() {
                   id="contact"
                   type="tel"
                   value={formData.contact}
-                  onChange={(e) => setFormData(prev => ({ ...prev, contact: e.target.value }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, contact: formatPhone(e.target.value) }))}
                   placeholder="(11) 99999-9999"
+                  maxLength={15}
                   required
                 />
               </div>
