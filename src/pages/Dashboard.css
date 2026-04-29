@@ -348,8 +348,8 @@
   bottom: 24px;
   right: 24px;
   display: flex;
-  flex-direction: row-reverse;
   align-items: center;
+  justify-content: flex-end;
   gap: 16px;
   z-index: 1000;
 }
@@ -631,7 +631,8 @@
   .dashboard-actions {
     bottom: 20px;
     right: 20px;
-    flex-direction: row-reverse;
+    flex-direction: row;
+    justify-content: flex-end;
     gap: 12px;
   }
 
