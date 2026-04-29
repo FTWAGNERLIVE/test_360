@@ -119,6 +119,43 @@ export const chatWithGroq = async (
 };
 
 /**
+ * ANALISA ESTRUTURA: Prepara um perfil detalhado de cada coluna para a IA não cometer erros.
+ */
+const generateDataProfile = (data: any[], headers: string[]) => {
+  const sample = data.slice(0, 100); // Amostra maior para perfilamento
+  
+  return headers.map(header => {
+    const values = sample.map(row => row[header]).filter(v => v !== null && v !== undefined && v !== '');
+    const uniqueValues = new Set(values);
+    
+    // Detectar se parece um ID
+    const nameLower = header.toLowerCase();
+    const isIdName = nameLower.includes('id') || 
+                     nameLower.includes('pk') || 
+                     nameLower.includes('código') || 
+                     nameLower.includes('index') ||
+                     nameLower.includes('chave');
+    
+    // Verificar se é incremental
+    let isIncremental = false;
+    if (typeof values[0] === 'number' || !isNaN(Number(values[0]))) {
+      const nums = values.map(v => Number(v)).filter(v => !isNaN(v));
+      if (nums.length > 5) {
+        isIncremental = nums.every((v, i) => i === 0 || v >= nums[i-1]);
+      }
+    }
+
+    return {
+      name: header,
+      uniqueCount: uniqueValues.size,
+      isIdLike: isIdName || isIncremental,
+      sampleValues: Array.from(uniqueValues).slice(0, 3),
+      type: typeof values[0]
+    };
+  });
+};
+
+/**
  * SMART DISCOVERY: Analisa a estrutura e gera insights iniciais com o menor gasto de tokens possível.
  */
 export const getSmartDiscovery = async (
@@ -129,59 +166,58 @@ export const getSmartDiscovery = async (
   if (!API_KEY) return null;
 
   try {
-    // Amostra de 40 linhas conforme pedido pelo usuário para maior profundidade analítica
+    // Simulando um delay de processamento para maior "certeza" conforme solicitado pelo usuário
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
     const sample = data.slice(0, 40); 
-    
-    // Blindagem de Engenharia: Pre-computar colunas que tem variacao
-    const validCategoryColumns = headers.filter(h => {
-      const firstVal = sample[0]?.[h];
-      return sample.some(row => row[h] !== firstVal);
-    });
+    const dataProfile = generateDataProfile(data, headers);
     
     const prompt = `
-[LUPA ANALYTICS - INTELIGÊNCIA DE NEGÓCIOS]
-Você é o Analista Lupa AI. Sua tarefa é dupla:
-1. Mapear a estrutura técnica (columnMapping).
-2. Gerar Insights de Negócio reais baseados nos VALORES dos dados (insights).
+[LUPA ANALYTICS - INTELIGÊNCIA DE NEGÓCIOS - PERFIL DE DADOS]
+Você é o Analista Lupa AI (Consultor de BI Sênior).
+Analise o perfil estrutural abaixo e gere o mapeamento e insights.
 
-DADOS PARA ANÁLISE:
-- Colunas: ${headers.join(", ")}
-- Colunas com variação de dados (Candidatas a Eixo X): ${validCategoryColumns.join(", ")}
+ESTRUTURA JSON DO DATASET:
+${JSON.stringify(dataProfile, null, 2)}
+
+CONTEXTO DO CLIENTE:
 - Setor: ${onboardingData?.industry || 'Geral'}
-- Amostra (40 linhas): ${JSON.stringify(sample)}
+- Objetivos: ${JSON.stringify(onboardingData?.goals || [])}
 
-REGRAS PARA INSIGHTS (CRITICAL):
-- PROIBIDO falar sobre colunas ("A coluna X é de data"). O usuário já sabe disso.
-- FOQUE EM VALORES: Identifique tendências, valores discrepantes (outliers), médias ou concentrações.
-- EXECUTIVO: Use frases curtas e acionáveis.
-- Exemplo de INSIGHT BOM: "Notamos uma concentração de 45% dos gastos no Centro de Custo X."
-- Exemplo de INSIGHT RUIM: "Mapeamos a coluna Valor como moeda." (NUNCA FAÇA ISSO).
+AMOSTRA DOS DADOS (40 linhas):
+${JSON.stringify(sample)}
 
-REGRAS DE MAPEAMENTO:
-1. "category": Escolha a MELHOR coluna para o eixo X. Prefira NOMES sobre CÓDIGOS.
-2. "currency": Apenas colunas de VALOR MONETÁRIO.
-3. "ignore": BLOQUEIO TOTAL para: 'COLIGADA', 'ID', 'FILIAL', 'CONTA', 'DOCUMENTO', 'LANÇAMENTO'. 
-4. "date": Identifique a coluna de data cronológica.
+INSTRUÇÕES CRÍTICAS DE MAPEAMENTO:
+1. "category": Escolha a MELHOR coluna para o eixo X. 
+   - REGRA DE OURO: NUNCA escolha colunas onde "isIdLike" seja true.
+   - Prefira colunas com nomes descritivos (ex: 'Produto', 'Vendedor', 'Mês', 'Status').
+2. "ignore": Marque como "ignore" todas as colunas que sejam ID, Chaves Primárias ou Metadados do sistema (isIdLike: true).
+3. "currency": Identifique colunas que representem valores monetários.
+
+INSTRUÇÕES PARA INSIGHTS:
+- Fale sobre os DADOS, não sobre as colunas.
+- Ex: "O faturamento subiu 10% na categoria X" (BOM).
+- Ex: "A coluna Valor é do tipo number" (ERRO - NÃO FAÇA ISSO).
 
 Responda APENAS o JSON:
 {
-  "insights": ["Insight de negócio 1", "Insight de negócio 2", "Insight de negócio 3"],
+  "insights": ["Insight acionável 1", "Insight acionável 2", "Insight acionável 3"],
   "columnMapping": {
     "NOME_COLUNA": "type"
   }
 }
 
-Tipos válidos: "currency", "date", "number", "category", "text", "ignore".
+Tipos: "currency", "date", "number", "category", "text", "ignore".
 `;
 
     const response = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+      model: "llama-3.3-70b-versatile", // Usando o modelo mais potente para garantir o cumprimento das regras
       messages: [
-        { role: "system", content: "Você é um especialista em BI que mapeia estruturas de dados CSV para JSON." },
+        { role: "system", content: "Você é um especialista em BI e Analytics que analisa perfis de dados para extrair inteligência de negócio." },
         { role: "user", content: prompt }
       ],
-      temperature: 0, // Determinismo total para evitar erros
-      max_tokens: 1000,
+      temperature: 0.1, 
+      max_tokens: 1500,
       response_format: { type: "json_object" }
     });
 
