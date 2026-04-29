@@ -130,7 +130,7 @@ export const getSmartDiscovery = async (
 
   try {
     // Pegamos apenas os nomes das colunas e as 5 primeiras linhas (Economia de tokens!)
-    const sample = data.slice(0, 15); // Aumentado para ter mais chance de ver variacao
+    const sample = data.slice(0, 40); 
     
     // Blindagem de Engenharia: Pre-computar colunas que tem variacao para evitar que a IA erre
     const validCategoryColumns = headers.filter(h => {
@@ -139,28 +139,30 @@ export const getSmartDiscovery = async (
     });
     
     const prompt = `
-Analise a estrutura deste CSV:
-Colunas: ${headers.join(", ")}
-Colunas COM Variação (Opções Válidas para Categoria): ${validCategoryColumns.join(", ") || "Nenhuma variacao detectada"}
-Amostra (${sample.length} linhas): ${JSON.stringify(sample)}
-Empresa: ${onboardingData?.companyName || 'N/A'} - Setor: ${onboardingData?.industry || 'N/A'}
+[FASE DE ANÁLISE PROFUNDA - LUPA ANALYTICS AI]
+Você é o motor de processamento estrutural. Recebeu uma amostra de 40 linhas para garantir precisão total.
 
-Responda EXCLUSIVAMENTE um objeto JSON válido (sem markdown, sem textos antes ou depois) com:
-1. "insights": Lista de 3 frases curtas e impactantes com insights de negócio sobre os dados amostrados.
-2. "columnMapping": Um objeto onde a CHAVE é o nome da coluna e o VALOR é o tipo ("currency", "date", "number", "category", "text" ou "ignore").
+DADOS PARA ANÁLISE:
+- Colunas: ${headers.join(", ")}
+- Colunas COM Variação (Elegíveis para Categoria): ${validCategoryColumns.join(", ") || "Nenhuma variacao detectada"}
+- Amostra (${sample.length} linhas): ${JSON.stringify(sample)}
+- Contexto: ${onboardingData?.companyName || 'N/A'} (${onboardingData?.industry || 'N/A'})
 
-REGRAS CRÍTICAS DE MAPEAMENTO:
-- "category": Escolha EXATAMENTE UMA coluna principal para ser o eixo X dos gráficos. VOCÊ SÓ PODE ESCOLHER UMA DAS COLUNAS DA LISTA 'Colunas COM Variação'. SE HOUVER UM CÓDIGO E UMA DESCRIÇÃO LADO A LADO (ex: "CENTRO_CUSTO" = "01.02" e "DESC_CENTRO_CSTO" = "DIRETORIA"), PREFIRA SEMPRE A COLUNA COM A DESCRIÇÃO EM TEXTO. NUNCA use textos longos descritivos.
-- "date": Escolha EXATAMENTE UMA coluna principal de data.
-- "currency": Apenas colunas com valores financeiros de TRANSAÇÃO (Valor, Débito, Crédito, Preço).
-- "ignore": VOCÊ DEVE IGNORAR (marcar como "ignore") colunas de SALDO ACUMULADO (Saldo), colunas com IDs/Códigos numéricos (Lançamento, Doc, Número) e colunas de controle interno. Somar IDs ou Saldos destrói a análise.
-- "text": Textos livres e descritivos.
-- "number": Apenas quantidades contáveis.
+Responda EXCLUSIVAMENTE um objeto JSON válido (sem markdown) com:
+1. "insights": 3 frases estratégicas interpretando o que esses dados significam para o negócio.
+2. "columnMapping": Objeto {coluna: tipo} onde tipo é ("currency", "date", "number", "category", "text" ou "ignore").
 
-Exemplo de formato esperado:
+REGRAS DE OURO PARA MONTAGEM DO DASHBOARD:
+- "category": Escolha a coluna MAIS RICA para o Eixo X. DEVE estar na lista 'Colunas COM Variação'. Priorize Nomes sobre Códigos.
+- "date": A coluna de data principal.
+- "currency": Valores financeiros somáveis (Venda, Preço, Custo).
+- "ignore": Marque como ignore IDs, CPFs, códigos de barra, saldos acumulados e colunas de sistema.
+- "number": Métricas quantitativas não-financeiras.
+
+Exemplo:
 {
-  "insights": ["A conta X concentra as despesas.", "O centro de custo Y é o mais ativo."],
-  "columnMapping": {"Valor": "currency", "Data": "date", "Descrição Centro de Custo": "category", "Saldo (R$)": "ignore", "Lançamento": "ignore", "Histórico": "text"}
+  "insights": ["O produto X tem maior margem", "Pico de vendas na data Y"],
+  "columnMapping": {"Preço": "currency", "Data": "date", "Produto": "category", "ID": "ignore"}
 }
 `;
 

@@ -379,8 +379,13 @@ export default function Dashboard() {
                 {loadingInsights ? (
                   <div className="processing-data-loader">
                     <div className="spinner-large"></div>
-                    <h2>Estamos analisando e organizando seus dados...</h2>
-                    <p>Nossa IA está identificando as melhores visualizações para sua planilha.</p>
+                    <h2>Fase de Análise Profunda...</h2>
+                    <p>Nossa IA está lendo uma amostra expandida (40 registros) para garantir 100% de precisão na leitura e montagem do seu dashboard.</p>
+                    <div className="loading-steps">
+                      <span>✓ Leitura de Dados</span>
+                      <span className="active">○ Análise Estrutural</span>
+                      <span>○ Montagem Inteligente</span>
+                    </div>
                   </div>
                 ) : (
                   <>
