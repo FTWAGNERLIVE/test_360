@@ -420,18 +420,6 @@ export default function Dashboard() {
         </div>
 
         <div className="dashboard-actions">
-          <button
-            className="support-toggle"
-            onClick={() => setShowSupport(!showSupport)}
-          >
-            <div className="support-toggle-icon">
-              <HelpCircle size={24} />
-            </div>
-            <span className="support-toggle-text">
-              {showSupport ? 'Fechar' : 'Suporte'}
-            </span>
-          </button>
-
           {csvData.length > 0 && (
             <button
               className={`chat-toggle ${showChat ? 'active' : ''}`}
@@ -445,6 +433,18 @@ export default function Dashboard() {
               </span>
             </button>
           )}
+
+          <button
+            className="support-toggle"
+            onClick={() => setShowSupport(!showSupport)}
+          >
+            <div className="support-toggle-icon">
+              <HelpCircle size={24} />
+            </div>
+            <span className="support-toggle-text">
+              {showSupport ? 'Fechar' : 'Suporte'}
+            </span>
+          </button>
         </div>
 
         {showChat && csvData.length > 0 && (
