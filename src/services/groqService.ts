@@ -131,12 +131,12 @@ Empresa: ${onboardingData?.companyName || 'N/A'} - Setor: ${onboardingData?.indu
 
 Responda EXCLUSIVAMENTE um objeto JSON (sem textos antes ou depois) com:
 1. "insights": Lista de 3 frases curtas e impactantes com insights de negócio iniciais.
-2. "columnMapping": Um objeto onde a CHAVE é o nome da coluna e o VALOR é o tipo ("currency", "date", "number", "category" ou "text").
+2. "columnMapping": Um objeto onde a CHAVE é o nome da coluna e o VALOR é o tipo ("currency", "date", "number", "category" ou "text"). Importante: Identifique a PRINCIPAL coluna de categoria (eixo X de gráficos comparativos) como "category" e a PRINCIPAL coluna temporal (eixo X temporal) como "date". Colunas monetárias devem ser "currency" e números comuns "number". Outros textos "text".
 
 Exemplo de formato esperado:
 {
   "insights": ["Tendência de alta em X", "O setor Y representa 40% do total", "A média de Z está acima do esperado"],
-  "columnMapping": {"Preço": "currency", "Data": "date"}
+  "columnMapping": {"Preço": "currency", "Data": "date", "Setor": "category", "Quantidade": "number"}
 }
 `;
 

@@ -153,8 +153,26 @@ export default function CSVUploader({ onFileUploaded, onboardingData }: CSVUploa
             }
           }
         } else {
-          // Converte para JSON padrão (array de objetos) se for uma planilha normal
-          data = XLSX.utils.sheet_to_json(worksheet) as any[];
+          // Detecta a melhor linha de cabeçalho (com mais colunas preenchidas) nas primeiras 20 linhas
+          let bestHeaderRowIndex = 0;
+          let maxNonEmpty = 0;
+          
+          for (let i = 0; i < Math.min(20, rawData.length); i++) {
+             const row = rawData[i];
+             if (!row) continue;
+             const nonEmptyCount = row.filter(cell => cell !== undefined && cell !== null && String(cell).trim() !== '').length;
+             if (nonEmptyCount > maxNonEmpty) {
+                maxNonEmpty = nonEmptyCount;
+                bestHeaderRowIndex = i;
+             }
+          }
+          
+          if (bestHeaderRowIndex > 0 && maxNonEmpty >= 2) {
+             data = XLSX.utils.sheet_to_json(worksheet, { range: bestHeaderRowIndex }) as any[];
+          } else {
+             data = XLSX.utils.sheet_to_json(worksheet) as any[];
+          }
+
           if (data.length > 0) {
             headers = Object.keys(data[0]);
           }

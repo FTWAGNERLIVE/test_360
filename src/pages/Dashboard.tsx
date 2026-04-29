@@ -376,39 +376,39 @@ export default function Dashboard() {
                   </button>
                 </div>
 
-                {/* Seção de Insights da Lupa */}
-                {(loadingInsights || (smartDiscovery && smartDiscovery.insights)) && (
-                  <div className="smart-insights-section">
-                    <div className="insights-header">
-                      <Sparkles size={20} className="sparkle-icon" />
-                      <h3>Insights da Lupa</h3>
-                      {loadingInsights && <div className="insights-loader"></div>}
-                    </div>
-                    
-                    {loadingInsights ? (
-                      <div className="insights-skeleton">
-                        <div className="skeleton-item"></div>
-                        <div className="skeleton-item"></div>
-                        <div className="skeleton-item"></div>
-                      </div>
-                    ) : (
-                      <div className="insights-grid">
-                        {smartDiscovery?.insights?.map((insight: string, idx: number) => (
-                          <div key={idx} className="insight-card">
-                            <div className="insight-number">{idx + 1}</div>
-                            <p>{insight}</p>
-                          </div>
-                        ))}
+                {loadingInsights ? (
+                  <div className="processing-data-loader">
+                    <div className="spinner-large"></div>
+                    <h2>Estamos analisando e organizando seus dados...</h2>
+                    <p>Nossa IA está identificando as melhores visualizações para sua planilha.</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Seção de Insights da Lupa */}
+                    {smartDiscovery && smartDiscovery.insights && (
+                      <div className="smart-insights-section">
+                        <div className="insights-header">
+                          <Sparkles size={20} className="sparkle-icon" />
+                          <h3>Insights da Lupa</h3>
+                        </div>
+                        <div className="insights-grid">
+                          {smartDiscovery.insights.map((insight: string, idx: number) => (
+                            <div key={idx} className="insight-card">
+                              <div className="insight-number">{idx + 1}</div>
+                              <p>{insight}</p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
-                  </div>
-                )}
 
-                <DataVisualization 
-                  data={csvData} 
-                  headers={csvHeaders} 
-                  smartMapping={smartDiscovery?.columnMapping}
-                />
+                    <DataVisualization 
+                      data={csvData} 
+                      headers={csvHeaders} 
+                      smartMapping={smartDiscovery?.columnMapping}
+                    />
+                  </>
+                )}
               </div>
             </>
           )}
