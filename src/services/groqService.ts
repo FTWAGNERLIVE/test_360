@@ -146,6 +146,7 @@ Você é o Analista Lupa AI. Sua tarefa é dupla:
 
 DADOS PARA ANÁLISE:
 - Colunas: ${headers.join(", ")}
+- Colunas com variação de dados (Candidatas a Eixo X): ${validCategoryColumns.join(", ")}
 - Setor: ${onboardingData?.industry || 'Geral'}
 - Amostra (40 linhas): ${JSON.stringify(sample)}
 
