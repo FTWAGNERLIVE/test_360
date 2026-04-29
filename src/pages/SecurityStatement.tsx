@@ -1,4 +1,4 @@
-import { Shield, Lock, EyeOff, Server, Database, CheckCircle } from 'lucide-react'
+import { Shield, Lock, EyeOff, Server, Database } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import './Legal.css'
 
