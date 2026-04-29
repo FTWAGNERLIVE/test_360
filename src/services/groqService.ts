@@ -40,13 +40,22 @@ REGRA DE PRIVACIDADE: Use essas informações apenas para dar respostas mais int
   }
 
   const systemInstructions = `
-1. Você é o Analista Lupa AI, um consultor sênior de inteligência de negócios.
-2. FOCO TOTAL EM DADOS: Sua função é analisar os dados da planilha e fornecer insights estratégicos.
-3. REGRA DE OURO (ASSUNTOS FORA DE PAUTA): Se o usuário fizer perguntas sobre assuntos totalmente irrelevantes para análise de dados ou para o negócio do cliente (ex: receitas de cozinha, piadas aleatórias, biologia, curiosidades sobre animais como "ovos e galinhas"), você deve responder educadamente: "Como seu Analista de Dados da Lupa AI, meu foco é ajudar você a extrair valor dos seus registros. Não tenho informações sobre esse assunto fora do contexto analítico. Como posso te ajudar com os seus dados hoje?"
-4. CONTEXTO DE MERCADO: Você PODE (e deve) usar seu conhecimento geral para comparar os dados da planilha com tendências de mercado. Ex: Se os dados mostram vendas de casas, e o usuário perguntar como está o mercado, você pode associar os dados dele com a realidade econômica atual.
-5. PRIVACIDADE: Nunca mencione informações pessoais do onboarding na resposta.
-6. ESTILO: Respostas curtas, fluidas, em bullet points, sem repetir tabelas que o usuário já está vendo.
-7. O usuário está utilizando o sistema Lupa Analytics AI desenvolvido por FTWagner.
+1. PERSONA: Você é o Analista Lupa AI, um consultor sênior de BI (Business Intelligence) integrado ao sistema Lupa Analytics AI (desenvolvido por FTWagner). Sua comunicação é executiva, técnica e orientada a resultados.
+
+2. ESCOPO DE ATUAÇÃO E BLOQUEIO (REGRA CRÍTICA):
+   - Você só responde sobre: análise de dados, métricas, tendências de mercado e estratégia de negócios fundamentada nos dados fornecidos.
+   - BLOQUEIO TOTAL: Para qualquer tema sem correlação direta com os dados (ex: culinária, entretenimento, filosofia, biologia), utilize EXATAMENTE a frase: "Como seu Analista de Dados da Lupa AI, meu foco é ajudar você a extrair valor dos seus registros. Não tenho informações sobre esse assunto fora do contexto analítico. Como posso te ajudar com os seus dados hoje?"
+   - Não tente "adaptar" temas irrelevantes para o mundo dos dados. Se o assunto não for negócios ou estatística, bloqueie imediatamente.
+
+3. DIRETRIZES DE ANÁLISE:
+   - CONTEXTUALIZAÇÃO: Use benchmarks de mercado apenas para enriquecer a leitura dos dados reais da planilha.
+   - NÃO REPETIÇÃO: Proibido transcrever tabelas ou dados brutos que já estão visíveis na interface. Foque na interpretação ("por que os números mudaram?") e não na leitura ("quais são os números?").
+   - PRIVACIDADE: Ignore qualquer informação de identificação pessoal (PII).
+
+4. ESTILO E FORMATO:
+   - Use Markdown (Bullet points e negrito) para facilitar a leitura rápida.
+   - Respostas curtas, sem introduções prolixas.
+   - Tom de voz: Útil, sóbrio e direto ao ponto.
 `;
 
   return `
@@ -121,11 +130,18 @@ export const getSmartDiscovery = async (
 
   try {
     // Pegamos apenas os nomes das colunas e as 5 primeiras linhas (Economia de tokens!)
-    const sample = data.slice(0, 8);
+    const sample = data.slice(0, 15); // Aumentado para ter mais chance de ver variacao
+    
+    // Blindagem de Engenharia: Pre-computar colunas que tem variacao para evitar que a IA erre
+    const validCategoryColumns = headers.filter(h => {
+      const firstVal = sample[0]?.[h];
+      return sample.some(row => row[h] !== firstVal);
+    });
     
     const prompt = `
 Analise a estrutura deste CSV:
 Colunas: ${headers.join(", ")}
+Colunas COM Variação (Opções Válidas para Categoria): ${validCategoryColumns.join(", ") || "Nenhuma variacao detectada"}
 Amostra (${sample.length} linhas): ${JSON.stringify(sample)}
 Empresa: ${onboardingData?.companyName || 'N/A'} - Setor: ${onboardingData?.industry || 'N/A'}
 
@@ -134,7 +150,7 @@ Responda EXCLUSIVAMENTE um objeto JSON válido (sem markdown, sem textos antes o
 2. "columnMapping": Um objeto onde a CHAVE é o nome da coluna e o VALOR é o tipo ("currency", "date", "number", "category", "text" ou "ignore").
 
 REGRAS CRÍTICAS DE MAPEAMENTO:
-- "category": Escolha EXATAMENTE UMA coluna principal para ser o eixo X dos gráficos. A coluna ESCOLHIDA DEVE TER VARIAÇÃO de valores na amostra. SE UMA COLUNA TEM SEMPRE O MESMO VALOR (ex: todas as linhas são '1' ou 'BIOPLUS'), ELA É INÚTIL E NÃO SERVE COMO CATEGORIA. SE HOUVER UM CÓDIGO E UMA DESCRIÇÃO LADO A LADO (ex: "CENTRO_CUSTO" = "01.02" e "DESC_CENTRO_CSTO" = "DIRETORIA"), PREFIRA SEMPRE A COLUNA COM A DESCRIÇÃO EM TEXTO. NUNCA use textos longos descritivos ou observações.
+- "category": Escolha EXATAMENTE UMA coluna principal para ser o eixo X dos gráficos. VOCÊ SÓ PODE ESCOLHER UMA DAS COLUNAS DA LISTA 'Colunas COM Variação'. SE HOUVER UM CÓDIGO E UMA DESCRIÇÃO LADO A LADO (ex: "CENTRO_CUSTO" = "01.02" e "DESC_CENTRO_CSTO" = "DIRETORIA"), PREFIRA SEMPRE A COLUNA COM A DESCRIÇÃO EM TEXTO. NUNCA use textos longos descritivos.
 - "date": Escolha EXATAMENTE UMA coluna principal de data.
 - "currency": Apenas colunas com valores financeiros de TRANSAÇÃO (Valor, Débito, Crédito, Preço).
 - "ignore": VOCÊ DEVE IGNORAR (marcar como "ignore") colunas de SALDO ACUMULADO (Saldo), colunas com IDs/Códigos numéricos (Lançamento, Doc, Número) e colunas de controle interno. Somar IDs ou Saldos destrói a análise.
