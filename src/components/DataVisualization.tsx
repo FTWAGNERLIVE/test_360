@@ -282,10 +282,23 @@ export default function DataVisualization({ data, headers, smartMapping }: DataV
     if (limitedData.length === 0) return null
 
     let numericHeaders = headers.filter(header => {
-      // Ignorar colunas se a IA mapeou como ignore
-      if (smartMapping && smartMapping[header] === 'ignore') return false;
+      // Ignorar colunas se a IA mapeou como ignore, text ou category
+      if (smartMapping && (smartMapping[header] === 'ignore' || smartMapping[header] === 'text' || smartMapping[header] === 'category')) return false;
+
+      // Ignorar colunas que claramente são IDs, Códigos, Lançamentos, etc.
+      const lower = header.toLowerCase();
+      if (lower.includes('id ') || lower === 'id' || lower.includes('código') || lower.includes('codigo') || lower.includes('lançamento') || lower.includes('lancamento') || lower.includes('número') || lower.includes('numero') || lower.includes('cep')) {
+        return false;
+      }
+
       const validRow = limitedData.find(row => row[header] !== null && row[header] !== undefined && row[header] !== '')
       const sample = validRow ? validRow[header] : undefined
+      
+      // Se a amostra for string que começa com 0 e tem mais de 1 caractere (ex: '0003223'), provavelmente é código
+      if (typeof sample === 'string' && sample.startsWith('0') && sample.length > 1 && !sample.includes('.') && !sample.includes(',')) {
+        return false;
+      }
+
       return sample !== undefined && !isNaN(cleanNumber(sample))
     })
 

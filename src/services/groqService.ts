@@ -131,7 +131,7 @@ Empresa: ${onboardingData?.companyName || 'N/A'} - Setor: ${onboardingData?.indu
 
 Responda EXCLUSIVAMENTE um objeto JSON (sem textos antes ou depois) com:
 1. "insights": Lista de 3 frases curtas e impactantes com insights de negócio iniciais.
-2. "columnMapping": Um objeto onde a CHAVE é o nome da coluna e o VALOR é o tipo ("currency", "date", "number", "category", "text" ou "ignore"). Importante: Identifique a PRINCIPAL coluna de categoria (eixo X de gráficos comparativos) como "category" e a PRINCIPAL coluna temporal (eixo X temporal) como "date". Colunas monetárias úteis para soma devem ser "currency". Colunas de SALDO ACUMULADO ("Saldo", "Running Total") DEVEM SER CLASSIFICADAS como "ignore" para não gerar somas sem sentido nos gráficos. Outros textos "text".
+2. "columnMapping": Um objeto onde a CHAVE é o nome da coluna e o VALOR é o tipo ("currency", "date", "number", "category", "text" ou "ignore"). Importante: Identifique a PRINCIPAL coluna de categoria (eixo X) como "category" e a PRINCIPAL coluna temporal como "date". Colunas monetárias úteis para soma devem ser "currency". Colunas de SALDO ACUMULADO devem ser "ignore". Colunas que contêm IDs, Códigos ou Números de Lançamento (ex: '0003223') DEVEM SER CLASSIFICADAS como "text" ou "ignore" para não serem somadas. Outros textos "text".
 
 Exemplo de formato esperado:
 {
