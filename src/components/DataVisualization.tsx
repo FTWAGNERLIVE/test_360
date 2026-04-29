@@ -10,6 +10,7 @@ interface DataVisualizationProps {
   data: any[]
   headers: string[]
   smartMapping?: Record<string, string>
+  insightsComponent?: React.ReactNode
 }
 
 const COLORS = ['#4285F4', '#EA4335', '#FBBC04', '#34A853', '#4285F4', '#EA4335']
@@ -118,14 +119,14 @@ export default function DataVisualization({ data, headers, smartMapping }: DataV
     const relevant: string[] = []
     
     if (categoryHeader) relevant.push(categoryHeader)
-    if (dateHeader) relevant.push(dateHeader)
     
-    // Se não encontrou, pegar as primeiras 2 colunas não numéricas
+    // Se não encontrou, pegar as primeiras 2 colunas não numéricas que não sejam data
     if (relevant.length < 2) {
       const nonNumeric = headers.filter(h => {
+        if (h === dateHeader || h === categoryHeader) return false;
         const validRow = data.find(r => r[h] !== null && r[h] !== undefined && r[h] !== '')
         const sample = validRow ? validRow[h] : undefined
-        return sample !== undefined && isNaN(cleanNumber(sample)) && !relevant.includes(h)
+        return sample !== undefined && isNaN(cleanNumber(sample))
       })
       relevant.push(...nonNumeric.slice(0, 2 - relevant.length))
     }
@@ -533,13 +534,13 @@ export default function DataVisualization({ data, headers, smartMapping }: DataV
                 className={`filter-button preset-btn ${dateRange.preset === 'thisMonth' ? 'active' : ''}`} 
                 onClick={() => handlePresetChange('thisMonth')}
               >
-                Este Mês
+                Mês Atual
               </button>
               <button 
                 className={`filter-button preset-btn ${dateRange.preset === 'thisYear' ? 'active' : ''}`} 
                 onClick={() => handlePresetChange('thisYear')}
               >
-                Este Ano
+                Ano Atual
               </button>
             </div>
             <div className="date-custom-range">
@@ -721,6 +722,9 @@ export default function DataVisualization({ data, headers, smartMapping }: DataV
           </div>
         </div>
       )}
+
+      {insightsComponent}
+
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon">

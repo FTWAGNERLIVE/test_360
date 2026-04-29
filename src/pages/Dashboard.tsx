@@ -384,28 +384,28 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <>
-                    {/* Seção de Insights da Lupa */}
-                    {smartDiscovery && smartDiscovery.insights && (
-                      <div className="smart-insights-section">
-                        <div className="insights-header">
-                          <Sparkles size={20} className="sparkle-icon" />
-                          <h3>Insights da Lupa</h3>
-                        </div>
-                        <div className="insights-grid">
-                          {smartDiscovery.insights.map((insight: string, idx: number) => (
-                            <div key={idx} className="insight-card">
-                              <div className="insight-number">{idx + 1}</div>
-                              <p>{insight}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
                     <DataVisualization 
                       data={csvData} 
                       headers={csvHeaders} 
                       smartMapping={smartDiscovery?.columnMapping}
+                      insightsComponent={
+                        smartDiscovery && smartDiscovery.insights ? (
+                          <div className="smart-insights-section" style={{ marginTop: '24px' }}>
+                            <div className="insights-header">
+                              <Sparkles size={20} className="sparkle-icon" />
+                              <h3>Insights da Lupa</h3>
+                            </div>
+                            <div className="insights-grid">
+                              {smartDiscovery.insights.map((insight: string, idx: number) => (
+                                <div key={idx} className="insight-card">
+                                  <div className="insight-number">{idx + 1}</div>
+                                  <p>{insight}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null
+                      }
                     />
                   </>
                 )}
