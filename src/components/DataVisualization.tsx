@@ -768,7 +768,12 @@ export default function DataVisualization({ data, headers, smartMapping, insight
           <div className="charts-section">
             {categoryData.length > 0 && (
               <div className="chart-card">
-                <h3>Análise Comparativa {categoryHeader ? `por ${categoryHeader}` : ''}</h3>
+                <h3>
+                  {stats.numericHeaders.length > 0 
+                    ? `Comparativo de ${stats.numericHeaders.slice(0, 2).join(' e ')} por ${categoryHeader || 'Registro'}`
+                    : `Análise por ${categoryHeader || 'Registro'}`
+                  }
+                </h3>
                 <ResponsiveContainer width="100%" height={350}>
                   <ComposedChart data={categoryData} style={{ cursor: 'pointer' }} onClick={(e) => handleChartClick(e, categoryData[0]?.category ? 'category' : 'date')}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#dadce0" opacity={0.3} />
@@ -829,7 +834,12 @@ export default function DataVisualization({ data, headers, smartMapping, insight
 
             {trendData.length > 0 && (
               <div className="chart-card">
-                <h3>Tendência Temporal</h3>
+                <h3>
+                  {stats.numericHeaders.length > 0
+                    ? `Evolução de ${stats.numericHeaders.slice(0, 3).join(', ')} no Tempo`
+                    : 'Tendência Temporal'
+                  }
+                </h3>
                 <ResponsiveContainer width="100%" height={350}>
                   <AreaChart data={trendData} style={{ cursor: 'pointer' }} onClick={(e) => handleChartClick(e, 'date')}>
                     <defs>
@@ -900,7 +910,12 @@ export default function DataVisualization({ data, headers, smartMapping, insight
 
             {pieData.length > 0 && (
               <div className="chart-card">
-                <h3>Distribuição</h3>
+                <h3>
+                  {stats.numericHeaders.length > 0
+                    ? `Distribuição de ${stats.numericHeaders[0]} por ${categoryHeader || 'Categoria'}`
+                    : 'Distribuição dos Dados'
+                  }
+                </h3>
                 <ResponsiveContainer width="100%" height={350}>
                   <PieChart>
                     <Pie
