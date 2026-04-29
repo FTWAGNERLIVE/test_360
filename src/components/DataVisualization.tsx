@@ -288,7 +288,15 @@ export default function DataVisualization({ data, headers, smartMapping, insight
 
       // Ignorar colunas que claramente são IDs, Códigos, Lançamentos, etc.
       const lower = header.toLowerCase();
-      if (lower.includes('id ') || lower === 'id' || lower.includes('código') || lower.includes('codigo') || lower.includes('lançamento') || lower.includes('lancamento') || lower.includes('número') || lower.includes('numero') || lower.includes('cep')) {
+      if (
+        lower.includes('id ') || lower === 'id' || 
+        lower.includes('código') || lower.includes('codigo') || 
+        lower.includes('lançamento') || lower.includes('lancamento') || 
+        lower.includes('número') || lower.includes('numero') || 
+        lower.includes('cep') || lower.includes('coligada') ||
+        lower.includes('filial') || lower.includes('unidade') ||
+        (lower.includes('conta') && !lower.includes('valor'))
+      ) {
         return false;
       }
 

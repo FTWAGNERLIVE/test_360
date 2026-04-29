@@ -129,58 +129,56 @@ export const getSmartDiscovery = async (
   if (!API_KEY) return null;
 
   try {
-    // Pegamos apenas os nomes das colunas e as 5 primeiras linhas (Economia de tokens!)
-    const sample = data.slice(0, 40); 
+    // Amostra de 20 linhas é o "ponto doce" entre precisão e velocidade
+    const sample = data.slice(0, 20); 
     
-    // Blindagem de Engenharia: Pre-computar colunas que tem variacao para evitar que a IA erre
+    // Blindagem de Engenharia: Pre-computar colunas que tem variacao
     const validCategoryColumns = headers.filter(h => {
       const firstVal = sample[0]?.[h];
       return sample.some(row => row[h] !== firstVal);
     });
     
     const prompt = `
-[FASE DE ANÁLISE PROFUNDA - LUPA ANALYTICS AI]
-Você é o motor de processamento estrutural. Recebeu uma amostra de 40 linhas para garantir precisão total.
+[LUPA ANALYTICS - ENGINE DE MAPEAMENTO ESTRUTURAL]
+Sua missão é classificar as colunas de um CSV para montar um dashboard de BI perfeito.
 
-DADOS PARA ANÁLISE:
+DADOS:
 - Colunas: ${headers.join(", ")}
-- Colunas COM Variação (Elegíveis para Categoria): ${validCategoryColumns.join(", ") || "Nenhuma variacao detectada"}
-- Amostra (${sample.length} linhas): ${JSON.stringify(sample)}
-- Contexto: ${onboardingData?.companyName || 'N/A'} (${onboardingData?.industry || 'N/A'})
+- Opções Válidas para Eixo X (Category): ${validCategoryColumns.join(", ")}
+- Amostra: ${JSON.stringify(sample)}
+- Setor: ${onboardingData?.industry || 'Geral'}
 
-Responda EXCLUSIVAMENTE um objeto JSON válido (sem markdown) com:
-1. "insights": 3 frases estratégicas interpretando o que esses dados significam para o negócio.
-2. "columnMapping": Objeto {coluna: tipo} onde tipo é ("currency", "date", "number", "category", "text" ou "ignore").
+REGRAS OBRIGATÓRIAS:
+1. "category": Escolha a MELHOR coluna da lista 'Opções Válidas' para ser o eixo principal. Prefira NOMES/DESCRIÇÕES sobre CÓDIGOS. Se não houver opção boa, não invente.
+2. "currency": Apenas colunas de VALOR MONETÁRIO.
+3. "ignore": BLOQUEIO TOTAL para: 'COLIGADA', 'ID', 'FILIAL', 'CONTA', 'DOCUMENTO', 'LANÇAMENTO'. Essas colunas são códigos e NUNCA devem ser somadas. Se você somar um ID, o gráfico fica ridículo.
+4. "date": Identifique a coluna de data cronológica.
 
-REGRAS DE OURO PARA MONTAGEM DO DASHBOARD:
-- "category": Escolha a coluna MAIS RICA para o Eixo X. DEVE estar na lista 'Colunas COM Variação'. Priorize Nomes sobre Códigos.
-- "date": A coluna de data principal.
-- "currency": Valores financeiros somáveis (Venda, Preço, Custo).
-- "ignore": Marque como ignore IDs, CPFs, códigos de barra, saldos acumulados e colunas de sistema.
-- "number": Métricas quantitativas não-financeiras.
-
-Exemplo:
+Responda APENAS o JSON:
 {
-  "insights": ["O produto X tem maior margem", "Pico de vendas na data Y"],
-  "columnMapping": {"Preço": "currency", "Data": "date", "Produto": "category", "ID": "ignore"}
+  "insights": ["Frase 1", "Frase 2", "Frase 3"],
+  "columnMapping": {
+    "NOME_COLUNA": "type"
+  }
 }
+
+Tipos válidos: "currency", "date", "number", "category", "text", "ignore".
 `;
 
     const response = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
       messages: [
-        { role: "system", content: "Você é um motor de análise de dados que responde apenas em JSON puro." },
+        { role: "system", content: "Você é um especialista em BI que mapeia estruturas de dados CSV para JSON." },
         { role: "user", content: prompt }
       ],
-      temperature: 0.1, // Temperatura baixa para ser mais preciso e consistente
-      max_tokens: 500,
+      temperature: 0, // Determinismo total para evitar erros
+      max_tokens: 1000,
       response_format: { type: "json_object" }
     });
 
-    const content = response.choices[0]?.message?.content || "{}";
-    return JSON.parse(content);
+    return JSON.parse(response.choices[0]?.message?.content || "{}");
   } catch (error) {
-    console.error("Smart Discovery Error:", error);
+    console.error("Erro no Smart Discovery:", error);
     return null;
   }
 };
