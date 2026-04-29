@@ -66,7 +66,7 @@ const cleanNumber = (val: any): number => {
   return Number(cleaned)
 }
 
-export default function DataVisualization({ data, headers, smartMapping }: DataVisualizationProps) {
+export default function DataVisualization({ data, headers, smartMapping, insightsComponent }: DataVisualizationProps) {
   const { user } = useAuth()
   
   // Lógica de Limite: PRO, Admin ou Trial Ativo (15 dias) não têm limites. Base tem 60 linhas.
