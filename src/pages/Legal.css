@@ -1,0 +1,163 @@
+.legal-container {
+  min-height: 100vh;
+  background: #f8f9fa;
+  color: #202124;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.legal-header {
+  background: #ffffff;
+  border-bottom: 1px solid #dadce0;
+  padding: 40px 20px;
+}
+
+.legal-header-content {
+  max-width: 1000px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.legal-header h1 {
+  font-size: 32px;
+  margin: 0 0 8px 0;
+  color: #1a73e8;
+}
+
+.legal-header p {
+  font-size: 18px;
+  color: #5f6368;
+  margin: 0;
+}
+
+.back-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 8px 20px;
+  background: #f1f3f4;
+  border: none;
+  border-radius: 6px;
+  color: #3c4043;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.back-btn:hover {
+  background: #e8eaed;
+}
+
+.legal-content {
+  max-width: 1000px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.security-hero {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.hero-icon {
+  color: #1a73e8;
+  margin-bottom: 20px;
+}
+
+.security-hero h2 {
+  font-size: 28px;
+  margin-bottom: 16px;
+}
+
+.security-hero p {
+  font-size: 18px;
+  color: #5f6368;
+  max-width: 700px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.security-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 24px;
+  margin-bottom: 80px;
+}
+
+.security-card {
+  background: white;
+  padding: 32px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+  transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+}
+
+.security-card:hover {
+  box-shadow: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
+  transform: translateY(-4px);
+}
+
+.card-icon {
+  color: #1a73e8;
+  margin-bottom: 20px;
+  width: 32px;
+  height: 32px;
+}
+
+.security-card h3 {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.security-card p {
+  color: #5f6368;
+  line-height: 1.6;
+}
+
+.legal-text-section {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  margin-bottom: 40px;
+}
+
+.legal-text-section h2 {
+  margin-bottom: 32px;
+  border-bottom: 2px solid #f1f3f4;
+  padding-bottom: 12px;
+}
+
+.faq-item {
+  margin-bottom: 32px;
+}
+
+.faq-item h4 {
+  font-size: 18px;
+  margin-bottom: 8px;
+  color: #202124;
+}
+
+.faq-item p {
+  color: #5f6368;
+  line-height: 1.6;
+}
+
+.legal-footer {
+  text-align: center;
+  padding: 40px 0;
+  border-top: 1px solid #dadce0;
+  color: #70757a;
+  font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  .security-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .back-btn {
+    position: static;
+    margin-top: 20px;
+    display: block;
+    width: 100%;
+  }
+}

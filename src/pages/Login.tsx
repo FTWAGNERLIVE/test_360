@@ -391,6 +391,11 @@ export default function Login() {
           <p className="beta-notice">
             🚀 Este é um teste beta com período de 15 dias. Faça login para começar sua análise gratuita.
           </p>
+          <div className="legal-links">
+            <button onClick={() => navigate('/security')} className="legal-link-btn">Segurança e Dados</button>
+            <span className="separator">•</span>
+            <button onClick={() => navigate('/terms')} className="legal-link-btn">Termos de Uso</button>
+          </div>
         </div>
       </div>
     </div>
