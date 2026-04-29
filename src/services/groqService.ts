@@ -133,18 +133,18 @@ Responda EXCLUSIVAMENTE um objeto JSON válido (sem markdown, sem textos antes o
 1. "insights": Lista de 3 frases curtas e impactantes com insights de negócio sobre os dados amostrados.
 2. "columnMapping": Um objeto onde a CHAVE é o nome da coluna e o VALOR é o tipo ("currency", "date", "number", "category", "text" ou "ignore").
 
-REGRAS DE MAPEAMENTO PARA QUALQUER CONTEXTO DE NEGÓCIO:
-- "category": O agrupador principal para gráficos de barra/pizza (ex: Produto, Região, Status, Departamento, Cliente). REQUISITOS: 1) Deve ter variação (se a coluna for 100% igual na amostra, escolha outra). 2) Se o arquivo tiver uma coluna de 'ID/Código' e outra de 'Nome/Descrição' para o mesmo item, ESCOLHA A DE NOME. 3) Nunca use textos longos ou comentários.
-- "date": A coluna temporal primária (data/hora).
-- "currency": Valores financeiros transacionais que podem ser somados (ex: Preço, Custo, Venda, Despesa, Faturamento).
-- "ignore": REGRA CRÍTICA PARA NÃO CORROMPER DADOS: Marque como "ignore" qualquer coluna de TOTALIZADORES ACUMULADOS (saldos, totais progressivos) e IDENTIFICADORES NUMÉRICOS (IDs, CPFs, códigos de barra, número de pedido, contas de sistema). Nunca deixe IDs ou Saldos caírem como "number" ou "currency", pois eles seriam somados indevidamente.
-- "number": Quantidades ou métricas numéricas não-financeiras (ex: Estoque, Qtd Vendida, Visualizações, Idade).
-- "text": Descrições longas, notas, observações, históricos de atendimento.
+REGRAS CRÍTICAS DE MAPEAMENTO:
+- "category": Escolha EXATAMENTE UMA coluna principal para ser o eixo X dos gráficos. A coluna ESCOLHIDA DEVE TER VARIAÇÃO de valores na amostra. SE UMA COLUNA TEM SEMPRE O MESMO VALOR (ex: todas as linhas são '1' ou 'BIOPLUS'), ELA É INÚTIL E NÃO SERVE COMO CATEGORIA. SE HOUVER UM CÓDIGO E UMA DESCRIÇÃO LADO A LADO (ex: "CENTRO_CUSTO" = "01.02" e "DESC_CENTRO_CSTO" = "DIRETORIA"), PREFIRA SEMPRE A COLUNA COM A DESCRIÇÃO EM TEXTO. NUNCA use textos longos descritivos ou observações.
+- "date": Escolha EXATAMENTE UMA coluna principal de data.
+- "currency": Apenas colunas com valores financeiros de TRANSAÇÃO (Valor, Débito, Crédito, Preço).
+- "ignore": VOCÊ DEVE IGNORAR (marcar como "ignore") colunas de SALDO ACUMULADO (Saldo), colunas com IDs/Códigos numéricos (Lançamento, Doc, Número) e colunas de controle interno. Somar IDs ou Saldos destrói a análise.
+- "text": Textos livres e descritivos.
+- "number": Apenas quantidades contáveis.
 
 Exemplo de formato esperado:
 {
-  "insights": ["A categoria X representa o maior volume.", "Há um pico de atividade no produto Y."],
-  "columnMapping": {"Valor Transação": "currency", "Data Compra": "date", "Nome Categoria": "category", "Saldo Conta": "ignore", "ID Pedido": "ignore", "Observações": "text"}
+  "insights": ["A conta X concentra as despesas.", "O centro de custo Y é o mais ativo."],
+  "columnMapping": {"Valor": "currency", "Data": "date", "Descrição Centro de Custo": "category", "Saldo (R$)": "ignore", "Lançamento": "ignore", "Histórico": "text"}
 }
 `;
 
