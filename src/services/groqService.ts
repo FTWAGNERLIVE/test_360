@@ -129,8 +129,8 @@ export const getSmartDiscovery = async (
   if (!API_KEY) return null;
 
   try {
-    // Amostra de 20 linhas é o "ponto doce" entre precisão e velocidade
-    const sample = data.slice(0, 20); 
+    // Amostra de 40 linhas conforme pedido pelo usuário para maior profundidade analítica
+    const sample = data.slice(0, 40); 
     
     // Blindagem de Engenharia: Pre-computar colunas que tem variacao
     const validCategoryColumns = headers.filter(h => {
@@ -139,24 +139,32 @@ export const getSmartDiscovery = async (
     });
     
     const prompt = `
-[LUPA ANALYTICS - ENGINE DE MAPEAMENTO ESTRUTURAL]
-Sua missão é classificar as colunas de um CSV para montar um dashboard de BI perfeito.
+[LUPA ANALYTICS - INTELIGÊNCIA DE NEGÓCIOS]
+Você é o Analista Lupa AI. Sua tarefa é dupla:
+1. Mapear a estrutura técnica (columnMapping).
+2. Gerar Insights de Negócio reais baseados nos VALORES dos dados (insights).
 
-DADOS:
+DADOS PARA ANÁLISE:
 - Colunas: ${headers.join(", ")}
-- Opções Válidas para Eixo X (Category): ${validCategoryColumns.join(", ")}
-- Amostra: ${JSON.stringify(sample)}
 - Setor: ${onboardingData?.industry || 'Geral'}
+- Amostra (40 linhas): ${JSON.stringify(sample)}
 
-REGRAS OBRIGATÓRIAS:
-1. "category": Escolha a MELHOR coluna da lista 'Opções Válidas' para ser o eixo principal. Prefira NOMES/DESCRIÇÕES sobre CÓDIGOS. Se não houver opção boa, não invente.
+REGRAS PARA INSIGHTS (CRITICAL):
+- PROIBIDO falar sobre colunas ("A coluna X é de data"). O usuário já sabe disso.
+- FOQUE EM VALORES: Identifique tendências, valores discrepantes (outliers), médias ou concentrações.
+- EXECUTIVO: Use frases curtas e acionáveis.
+- Exemplo de INSIGHT BOM: "Notamos uma concentração de 45% dos gastos no Centro de Custo X."
+- Exemplo de INSIGHT RUIM: "Mapeamos a coluna Valor como moeda." (NUNCA FAÇA ISSO).
+
+REGRAS DE MAPEAMENTO:
+1. "category": Escolha a MELHOR coluna para o eixo X. Prefira NOMES sobre CÓDIGOS.
 2. "currency": Apenas colunas de VALOR MONETÁRIO.
-3. "ignore": BLOQUEIO TOTAL para: 'COLIGADA', 'ID', 'FILIAL', 'CONTA', 'DOCUMENTO', 'LANÇAMENTO'. Essas colunas são códigos e NUNCA devem ser somadas. Se você somar um ID, o gráfico fica ridículo.
+3. "ignore": BLOQUEIO TOTAL para: 'COLIGADA', 'ID', 'FILIAL', 'CONTA', 'DOCUMENTO', 'LANÇAMENTO'. 
 4. "date": Identifique a coluna de data cronológica.
 
 Responda APENAS o JSON:
 {
-  "insights": ["Frase 1", "Frase 2", "Frase 3"],
+  "insights": ["Insight de negócio 1", "Insight de negócio 2", "Insight de negócio 3"],
   "columnMapping": {
     "NOME_COLUNA": "type"
   }
