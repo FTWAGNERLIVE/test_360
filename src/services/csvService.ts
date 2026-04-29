@@ -14,6 +14,7 @@ export interface CSVData {
   csvHeaders: string[]
   csvFileName?: string
   csvFileContent?: string // Conteúdo original do CSV como string
+  smartDiscovery?: any // Mapeamento e insights da IA
   uploadedAt: Date
   updatedAt: Date
 }
@@ -26,7 +27,8 @@ export async function saveCSVData(
   csvHeaders: string[], 
   csvFileName?: string,
   csvFileContent?: string,
-  targetUserId?: string
+  targetUserId?: string,
+  smartDiscovery?: any
 ): Promise<void> {
   if (!db) {
     throw new Error('Firebase não está configurado')
@@ -43,6 +45,7 @@ export async function saveCSVData(
     csvHeaders,
     csvFileName: csvFileName || 'dados.csv',
     csvFileContent: csvFileContent || '',
+    smartDiscovery: smartDiscovery || null,
     uploadedAt: Timestamp.now(),
     updatedAt: Timestamp.now()
   }
@@ -102,6 +105,7 @@ export async function loadCSVData(targetUserId?: string): Promise<CSVData | null
       csvHeaders: data.csvHeaders || [],
       csvFileName: data.csvFileName,
       csvFileContent: data.csvFileContent,
+      smartDiscovery: data.smartDiscovery,
       uploadedAt: data.uploadedAt?.toDate() || new Date(),
       updatedAt: data.updatedAt?.toDate() || new Date()
     }

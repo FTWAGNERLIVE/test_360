@@ -25,13 +25,13 @@ const formatNumber = (value: number) => {
 const parseDate = (dateStr: string) => {
   if (!dateStr || dateStr === 'null' || dateStr === 'undefined') return null
   const s = String(dateStr).trim()
-  
+
   // Formato ISO ou similar: 2024-01-01...
   if (s.match(/^\d{4}-\d{2}-\d{2}/)) {
     const parts = s.split('T')[0].split('-')
     return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2].substring(0, 2)))
   }
-  
+
   // Formato PT-BR: 01/01/2024
   if (s.includes('/')) {
     const parts = s.split(' ')[0].split('/')
@@ -56,7 +56,7 @@ const cleanNumber = (val: any): number => {
   if (val === null || val === undefined || val === '') return NaN
   const cleaned = String(val).trim()
     .replace(/[R$\s]/g, '')
-  
+
   if (cleaned.includes(',') && cleaned.includes('.')) {
     return Number(cleaned.replace(/\./g, '').replace(',', '.'))
   }
@@ -68,7 +68,7 @@ const cleanNumber = (val: any): number => {
 
 export default function DataVisualization({ data, headers, smartMapping, insightsComponent }: DataVisualizationProps) {
   const { user } = useAuth()
-  
+
   // Lógica de Limite: PRO, Admin ou Trial Ativo (15 dias) não têm limites. Base tem 60 linhas.
   const hasFullAccess = useMemo(() => {
     if (!user || user.role === 'admin' || user.role === 'vendas') return true
@@ -102,8 +102,8 @@ export default function DataVisualization({ data, headers, smartMapping, insight
     }
 
     // 2. Fallback: Busca manual
-    return headers.find(h => 
-      h.toLowerCase().includes('categoria') || 
+    return headers.find(h =>
+      h.toLowerCase().includes('categoria') ||
       h.toLowerCase().includes('category') ||
       h.toLowerCase().includes('tipo') ||
       h.toLowerCase().includes('status') ||
@@ -117,9 +117,9 @@ export default function DataVisualization({ data, headers, smartMapping, insight
   // Identificar colunas mais relevantes para filtros
   const filterableHeaders = useMemo(() => {
     const relevant: string[] = []
-    
+
     if (categoryHeader) relevant.push(categoryHeader)
-    
+
     // Se não encontrou, pegar as primeiras 2 colunas não numéricas que não sejam data
     if (relevant.length < 2) {
       const nonNumeric = headers.filter(h => {
@@ -130,7 +130,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
       })
       relevant.push(...nonNumeric.slice(0, 2 - relevant.length))
     }
-    
+
     return relevant.slice(0, 2)
   }, [categoryHeader, dateHeader, headers, data])
 
@@ -176,7 +176,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
   // Aplicar filtros aos dados
   const filteredData = useMemo(() => {
     let result = [...data]
-    
+
     if (filter1 && filter1Value) {
       if (filter1Value === 'Outros') {
         // Logica para filtrar o que NÃO está nos top itens (para o grupo Outros)
@@ -190,13 +190,13 @@ export default function DataVisualization({ data, headers, smartMapping, insight
           .sort(([, a], [, b]) => b - a)
           .slice(0, 5)
           .map(([name]) => name)
-        
+
         result = result.filter(row => !topValues.includes(String(row[filter1])))
       } else {
         result = result.filter(row => String(row[filter1]) === filter1Value)
       }
     }
-    
+
     if (filter2 && filter2Value) {
       if (filter2Value === 'Outros') {
         const counts: Record<string, number> = {}
@@ -208,7 +208,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
           .sort(([, a], [, b]) => b - a)
           .slice(0, 5)
           .map(([name]) => name)
-        
+
         result = result.filter(row => !topValues.includes(String(row[filter2])))
       } else {
         result = result.filter(row => String(row[filter2]) === filter2Value)
@@ -217,7 +217,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
 
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
-      result = result.filter(row => 
+      result = result.filter(row =>
         headers.some(h => String(row[h] || '').toLowerCase().includes(term))
       )
     }
@@ -226,7 +226,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
       result = result.filter(row => {
         const rowDate = parseDate(String(row[dateHeader]))
         if (!rowDate) return false
-        
+
         if (dateRange.start) {
           const startD = new Date(dateRange.start)
           if (rowDate < startD) return false
@@ -239,7 +239,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
         return true
       })
     }
-    
+
     return result
   }, [data, filter1, filter1Value, filter2, filter2Value, dateRange, dateHeader, searchTerm, headers])
 
@@ -252,7 +252,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
     const today = new Date()
     let start = ''
     let end = ''
-    
+
     if (preset === 'thisMonth') {
       start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
       end = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0]
@@ -260,7 +260,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
       start = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0]
       end = new Date(today.getFullYear(), 11, 31).toISOString().split('T')[0]
     }
-    
+
     setDateRange({ preset, start, end })
   }
 
@@ -275,10 +275,10 @@ export default function DataVisualization({ data, headers, smartMapping, insight
 
   const handleChartClick = (entry: any, type: 'date' | 'category' | 'pie') => {
     if (!entry) return
-    
+
     let chartValue = ''
     let chartHeader = ''
-    
+
     if (type === 'pie') {
       chartValue = String(entry.name || '')
       chartHeader = categoryHeader || filterableHeaders[0] || ''
@@ -295,7 +295,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
 
     if (!chartHeader || !chartValue || chartValue === 'undefined' || chartValue === 'null') return;
 
-    
+
     if (filter1 === chartHeader && filter1Value === chartValue) {
       setFilter1Value('')
     } else if (filter2 === chartHeader && filter2Value === chartValue) {
@@ -305,7 +305,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
       setFilter1Value(chartValue)
     }
   }
-  
+
   const stats = useMemo(() => {
     if (limitedData.length === 0) return null
 
@@ -316,10 +316,10 @@ export default function DataVisualization({ data, headers, smartMapping, insight
       // Ignorar colunas que claramente são IDs, Códigos, Lançamentos, etc.
       const lower = header.toLowerCase();
       if (
-        lower.includes('id ') || lower === 'id' || 
-        lower.includes('código') || lower.includes('codigo') || 
-        lower.includes('lançamento') || lower.includes('lancamento') || 
-        lower.includes('número') || lower.includes('numero') || 
+        lower.includes('id ') || lower === 'id' ||
+        lower.includes('código') || lower.includes('codigo') ||
+        lower.includes('lançamento') || lower.includes('lancamento') ||
+        lower.includes('número') || lower.includes('numero') ||
         lower.includes('cep') || lower.includes('coligada') ||
         lower.includes('filial') || lower.includes('unidade') ||
         (lower.includes('conta') && !lower.includes('valor'))
@@ -329,7 +329,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
 
       const validRow = limitedData.find(row => row[header] !== null && row[header] !== undefined && row[header] !== '')
       const sample = validRow ? validRow[header] : undefined
-      
+
       // Se a amostra for string que começa com 0 e tem mais de 1 caractere (ex: '0003223'), provavelmente é código
       if (typeof sample === 'string' && sample.startsWith('0') && sample.length > 1 && !sample.includes('.') && !sample.includes(',')) {
         return false;
@@ -343,7 +343,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
       const lower = h.toLowerCase();
       return lower.includes('valor') || lower.includes('débito') || lower.includes('crédito') || lower.includes('debito') || lower.includes('credito');
     });
-    
+
     if (hasTransactionValues) {
       numericHeaders = numericHeaders.filter(h => !h.toLowerCase().includes('saldo'));
     }
@@ -382,25 +382,25 @@ export default function DataVisualization({ data, headers, smartMapping, insight
     limitedData.forEach(row => {
       const rawDate = row[dateHeader]
       const parsedDate = parseDate(String(rawDate))
-      
+
       if (!parsedDate) return
 
       // Chave de agrupamento normalizada YYYY-MM-DD
       const dateKey = parsedDate.toISOString().split('T')[0]
-      
+
       if (!grouped[dateKey]) {
-        grouped[dateKey] = { 
+        grouped[dateKey] = {
           date: parsedDate.toLocaleDateString('pt-BR'),
           sortKey: parsedDate.getTime(),
-          ...stats.numericHeaders.reduce((acc, h) => ({ ...acc, [h]: 0 }), {}) 
+          ...stats.numericHeaders.reduce((acc, h) => ({ ...acc, [h]: 0 }), {})
         }
       }
-      
+
       stats.numericHeaders.forEach(header => {
         grouped[dateKey][header] = (grouped[dateKey][header] || 0) + cleanNumber(row[header])
       })
     })
-    
+
     return Object.values(grouped)
       .sort((a: any, b: any) => a.sortKey - b.sortKey)
       .slice(0, 30) // Mostra até 30 pontos no tempo
@@ -421,22 +421,22 @@ export default function DataVisualization({ data, headers, smartMapping, insight
           grouped[category][header] = (grouped[category][header] || 0) + (Number(row[header]) || 0)
         })
       })
-      
+
       const firstNum = stats.numericHeaders[0]
       const sortedValues = Object.values(grouped).sort((a, b) => (b[firstNum] || 0) - (a[firstNum] || 0))
-      
+
       if (sortedValues.length > 4) {
         const top4 = sortedValues.slice(0, 4)
         const others = sortedValues.slice(4)
-        
+
         const othersEntry: any = { category: 'Outros' }
         stats.numericHeaders.forEach(header => {
           othersEntry[header] = others.reduce((sum, item) => sum + (item[header] || 0), 0)
         })
-        
+
         return [...top4, othersEntry]
       }
-      
+
       return sortedValues
     }
 
@@ -465,18 +465,18 @@ export default function DataVisualization({ data, headers, smartMapping, insight
       })
 
       const sortedEntries = Object.entries(categorySums).sort(([, a], [, b]) => b - a)
-      
+
       if (sortedEntries.length > 5) {
         const top5 = sortedEntries.slice(0, 5)
         const others = sortedEntries.slice(5)
-        
+
         let othersSum = 0
         others.forEach(([, val]) => {
           othersSum += val
         })
-        
+
         const finalData = top5.map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
-        
+
         if (othersSum > 0) {
           const index = finalData.findIndex(item => item.name === 'Outros')
           if (index >= 0) {
@@ -521,14 +521,14 @@ export default function DataVisualization({ data, headers, smartMapping, insight
 
     return Object.entries(ranges)
       .filter(([, count]) => count > 0)
-        .map(([name, value]) => ({ name, value }))
+      .map(([name, value]) => ({ name, value }))
   }, [limitedData, stats, headers])
 
   // Estatísticas resumidas
   const summaryStats = useMemo(() => {
     if (!stats || stats.numericHeaders.length === 0) return null
 
-    return stats.numericHeaders.map(header => {
+    const results = stats.numericHeaders.map(header => {
       const values = limitedData.map(row => Number(row[header]) || 0).filter(v => !isNaN(v) && v > 0)
       if (values.length === 0) return null
 
@@ -536,10 +536,38 @@ export default function DataVisualization({ data, headers, smartMapping, insight
       const avg = sum / values.length
       const max = Math.max(...values)
       const min = Math.min(...values)
+      
+      const type = smartMapping?.[header] || 'number'
+      const nameLower = header.toLowerCase()
+      
+      // Colunas que NÃO faz sentido somar (Idade, Ano, Pontuação, etc)
+      const isNotSummable = nameLower.includes('idade') || 
+                            nameLower.includes('age') || 
+                            nameLower.includes('ano') || 
+                            nameLower.includes('year') ||
+                            nameLower.includes('rating') ||
+                            nameLower.includes('nota') ||
+                            new Set(values).size === data.length; // IDs ou similares
 
-      return { header, avg, max, min, sum, count: values.length }
-    }).filter(Boolean)
-  }, [limitedData, stats])
+      return { 
+        header, 
+        avg, 
+        max, 
+        min, 
+        sum, 
+        count: values.length,
+        type,
+        canSum: !isNotSummable || type === 'currency'
+      }
+    }).filter((s): s is any => s !== null)
+
+    // Priorizar Moedas > Números Reais > Outros
+    return results.sort((a, b) => {
+      if (a.type === 'currency' && b.type !== 'currency') return -1
+      if (a.type !== 'currency' && b.type === 'currency') return 1
+      return 0
+    })
+  }, [limitedData, stats, smartMapping, data.length])
 
   if (data.length === 0) {
     return (
@@ -553,26 +581,26 @@ export default function DataVisualization({ data, headers, smartMapping, insight
   return (
     <div className="data-visualization">
       {dateHeader && (
-        <div className="filters-section" style={{marginBottom: '0'}}>
+        <div className="filters-section" style={{ marginBottom: '0' }}>
           <div className="date-filter-container">
             <div className="date-filter-label">
               <strong>Período:</strong>
             </div>
             <div className="date-presets">
-              <button 
-                className={`filter-button preset-btn ${dateRange.preset === 'all' ? 'active' : ''}`} 
+              <button
+                className={`filter-button preset-btn ${dateRange.preset === 'all' ? 'active' : ''}`}
                 onClick={() => setDateRange({ preset: 'all', start: '', end: '' })}
               >
                 Todos
               </button>
-              <button 
-                className={`filter-button preset-btn ${dateRange.preset === 'thisMonth' ? 'active' : ''}`} 
+              <button
+                className={`filter-button preset-btn ${dateRange.preset === 'thisMonth' ? 'active' : ''}`}
                 onClick={() => handlePresetChange('thisMonth')}
               >
                 Mês Atual
               </button>
-              <button 
-                className={`filter-button preset-btn ${dateRange.preset === 'thisYear' ? 'active' : ''}`} 
+              <button
+                className={`filter-button preset-btn ${dateRange.preset === 'thisYear' ? 'active' : ''}`}
                 onClick={() => handlePresetChange('thisYear')}
               >
                 Ano Atual
@@ -580,19 +608,19 @@ export default function DataVisualization({ data, headers, smartMapping, insight
             </div>
             <div className="date-custom-range">
               <label>
-                De: 
-                <input 
-                  type="date" 
-                  value={dateRange.start} 
-                  onChange={e => setDateRange(prev => ({ ...prev, preset: 'custom', start: e.target.value }))} 
+                De:
+                <input
+                  type="date"
+                  value={dateRange.start}
+                  onChange={e => setDateRange(prev => ({ ...prev, preset: 'custom', start: e.target.value }))}
                 />
               </label>
               <label>
-                Até: 
-                <input 
-                  type="date" 
-                  value={dateRange.end} 
-                  onChange={e => setDateRange(prev => ({ ...prev, preset: 'custom', end: e.target.value }))} 
+                Até:
+                <input
+                  type="date"
+                  value={dateRange.end}
+                  onChange={e => setDateRange(prev => ({ ...prev, preset: 'custom', end: e.target.value }))}
                 />
               </label>
             </div>
@@ -728,9 +756,9 @@ export default function DataVisualization({ data, headers, smartMapping, insight
             )}
 
             <div className="search-filter" style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto' }}>
-              <input 
-                type="text" 
-                placeholder="Buscar dados..." 
+              <input
+                type="text"
+                placeholder="Buscar dados..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 style={{
@@ -761,34 +789,26 @@ export default function DataVisualization({ data, headers, smartMapping, insight
       {insightsComponent}
 
       <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon">
-            <Database size={24} />
-          </div>
-          <div className="stat-content">
-            <p className="stat-label">Total de Registros</p>
-            <p className="stat-value">{filteredData.length.toLocaleString()}</p>
-          </div>
-        </div>
-
         {summaryStats && summaryStats[0] && (
           <>
-            <div className="stat-card">
-              <div className="stat-icon" style={{ backgroundColor: 'rgba(52, 168, 83, 0.1)', color: '#34a853' }}>
-                <TrendingUp size={24} />
+            {summaryStats[0].canSum && (
+              <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'rgba(52, 168, 83, 0.1)', color: '#34a853' }}>
+                  <TrendingUp size={24} />
+                </div>
+                <div className="stat-content">
+                  <p className="stat-label">Soma Total ({summaryStats[0].header})</p>
+                  <p className="stat-value">{formatNumber(summaryStats[0].sum)}</p>
+                </div>
               </div>
-              <div className="stat-content">
-                <p className="stat-label">Soma Total ({summaryStats[0].header})</p>
-                <p className="stat-value">{formatNumber(summaryStats[0].sum)}</p>
-              </div>
-            </div>
+            )}
 
             <div className="stat-card">
               <div className="stat-icon" style={{ backgroundColor: 'rgba(66, 133, 244, 0.1)', color: '#4285f4' }}>
                 <Sparkles size={24} />
               </div>
               <div className="stat-content">
-                <p className="stat-label">Média do Valor</p>
+                <p className="stat-label">Média ({summaryStats[0].header})</p>
                 <p className="stat-value">{formatNumber(summaryStats[0].avg)}</p>
               </div>
             </div>
@@ -798,7 +818,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                 <TrendingUp size={24} />
               </div>
               <div className="stat-content">
-                <p className="stat-label">Maior Lançamento</p>
+                <p className="stat-label">Máximo ({summaryStats[0].header})</p>
                 <p className="stat-value">{formatNumber(summaryStats[0].max)}</p>
               </div>
             </div>
@@ -816,67 +836,67 @@ export default function DataVisualization({ data, headers, smartMapping, insight
             {categoryData.length > 0 && (
               <div className="chart-card">
                 <h3>
-                  {stats.numericHeaders.length > 0 
+                  {stats.numericHeaders.length > 0
                     ? `Comparativo de ${stats.numericHeaders.slice(0, 2).join(' e ')} por ${categoryHeader || 'Registro'}`
                     : `Análise por ${categoryHeader || 'Registro'}`
                   }
                 </h3>
                 <ResponsiveContainer width="100%" height={350}>
-                    <ComposedChart data={categoryData} style={{ cursor: 'pointer' }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#dadce0" opacity={0.3} />
-                      <XAxis 
-                        dataKey={categoryData[0]?.category ? 'category' : 'index'} 
-                        stroke="#5f6368"
-                        tick={{ fill: '#5f6368', fontSize: 12 }}
-                        angle={-45}
-                        textAnchor="end"
-                        interval={0}
-                        height={80}
+                  <ComposedChart data={categoryData} style={{ cursor: 'pointer' }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#dadce0" opacity={0.3} />
+                    <XAxis
+                      dataKey={categoryData[0]?.category ? 'category' : 'index'}
+                      stroke="#5f6368"
+                      tick={{ fill: '#5f6368', fontSize: 12 }}
+                      angle={-45}
+                      textAnchor="end"
+                      interval={0}
+                      height={80}
+                    />
+                    <YAxis
+                      stroke="#5f6368"
+                      tick={{ fill: '#5f6368', fontSize: 12 }}
+                      tickFormatter={formatNumber}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #dadce0',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                      }}
+                      formatter={(value: any) => formatNumber(value)}
+                    />
+                    <Legend
+                      wrapperStyle={{ paddingTop: '20px' }}
+                      iconType="circle"
+                    />
+                    {stats.numericHeaders.slice(0, 2).map((header, index) => (
+                      <Bar
+                        key={header}
+                        dataKey={header}
+                        fill={COLORS[index % COLORS.length]}
+                        name={header}
+                        radius={[4, 4, 0, 0]}
+                        style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+                        onClick={(e) => handleChartClick(e, 'category')}
                       />
-                      <YAxis 
-                        stroke="#5f6368"
-                        tick={{ fill: '#5f6368', fontSize: 12 }}
-                        tickFormatter={formatNumber}
+                    ))}
+                    {stats.numericHeaders.slice(2, 3).map((header) => (
+                      <Line
+                        key={header}
+                        type="monotone"
+                        dataKey={header}
+                        stroke={COLORS[2]}
+                        name={header}
+                        strokeWidth={3}
+                        dot={{ fill: COLORS[2], r: 4, cursor: 'pointer' }}
+                        activeDot={{ r: 6, fill: COLORS[2], stroke: '#fff', strokeWidth: 2 }}
+                        style={{ cursor: 'pointer' }}
+                        onClick={(e) => handleChartClick(e, 'category')}
                       />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#ffffff', 
-                          border: '1px solid #dadce0',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                        }}
-                        formatter={(value: any) => formatNumber(value)}
-                      />
-                      <Legend 
-                        wrapperStyle={{ paddingTop: '20px' }}
-                        iconType="circle"
-                      />
-                      {stats.numericHeaders.slice(0, 2).map((header, index) => (
-                        <Bar 
-                          key={header} 
-                          dataKey={header} 
-                          fill={COLORS[index % COLORS.length]}
-                          name={header}
-                          radius={[4, 4, 0, 0]}
-                          style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
-                          onClick={(e) => handleChartClick(e, 'category')}
-                        />
-                      ))}
-                      {stats.numericHeaders.slice(2, 3).map((header) => (
-                        <Line 
-                          key={header} 
-                          type="monotone" 
-                          dataKey={header} 
-                          stroke={COLORS[2]}
-                          name={header}
-                          strokeWidth={3}
-                          dot={{ fill: COLORS[2], r: 4, cursor: 'pointer' }}
-                          activeDot={{ r: 6, fill: COLORS[2], stroke: '#fff', strokeWidth: 2 }}
-                          style={{ cursor: 'pointer' }}
-                          onClick={(e) => handleChartClick(e, 'category')}
-                        />
-                      ))}
-                    </ComposedChart>
+                    ))}
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             )}
@@ -894,13 +914,13 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                     <defs>
                       {stats.numericHeaders.slice(0, 3).map((header, index) => (
                         <linearGradient key={header} id={`color${index}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.8}/>
-                          <stop offset="95%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.1}/>
+                          <stop offset="5%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.8} />
+                          <stop offset="95%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.1} />
                         </linearGradient>
                       ))}
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#dadce0" opacity={0.3} />
-                    <XAxis 
+                    <XAxis
                       dataKey="date"
                       stroke="#5f6368"
                       tick={{ fill: '#5f6368', fontSize: 12 }}
@@ -908,14 +928,14 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                       textAnchor="end"
                       height={80}
                     />
-                    <YAxis 
+                    <YAxis
                       stroke="#5f6368"
                       tick={{ fill: '#5f6368', fontSize: 12 }}
                       tickFormatter={formatNumber}
                     />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#ffffff', 
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
                         border: '1px solid #dadce0',
                         borderRadius: '8px',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
@@ -935,15 +955,15 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                       animationDuration={200}
                       separator=": "
                     />
-                    <Legend 
+                    <Legend
                       wrapperStyle={{ paddingTop: '20px', cursor: 'pointer' }}
                       iconType="circle"
                     />
                     {stats.numericHeaders.slice(0, 3).map((header, index) => (
-                      <Area 
-                        key={header} 
-                        type="monotone" 
-                        dataKey={header} 
+                      <Area
+                        key={header}
+                        type="monotone"
+                        dataKey={header}
                         stroke={COLORS[index % COLORS.length]}
                         fill={`url(#color${index})`}
                         name={header}
@@ -997,9 +1017,9 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#ffffff', 
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
                         border: '1px solid #dadce0',
                         borderRadius: '8px',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
@@ -1009,8 +1029,8 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                       labelStyle={{ fontWeight: 600 }}
                       animationDuration={200}
                     />
-                    <Legend 
-                      verticalAlign="bottom" 
+                    <Legend
+                      verticalAlign="bottom"
                       height={36}
                       iconType="circle"
                       wrapperStyle={{ cursor: 'pointer' }}
@@ -1084,11 +1104,11 @@ export default function DataVisualization({ data, headers, smartMapping, insight
               <div className="table-limit-notice">
                 <Mail size={16} />
                 <span>Se deseja que seja lido mais do que {rowLimit} linhas, faça o upgrade para o plano PRO.</span>
-                <a 
-                  href="#upgrade" 
+                <a
+                  href="#upgrade"
                   onClick={(e) => {
                     e.preventDefault();
-                    document.querySelector('.profile-dropdown-container')?.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+                    document.querySelector('.profile-dropdown-container')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
                   }}
                   className="contact-link"
                 >

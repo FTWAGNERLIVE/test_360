@@ -51,17 +51,28 @@ export default function Dashboard() {
             setShowSavedMessage(true)
             setTimeout(() => setShowSavedMessage(false), 5000)
             
-            // Disparar Smart Discovery para dados do Firestore
-            setLoadingInsights(true)
-            getSmartDiscovery(firestoreData.csvHeaders, firestoreData.csvData, effectiveUser?.onboardingData)
-              .then(setSmartDiscovery)
-              .catch((err: any) => console.error("Erro no Smart Discovery:", err))
-              .finally(() => setLoadingInsights(false))
+            // Disparar Smart Discovery apenas se não estiver cacheado
+            if (firestoreData.smartDiscovery) {
+              setSmartDiscovery(firestoreData.smartDiscovery)
+            } else {
+              setLoadingInsights(true)
+              getSmartDiscovery(firestoreData.csvHeaders, firestoreData.csvData, effectiveUser?.onboardingData)
+                .then(discovery => {
+                  setSmartDiscovery(discovery)
+                  // Salvar com o discovery no Firestore
+                  saveCSVData(firestoreData.csvData, firestoreData.csvHeaders, firestoreData.csvFileName, firestoreData.csvFileContent, effectiveUser?.id, discovery)
+                })
+                .catch((err: any) => console.error("Erro no Smart Discovery:", err))
+                .finally(() => setLoadingInsights(false))
+            }
 
-            // Sincronizar com localStorage como cache (apenas se for o próprio usuário)
+            // Sincronizar com localStorage como cache
             if (!isImpersonating && effectiveUser?.id) {
               localStorage.setItem(`csvData_${effectiveUser.id}`, JSON.stringify(firestoreData.csvData))
               localStorage.setItem(`csvHeaders_${effectiveUser.id}`, JSON.stringify(firestoreData.csvHeaders))
+              if (firestoreData.smartDiscovery) {
+                localStorage.setItem(`smartDiscovery_${effectiveUser.id}`, JSON.stringify(firestoreData.smartDiscovery))
+              }
             }
             
             setLoadingCSV(false)
@@ -88,12 +99,21 @@ export default function Dashboard() {
                   setShowSavedMessage(true)
                   setTimeout(() => setShowSavedMessage(false), 5000)
                   
-                  // Disparar Smart Discovery para dados carregados
-                  setLoadingInsights(true)
-                  getSmartDiscovery(parsedHeaders, parsedData, effectiveUser?.onboardingData)
-                    .then(setSmartDiscovery)
-                    .catch((err: any) => console.error("Erro no Smart Discovery:", err))
-                    .finally(() => setLoadingInsights(false))
+                  // Disparar Smart Discovery apenas se não estiver cacheado no localStorage
+                  const savedDiscovery = localStorage.getItem(`smartDiscovery_${effectiveUser.id}`)
+                  if (savedDiscovery) {
+                    setSmartDiscovery(JSON.parse(savedDiscovery))
+                  } else {
+                    setLoadingInsights(true)
+                    getSmartDiscovery(parsedHeaders, parsedData, effectiveUser?.onboardingData)
+                      .then(discovery => {
+                        setSmartDiscovery(discovery)
+                        localStorage.setItem(`smartDiscovery_${effectiveUser.id}`, JSON.stringify(discovery))
+                        saveCSVData(parsedData, parsedHeaders, 'dados.csv', '', effectiveUser?.id, discovery)
+                      })
+                      .catch((err: any) => console.error("Erro no Smart Discovery:", err))
+                      .finally(() => setLoadingInsights(false))
+                  }
 
                   // Tentar sincronizar com Firestore em background
                   try {
@@ -122,34 +142,25 @@ export default function Dashboard() {
     setCsvData(data)
     setCsvHeaders(headers)
     
-    // Salvar dados no localStorage (cache local) - apenas se for o próprio usuário
-    if (effectiveUser?.id && !isImpersonating) {
-      localStorage.setItem(`csvData_${effectiveUser.id}`, JSON.stringify(data))
-      localStorage.setItem(`csvHeaders_${effectiveUser.id}`, JSON.stringify(headers))
-    }
-    
-    // Salvar no Firestore
-    try {
-      await saveCSVData(data, headers, fileName, fileContent, effectiveUser?.id)
-      // console.log('✅ Salvo')
-    } catch (error: any) {
-      console.error('❌ Erro ao salvar no Firestore:', error)
-    }
-    
-    setShowSavedMessage(false)
-
-    // Iniciar Smart Discovery (Insights Iniciais)
-    if (data.length > 0) {
-      setLoadingInsights(true)
-      try {
-        const discovery = await getSmartDiscovery(headers, data, effectiveUser?.onboardingData)
+    // Iniciar Smart Discovery
+    setLoadingInsights(true)
+    getSmartDiscovery(headers, data, effectiveUser?.onboardingData)
+      .then(discovery => {
         setSmartDiscovery(discovery)
-      } catch (err: any) {
-        console.error("Erro no Smart Discovery:", err)
-      } finally {
-        setLoadingInsights(false)
-      }
-    }
+        // Salvar dados com o discovery no Firestore
+        saveCSVData(data, headers, fileName, fileContent, effectiveUser?.id, discovery)
+        
+        // Cache local
+        if (!isImpersonating && effectiveUser?.id) {
+          localStorage.setItem(`csvData_${effectiveUser.id}`, JSON.stringify(data))
+          localStorage.setItem(`csvHeaders_${effectiveUser.id}`, JSON.stringify(headers))
+          localStorage.setItem(`smartDiscovery_${effectiveUser.id}`, JSON.stringify(discovery))
+        }
+      })
+      .catch((err: any) => console.error("Erro no Smart Discovery:", err))
+      .finally(() => setLoadingInsights(false))
+
+    setShowSavedMessage(false)
   }
 
   const handleClearData = async () => {
@@ -159,8 +170,9 @@ export default function Dashboard() {
     
     // Remover dados salvos do localStorage - apenas se for o próprio usuário
     if (effectiveUser?.id && !isImpersonating) {
-      localStorage.removeItem(`csvData_${effectiveUser.id}`)
-      localStorage.removeItem(`csvHeaders_${effectiveUser.id}`)
+      localStorage.removeItem(`csvData_${effectiveUser?.id}`)
+      localStorage.removeItem(`csvHeaders_${effectiveUser?.id}`)
+      localStorage.removeItem(`smartDiscovery_${effectiveUser?.id}`)
     }
     
     // Remover dados do Firestore
