@@ -281,11 +281,23 @@ export default function DataVisualization({ data, headers, smartMapping }: DataV
   const stats = useMemo(() => {
     if (limitedData.length === 0) return null
 
-    const numericHeaders = headers.filter(header => {
+    let numericHeaders = headers.filter(header => {
+      // Ignorar colunas se a IA mapeou como ignore
+      if (smartMapping && smartMapping[header] === 'ignore') return false;
       const validRow = limitedData.find(row => row[header] !== null && row[header] !== undefined && row[header] !== '')
       const sample = validRow ? validRow[header] : undefined
       return sample !== undefined && !isNaN(cleanNumber(sample))
     })
+
+    // Se tivermos colunas de Valor/Débito/Crédito, removemos Saldo dos gráficos para não somar acumulados
+    const hasTransactionValues = numericHeaders.some(h => {
+      const lower = h.toLowerCase();
+      return lower.includes('valor') || lower.includes('débito') || lower.includes('crédito') || lower.includes('debito') || lower.includes('credito');
+    });
+    
+    if (hasTransactionValues) {
+      numericHeaders = numericHeaders.filter(h => !h.toLowerCase().includes('saldo'));
+    }
 
     const statsMap: Record<string, { sum: number; count: number; min: number; max: number }> = {}
 

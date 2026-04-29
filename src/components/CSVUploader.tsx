@@ -168,13 +168,13 @@ export default function CSVUploader({ onFileUploaded, onboardingData }: CSVUploa
           }
           
           if (bestHeaderRowIndex > 0 && maxNonEmpty >= 2) {
-             data = XLSX.utils.sheet_to_json(worksheet, { range: bestHeaderRowIndex }) as any[];
+             data = XLSX.utils.sheet_to_json(worksheet, { range: bestHeaderRowIndex, defval: '' }) as any[];
           } else {
-             data = XLSX.utils.sheet_to_json(worksheet) as any[];
+             data = XLSX.utils.sheet_to_json(worksheet, { defval: '' }) as any[];
           }
 
           if (data.length > 0) {
-            headers = Object.keys(data[0]);
+            headers = Object.keys(data[0]).filter(k => !k.startsWith('__EMPTY'));
           }
         }
         
