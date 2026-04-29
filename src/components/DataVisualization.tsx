@@ -253,14 +253,14 @@ export default function DataVisualization({ data, headers, smartMapping, insight
       chartValue = String(entry.name || '')
       chartHeader = categoryHeader || filterableHeaders[0] || ''
     } else if (type === 'date') {
-      chartValue = String(entry.activeLabel || entry.activePayload?.[0]?.payload?.date || entry.date || '')
+      // Priorizar payload direto se vier do clique no elemento, senao usar o do container
+      const payload = entry.activePayload?.[0]?.payload || entry.payload || entry
+      chartValue = String(payload.date || entry.activeLabel || entry.date || '')
       chartHeader = dateHeader || filterableHeaders[0] || ''
     } else if (type === 'category') {
-      chartValue = String(entry.activeLabel || entry.activePayload?.[0]?.payload?.category || entry.category || '')
+      const payload = entry.activePayload?.[0]?.payload || entry.payload || entry
+      chartValue = String(payload.category || entry.activeLabel || entry.category || '')
       chartHeader = categoryHeader || filterableHeaders[0] || ''
-    } else {
-      chartValue = String(entry.activeLabel || '')
-      chartHeader = dateHeader || categoryHeader || filterableHeaders[0] || ''
     }
 
     if (!chartHeader || !chartValue || chartValue === 'undefined' || chartValue === 'null') return;
@@ -783,59 +783,61 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                   }
                 </h3>
                 <ResponsiveContainer width="100%" height={350}>
-                  <ComposedChart data={categoryData} style={{ cursor: 'pointer' }} onClick={(e) => handleChartClick(e, categoryData[0]?.category ? 'category' : 'date')}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#dadce0" opacity={0.3} />
-                    <XAxis 
-                      dataKey={categoryData[0]?.category ? 'category' : 'index'} 
-                      stroke="#5f6368"
-                      tick={{ fill: '#5f6368', fontSize: 12 }}
-                      angle={-45}
-                      textAnchor="end"
-                      interval={0}
-                      height={80}
-                    />
-                    <YAxis 
-                      stroke="#5f6368"
-                      tick={{ fill: '#5f6368', fontSize: 12 }}
-                      tickFormatter={formatNumber}
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#ffffff', 
-                        border: '1px solid #dadce0',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                      }}
-                      formatter={(value: any) => formatNumber(value)}
-                    />
-                    <Legend 
-                      wrapperStyle={{ paddingTop: '20px' }}
-                      iconType="circle"
-                    />
-                    {stats.numericHeaders.slice(0, 2).map((header, index) => (
-                      <Bar 
-                        key={header} 
-                        dataKey={header} 
-                        fill={COLORS[index % COLORS.length]}
-                        name={header}
-                        radius={[4, 4, 0, 0]}
-                        style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+                    <ComposedChart data={categoryData} style={{ cursor: 'pointer' }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#dadce0" opacity={0.3} />
+                      <XAxis 
+                        dataKey={categoryData[0]?.category ? 'category' : 'index'} 
+                        stroke="#5f6368"
+                        tick={{ fill: '#5f6368', fontSize: 12 }}
+                        angle={-45}
+                        textAnchor="end"
+                        interval={0}
+                        height={80}
                       />
-                    ))}
-                    {stats.numericHeaders.slice(2, 3).map((header) => (
-                      <Line 
-                        key={header} 
-                        type="monotone" 
-                        dataKey={header} 
-                        stroke={COLORS[2]}
-                        name={header}
-                        strokeWidth={3}
-                        dot={{ fill: COLORS[2], r: 4, cursor: 'pointer' }}
-                        activeDot={{ r: 6, fill: COLORS[2], stroke: '#fff', strokeWidth: 2 }}
-                        style={{ cursor: 'pointer' }}
+                      <YAxis 
+                        stroke="#5f6368"
+                        tick={{ fill: '#5f6368', fontSize: 12 }}
+                        tickFormatter={formatNumber}
                       />
-                    ))}
-                  </ComposedChart>
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#ffffff', 
+                          border: '1px solid #dadce0',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                        }}
+                        formatter={(value: any) => formatNumber(value)}
+                      />
+                      <Legend 
+                        wrapperStyle={{ paddingTop: '20px' }}
+                        iconType="circle"
+                      />
+                      {stats.numericHeaders.slice(0, 2).map((header, index) => (
+                        <Bar 
+                          key={header} 
+                          dataKey={header} 
+                          fill={COLORS[index % COLORS.length]}
+                          name={header}
+                          radius={[4, 4, 0, 0]}
+                          style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+                          onClick={(e) => handleChartClick(e, 'category')}
+                        />
+                      ))}
+                      {stats.numericHeaders.slice(2, 3).map((header) => (
+                        <Line 
+                          key={header} 
+                          type="monotone" 
+                          dataKey={header} 
+                          stroke={COLORS[2]}
+                          name={header}
+                          strokeWidth={3}
+                          dot={{ fill: COLORS[2], r: 4, cursor: 'pointer' }}
+                          activeDot={{ r: 6, fill: COLORS[2], stroke: '#fff', strokeWidth: 2 }}
+                          style={{ cursor: 'pointer' }}
+                          onClick={(e) => handleChartClick(e, 'category')}
+                        />
+                      ))}
+                    </ComposedChart>
                 </ResponsiveContainer>
               </div>
             )}
@@ -849,7 +851,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                   }
                 </h3>
                 <ResponsiveContainer width="100%" height={350}>
-                  <AreaChart data={trendData} style={{ cursor: 'pointer' }} onClick={(e) => handleChartClick(e, 'date')}>
+                  <AreaChart data={trendData} style={{ cursor: 'pointer' }}>
                     <defs>
                       {stats.numericHeaders.slice(0, 3).map((header, index) => (
                         <linearGradient key={header} id={`color${index}`} x1="0" y1="0" x2="0" y2="1">
@@ -909,6 +911,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                         strokeWidth={2}
                         style={{ cursor: 'pointer' }}
                         activeDot={{ r: 5, fill: COLORS[index % COLORS.length], stroke: '#fff', strokeWidth: 2 }}
+                        onClick={(e) => handleChartClick(e, 'date')}
                       />
                     ))}
                   </AreaChart>
