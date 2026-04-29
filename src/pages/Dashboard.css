@@ -125,7 +125,7 @@
 }
 
 .test-notice {
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto 24px;
   padding: 12px 20px;
   background: var(--primary-light);
@@ -150,7 +150,7 @@
 }
 
 .saved-data-notice {
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto 24px;
   padding: 12px 20px;
   background: #e8f5e9;
@@ -182,7 +182,7 @@
 }
 
 .dashboard-content {
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -649,7 +649,7 @@
 }
 
 .banner-content {
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
