@@ -121,12 +121,12 @@ export const getSmartDiscovery = async (
 
   try {
     // Pegamos apenas os nomes das colunas e as 5 primeiras linhas (Economia de tokens!)
-    const sample = data.slice(0, 5);
+    const sample = data.slice(0, 8);
     
     const prompt = `
 Analise a estrutura deste CSV:
 Colunas: ${headers.join(", ")}
-Amostra (5 linhas): ${JSON.stringify(sample)}
+Amostra (${sample.length} linhas): ${JSON.stringify(sample)}
 Empresa: ${onboardingData?.companyName || 'N/A'} - Setor: ${onboardingData?.industry || 'N/A'}
 
 Responda EXCLUSIVAMENTE um objeto JSON válido (sem markdown, sem textos antes ou depois) com:
@@ -134,7 +134,7 @@ Responda EXCLUSIVAMENTE um objeto JSON válido (sem markdown, sem textos antes o
 2. "columnMapping": Um objeto onde a CHAVE é o nome da coluna e o VALOR é o tipo ("currency", "date", "number", "category", "text" ou "ignore").
 
 REGRAS CRÍTICAS DE MAPEAMENTO:
-- "category": Escolha EXATAMENTE UMA coluna principal para ser o eixo X dos gráficos. Deve ter categorias que se repetem (ex: Setor, Centro de Custo, Conta Contábil, Status). NUNCA use textos longos ou únicos (Histórico, Observação).
+- "category": Escolha EXATAMENTE UMA coluna principal para ser o eixo X dos gráficos. A coluna ESCOLHIDA DEVE TER VARIAÇÃO de valores na amostra (ex: Centro de Custo, Filial, Status). SE UMA COLUNA TEM SEMPRE O MESMO VALOR (ex: todas as linhas são '1' ou 'BIOPLUS'), ELA NÃO SERVE COMO CATEGORIA. NUNCA use textos longos ou únicos (Histórico, Observação).
 - "date": Escolha EXATAMENTE UMA coluna principal de data.
 - "currency": Apenas colunas com valores financeiros de TRANSAÇÃO (Valor, Débito, Crédito, Preço).
 - "ignore": VOCÊ DEVE IGNORAR (marcar como "ignore") colunas de SALDO ACUMULADO (Saldo), colunas com IDs/Códigos numéricos (Lançamento, Doc, Número) e colunas de controle interno. Somar IDs ou Saldos destrói a análise.
