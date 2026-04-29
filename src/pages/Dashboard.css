@@ -348,7 +348,7 @@
   bottom: 24px;
   right: 24px;
   display: flex;
-  flex-direction: column-reverse;
+  align-items: center;
   gap: 16px;
   z-index: 1000;
 }
@@ -630,7 +630,8 @@
   .dashboard-actions {
     bottom: 20px;
     right: 20px;
-    flex-direction: column;
+    flex-direction: row;
+    gap: 12px;
   }
 
   .chat-toggle,

@@ -1,7 +1,7 @@
 
 import { useMemo, useState, useEffect, useRef } from 'react'
 import { Bar, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart } from 'recharts'
-import { TrendingUp, Database, BarChart3 as BarChartIcon, X, Mail, Filter, ChevronDown } from 'lucide-react'
+import { TrendingUp, Database, X, Mail, Filter, ChevronDown, Sparkles } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { isTrialExpired } from '../services/authService'
 import './DataVisualization.css'
@@ -771,26 +771,38 @@ export default function DataVisualization({ data, headers, smartMapping, insight
           </div>
         </div>
 
-        <div className="stat-card">
-          <div className="stat-icon">
-            <BarChartIcon size={24} />
-          </div>
-          <div className="stat-content">
-            <p className="stat-label">Colunas</p>
-            <p className="stat-value">{headers.length}</p>
-          </div>
-        </div>
+        {summaryStats && summaryStats[0] && (
+          <>
+            <div className="stat-card">
+              <div className="stat-icon" style={{ backgroundColor: 'rgba(52, 168, 83, 0.1)', color: '#34a853' }}>
+                <TrendingUp size={24} />
+              </div>
+              <div className="stat-content">
+                <p className="stat-label">Soma Total ({summaryStats[0].header})</p>
+                <p className="stat-value">{formatNumber(summaryStats[0].sum)}</p>
+              </div>
+            </div>
 
-        {stats && stats.numericHeaders.length > 0 && (
-          <div className="stat-card">
-            <div className="stat-icon">
-              <TrendingUp size={24} />
+            <div className="stat-card">
+              <div className="stat-icon" style={{ backgroundColor: 'rgba(66, 133, 244, 0.1)', color: '#4285f4' }}>
+                <Sparkles size={24} />
+              </div>
+              <div className="stat-content">
+                <p className="stat-label">Média do Valor</p>
+                <p className="stat-value">{formatNumber(summaryStats[0].avg)}</p>
+              </div>
             </div>
-            <div className="stat-content">
-              <p className="stat-label">Colunas Numéricas</p>
-              <p className="stat-value">{stats.numericHeaders.length}</p>
+
+            <div className="stat-card">
+              <div className="stat-icon" style={{ backgroundColor: 'rgba(251, 188, 4, 0.1)', color: '#fbbc05' }}>
+                <TrendingUp size={24} />
+              </div>
+              <div className="stat-content">
+                <p className="stat-label">Maior Lançamento</p>
+                <p className="stat-value">{formatNumber(summaryStats[0].max)}</p>
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
 
