@@ -188,7 +188,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
         })
         const topValues = Object.entries(counts)
           .sort(([, a], [, b]) => b - a)
-          .slice(0, 12)
+          .slice(0, 5)
           .map(([name]) => name)
         
         result = result.filter(row => !topValues.includes(String(row[filter1])))
@@ -206,7 +206,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
         })
         const topValues = Object.entries(counts)
           .sort(([, a], [, b]) => b - a)
-          .slice(0, 12)
+          .slice(0, 5)
           .map(([name]) => name)
         
         result = result.filter(row => !topValues.includes(String(row[filter2])))
@@ -466,16 +466,16 @@ export default function DataVisualization({ data, headers, smartMapping, insight
 
       const sortedEntries = Object.entries(categorySums).sort(([, a], [, b]) => b - a)
       
-      if (sortedEntries.length > 12) {
-        const top12 = sortedEntries.slice(0, 12)
-        const others = sortedEntries.slice(12)
+      if (sortedEntries.length > 5) {
+        const top5 = sortedEntries.slice(0, 5)
+        const others = sortedEntries.slice(5)
         
         let othersSum = 0
         others.forEach(([, val]) => {
           othersSum += val
         })
         
-        const finalData = top12.map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
+        const finalData = top5.map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
         
         if (othersSum > 0) {
           const index = finalData.findIndex(item => item.name === 'Outros')
