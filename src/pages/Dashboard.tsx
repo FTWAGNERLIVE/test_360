@@ -373,14 +373,14 @@ export default function Dashboard() {
                       const planLimits: Record<string, number> = {
                         'free': 1, 'basic': 2, 'plus': 4, 'pro': 8, 'admin': 999
                       }
-                      const userPlan = (user?.plan || 'free').toLowerCase()
-                      const limit = planLimits[userPlan] || 1
-                      const atLimit = userFiles.length >= limit
+                      
                       const userRole = (user?.role || 'user').toLowerCase()
+                      const userPlan = (user?.plan || 'free').toLowerCase()
                       const isStaff = userRole === 'admin' || userRole === 'vendas' || userPlan === 'admin'
                       
-                      // PRIORIDADE MÁXIMA: Se for STAFF ou estiver impersonando, libera TUDO sempre
+                      // PRIORIDADE ABSOLUTA: Se for Admin/Staff, não existe limite
                       if (isStaff || isImpersonating) {
+                        const limit = 999
                         return (
                           <button 
                             className={`add-tab-btn ${isAddingNew ? 'active' : ''}`}
@@ -392,7 +392,10 @@ export default function Dashboard() {
                         )
                       }
 
-                      // Se for FREE e atingiu o limite, mostra apagado com o aviso de upgrade
+                      // Lógica normal para usuários comuns
+                      const limit = planLimits[userPlan] || 1
+                      const atLimit = userFiles.length >= limit
+
                       if (userPlan === 'free' && atLimit) {
                         return (
                           <button 
@@ -405,7 +408,6 @@ export default function Dashboard() {
                         )
                       }
 
-                      // Para outros planos, se não atingiu o limite, mostra normal
                       if (userFiles.length < limit) {
                         return (
                           <button 
