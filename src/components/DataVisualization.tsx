@@ -1,7 +1,8 @@
-
 import { useMemo, useState, useEffect, useRef } from 'react'
 import { Bar, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart } from 'recharts'
-import { TrendingUp, Database, X, Mail, Filter, ChevronDown, Sparkles } from 'lucide-react'
+import { TrendingUp, Database, X, Mail, Filter, ChevronDown, Sparkles, Search, FileDown, Lock } from 'lucide-react'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 import { useAuth } from '../context/AuthContext'
 import { isTrialExpired } from '../services/authService'
 import './DataVisualization.css'
@@ -69,15 +70,37 @@ const cleanNumber = (val: any): number => {
 export default function DataVisualization({ data, headers, smartMapping, insightsComponent }: DataVisualizationProps) {
   const { user } = useAuth()
 
-  // Lógica de Limite: PRO, Admin ou Trial Ativo (15 dias) não têm limites. Base tem 60 linhas.
-  const hasFullAccess = useMemo(() => {
-    if (!user || user.role === 'admin' || user.role === 'vendas') return true
-    if (user.isPro) return true
-    if (user.trialEndDate && !isTrialExpired(new Date(user.trialEndDate))) return true
-    return false
+  // Lógica de Limite baseada no Plano
+  const rowLimit = useMemo(() => {
+    if (!user || user.role === 'admin' || user.role === 'vendas') return 1000000
+    
+    // Se for Trial ativo, libera 5000 linhas (equivalente ao Basic)
+    if (user.trialEndDate && !isTrialExpired(new Date(user.trialEndDate))) return 5000
+
+    const userPlan = user.plan || 'free'
+    const limits = {
+      free: 400,
+      basic: 5000,
+      plus: 50000,
+      pro: 200000
+    }
+    return limits[userPlan] || 60
   }, [user])
 
-  const rowLimit = hasFullAccess ? 1000000 : 60
+  const insightsLimit = useMemo(() => {
+    if (!user || user.role === 'admin' || user.role === 'vendas') return 10
+    
+    if (user.trialEndDate && !isTrialExpired(new Date(user.trialEndDate))) return 2
+
+    const userPlan = user.plan || 'free'
+    const limits = {
+      free: 1,
+      basic: 2,
+      plus: 3,
+      pro: 6
+    }
+    return limits[userPlan] || 1
+  }, [user])
 
   // Extract specific headers explicitly so we can use them in the charts for cross-filtering
   const dateHeader = useMemo(() => {
@@ -136,8 +159,10 @@ export default function DataVisualization({ data, headers, smartMapping, insight
 
   const [filter1, setFilter1] = useState<string>(filterableHeaders[0] || '')
   const [filter2, setFilter2] = useState<string>(filterableHeaders[1] || '')
-  const [filter1Value, setFilter1Value] = useState<string>('')
-  const [filter2Value, setFilter2Value] = useState<string>('')
+  const [filter1Value, setFilter1Value] = useState<string[]>([])
+  const [filter2Value, setFilter2Value] = useState<string[]>([])
+  const [filter1Search, setFilter1Search] = useState('')
+  const [filter2Search, setFilter2Search] = useState('')
   const [openFilter1, setOpenFilter1] = useState(false)
   const [openFilter2, setOpenFilter2] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -162,6 +187,12 @@ export default function DataVisualization({ data, headers, smartMapping, insight
     }
   }, [])
 
+  // Resetar busca interna ao fechar o filtro
+  useEffect(() => {
+    if (!openFilter1) setFilter1Search('')
+    if (!openFilter2) setFilter2Search('')
+  }, [openFilter1, openFilter2])
+
   // Obter valores únicos para cada filtro
   const getFilterValues = (header: string): string[] => {
     if (!header) return []
@@ -177,10 +208,8 @@ export default function DataVisualization({ data, headers, smartMapping, insight
   const filteredData = useMemo(() => {
     let result = [...data]
 
-    if (filter1 && filter1Value) {
-      if (filter1Value === 'Outros') {
-        // Logica para filtrar o que NÃO está nos top itens (para o grupo Outros)
-        // Precisamos descobrir quais são os top itens para essa coluna
+    if (filter1 && filter1Value.length > 0) {
+      if (filter1Value.includes('Outros')) {
         const counts: Record<string, number> = {}
         data.forEach(row => {
           const val = String(row[filter1] || '')
@@ -191,14 +220,17 @@ export default function DataVisualization({ data, headers, smartMapping, insight
           .slice(0, 5)
           .map(([name]) => name)
 
-        result = result.filter(row => !topValues.includes(String(row[filter1])))
+        result = result.filter(row => {
+          const val = String(row[filter1] || '')
+          return filter1Value.includes(val) || (filter1Value.includes('Outros') && !topValues.includes(val))
+        })
       } else {
-        result = result.filter(row => String(row[filter1]) === filter1Value)
+        result = result.filter(row => filter1Value.includes(String(row[filter1] || '')))
       }
     }
 
-    if (filter2 && filter2Value) {
-      if (filter2Value === 'Outros') {
+    if (filter2 && filter2Value.length > 0) {
+      if (filter2Value.includes('Outros')) {
         const counts: Record<string, number> = {}
         data.forEach(row => {
           const val = String(row[filter2] || '')
@@ -209,9 +241,12 @@ export default function DataVisualization({ data, headers, smartMapping, insight
           .slice(0, 5)
           .map(([name]) => name)
 
-        result = result.filter(row => !topValues.includes(String(row[filter2])))
+        result = result.filter(row => {
+          const val = String(row[filter2] || '')
+          return filter2Value.includes(val) || (filter2Value.includes('Outros') && !topValues.includes(val))
+        })
       } else {
-        result = result.filter(row => String(row[filter2]) === filter2Value)
+        result = result.filter(row => filter2Value.includes(String(row[filter2] || '')))
       }
     }
 
@@ -267,8 +302,8 @@ export default function DataVisualization({ data, headers, smartMapping, insight
   const clearFilters = () => {
     setFilter1(filterableHeaders[0] || '')
     setFilter2(filterableHeaders[1] || '')
-    setFilter1Value('')
-    setFilter2Value('')
+    setFilter1Value([])
+    setFilter2Value([])
     setDateRange({ preset: 'all', start: '', end: '' })
     setSearchTerm('')
   }
@@ -296,15 +331,67 @@ export default function DataVisualization({ data, headers, smartMapping, insight
     if (!chartHeader || !chartValue || chartValue === 'undefined' || chartValue === 'null') return;
 
 
-    if (filter1 === chartHeader && filter1Value === chartValue) {
-      setFilter1Value('')
-    } else if (filter2 === chartHeader && filter2Value === chartValue) {
-      setFilter2Value('')
+    if (filter1 === chartHeader && filter1Value.includes(chartValue)) {
+      setFilter1Value(filter1Value.filter(v => v !== chartValue))
+    } else if (filter2 === chartHeader && filter2Value.includes(chartValue)) {
+      setFilter2Value(filter2Value.filter(v => v !== chartValue))
     } else {
       setFilter1(chartHeader)
-      setFilter1Value(chartValue)
+      setFilter1Value(prev => [...prev, chartValue])
     }
   }
+
+  const exportToPDF = async () => {
+    if (user?.plan !== 'pro' && user?.role !== 'admin' && user?.role !== 'vendas') {
+      alert('Esta funcionalidade está disponível apenas no plano PRO.');
+      return;
+    }
+
+    const element = document.getElementById('dashboard-report-content');
+    if (!element) return;
+
+    // Feedback visual
+    const btn = document.getElementById('export-pdf-btn');
+    const originalContent = btn?.innerHTML;
+    if (btn) {
+      btn.innerHTML = '<span>Gerando PDF...</span>';
+      btn.style.opacity = '0.5';
+    }
+
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#0f172a'
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const imgWidth = pdfWidth - 20;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.setFontSize(18);
+      pdf.setTextColor(66, 133, 244);
+      pdf.text('Relatório Lupa Analytics AI', 10, 15);
+      
+      pdf.setFontSize(10);
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 10, 22);
+      
+      pdf.addImage(imgData, 'PNG', 10, 30, imgWidth, imgHeight);
+      pdf.save(`relatorio-lupa-${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      alert('Erro ao gerar PDF. Tente novamente.');
+    } finally {
+      if (btn && originalContent) {
+        btn.innerHTML = originalContent;
+        btn.style.opacity = '1';
+      }
+    }
+  };
 
   const stats = useMemo(() => {
     if (limitedData.length === 0) return null
@@ -642,7 +729,11 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                 >
                   <Filter size={16} />
                   <span>{filter1 || filterableHeaders[0] || 'Filtro 1'}</span>
-                  {filter1Value && <span className="filter-value">: {filter1Value}</span>}
+                  {filter1Value.length > 0 && (
+                    <span className="filter-value">
+                      : {filter1Value.length === 1 ? filter1Value[0] : `${filter1Value.length} selecionados`}
+                    </span>
+                  )}
                   <ChevronDown size={16} className={openFilter1 ? 'open' : ''} />
                 </button>
                 {openFilter1 && (
@@ -653,7 +744,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                         value={filter1}
                         onChange={(e) => {
                           setFilter1(e.target.value)
-                          setFilter1Value('')
+                          setFilter1Value([])
                         }}
                       >
                         <option value="">Selecione uma coluna</option>
@@ -668,23 +759,49 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                     </div>
                     {filter1 && (
                       <div className="filter-values">
-                        <label>Selecione o valor:</label>
-                        <div className="filter-values-list">
-                          <button
-                            className={filter1Value === '' ? 'active' : ''}
-                            onClick={() => setFilter1Value('')}
+                        <div className="filter-search-input">
+                          <Search size={14} />
+                          <input 
+                            type="text" 
+                            placeholder="Buscar valor..." 
+                            value={filter1Search}
+                            onChange={(e) => setFilter1Search(e.target.value)}
+                          />
+                        </div>
+                        <div className="filter-actions">
+                          <button 
+                            className="filter-action-btn"
+                            onClick={() => setFilter1Value(getFilterValues(filter1))}
                           >
-                            Todos
+                            Selecionar Todos
                           </button>
-                          {getFilterValues(filter1).map(value => (
-                            <button
-                              key={value}
-                              className={filter1Value === value ? 'active' : ''}
-                              onClick={() => setFilter1Value(value)}
-                            >
-                              {value}
-                            </button>
-                          ))}
+                          <button 
+                            className="filter-action-btn"
+                            onClick={() => setFilter1Value([])}
+                          >
+                            Limpar
+                          </button>
+                        </div>
+                        <label>Selecione o(s) valor(es):</label>
+                        <div className="filter-values-list">
+                          {getFilterValues(filter1)
+                            .filter(val => val.toLowerCase().includes(filter1Search.toLowerCase()))
+                            .map(value => (
+                              <label key={value} className="filter-checkbox-item">
+                                <input 
+                                  type="checkbox" 
+                                  checked={filter1Value.includes(value)}
+                                  onChange={() => {
+                                    if (filter1Value.includes(value)) {
+                                      setFilter1Value(filter1Value.filter(v => v !== value))
+                                    } else {
+                                      setFilter1Value([...filter1Value, value])
+                                    }
+                                  }}
+                                />
+                                <span>{value}</span>
+                              </label>
+                            ))}
                         </div>
                       </div>
                     )}
@@ -704,7 +821,11 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                 >
                   <Filter size={16} />
                   <span>{filter2 || filterableHeaders[1] || 'Filtro 2'}</span>
-                  {filter2Value && <span className="filter-value">: {filter2Value}</span>}
+                  {filter2Value.length > 0 && (
+                    <span className="filter-value">
+                      : {filter2Value.length === 1 ? filter2Value[0] : `${filter2Value.length} selecionados`}
+                    </span>
+                  )}
                   <ChevronDown size={16} className={openFilter2 ? 'open' : ''} />
                 </button>
                 {openFilter2 && (
@@ -715,7 +836,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                         value={filter2}
                         onChange={(e) => {
                           setFilter2(e.target.value)
-                          setFilter2Value('')
+                          setFilter2Value([])
                         }}
                       >
                         <option value="">Selecione uma coluna</option>
@@ -730,23 +851,49 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                     </div>
                     {filter2 && (
                       <div className="filter-values">
-                        <label>Selecione o valor:</label>
-                        <div className="filter-values-list">
-                          <button
-                            className={filter2Value === '' ? 'active' : ''}
-                            onClick={() => setFilter2Value('')}
+                        <div className="filter-search-input">
+                          <Search size={14} />
+                          <input 
+                            type="text" 
+                            placeholder="Buscar valor..." 
+                            value={filter2Search}
+                            onChange={(e) => setFilter2Search(e.target.value)}
+                          />
+                        </div>
+                        <div className="filter-actions">
+                          <button 
+                            className="filter-action-btn"
+                            onClick={() => setFilter2Value(getFilterValues(filter2))}
                           >
-                            Todos
+                            Selecionar Todos
                           </button>
-                          {getFilterValues(filter2).map(value => (
-                            <button
-                              key={value}
-                              className={filter2Value === value ? 'active' : ''}
-                              onClick={() => setFilter2Value(value)}
-                            >
-                              {value}
-                            </button>
-                          ))}
+                          <button 
+                            className="filter-action-btn"
+                            onClick={() => setFilter2Value([])}
+                          >
+                            Limpar
+                          </button>
+                        </div>
+                        <label>Selecione o(s) valor(es):</label>
+                        <div className="filter-values-list">
+                          {getFilterValues(filter2)
+                            .filter(val => val.toLowerCase().includes(filter2Search.toLowerCase()))
+                            .map(value => (
+                              <label key={value} className="filter-checkbox-item">
+                                <input 
+                                  type="checkbox" 
+                                  checked={filter2Value.includes(value)}
+                                  onChange={() => {
+                                    if (filter2Value.includes(value)) {
+                                      setFilter2Value(filter2Value.filter(v => v !== value))
+                                    } else {
+                                      setFilter2Value([...filter2Value, value])
+                                    }
+                                  }}
+                                />
+                                <span>{value}</span>
+                              </label>
+                            ))}
                         </div>
                       </div>
                     )}
@@ -772,12 +919,31 @@ export default function DataVisualization({ data, headers, smartMapping, insight
               />
             </div>
 
-            {(filter1Value || filter2Value || dateRange.start || dateRange.end || searchTerm) && (
+            {(filter1Value.length > 0 || filter2Value.length > 0 || dateRange.start || dateRange.end || searchTerm) && (
               <button onClick={clearFilters} className="clear-filters-btn">
                 <X size={16} />
                 Limpar
               </button>
             )}
+
+            <button
+              id="export-pdf-btn"
+              onClick={exportToPDF}
+              className={`export-pdf-btn ${(user?.plan === 'pro' || user?.role === 'admin' || user?.role === 'vendas') ? 'active' : 'locked'}`}
+              title={(user?.plan === 'pro' || user?.role === 'admin' || user?.role === 'vendas') ? "Exportar Relatório Completo em PDF" : "Disponível apenas no plano PRO"}
+            >
+              {(user?.plan === 'pro' || user?.role === 'admin' || user?.role === 'vendas') ? (
+                <>
+                  <FileDown size={16} />
+                  <span>Baixar PDF</span>
+                </>
+              ) : (
+                <>
+                  <Lock size={16} />
+                  <span>PDF (PRO)</span>
+                </>
+              )}
+            </button>
           </div>
           <div className="filter-support-notice">
             <Mail size={12} />
@@ -788,7 +954,8 @@ export default function DataVisualization({ data, headers, smartMapping, insight
 
       {insightsComponent}
 
-      <div className="stats-grid">
+      <div id="dashboard-report-content">
+        <div className="stats-grid">
         {summaryStats && summaryStats[0] && (
           <>
             {summaryStats[0].canSum && (
@@ -1051,7 +1218,7 @@ export default function DataVisualization({ data, headers, smartMapping, insight
             <div className="summary-stats">
               <h3>Estatísticas Resumidas</h3>
               <div className="summary-grid">
-                {summaryStats.map((stat: any) => (
+                {summaryStats.slice(0, insightsLimit).map((stat: any) => (
                   <div key={stat.header} className="summary-card">
                     <h4>{stat.header}</h4>
                     <div className="summary-values">
@@ -1103,22 +1270,23 @@ export default function DataVisualization({ data, headers, smartMapping, insight
             {filteredData.length > rowLimit && (
               <div className="table-limit-notice">
                 <Mail size={16} />
-                <span>Se deseja que seja lido mais do que {rowLimit} linhas, faça o upgrade para o plano PRO.</span>
+                <span>Se deseja analisar mais de {rowLimit} linhas, faça o upgrade do seu plano.</span>
                 <a
-                  href="#upgrade"
+                  href="/pricing"
                   onClick={(e) => {
                     e.preventDefault();
-                    document.querySelector('.profile-dropdown-container')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                    window.location.href = '/pricing';
                   }}
                   className="contact-link"
                 >
-                  Upgrade para PRO
+                  Ver Planos e Upgrade
                 </a>
               </div>
             )}
           </div>
         </>
       )}
+    </div>
 
       {(!stats || stats.numericHeaders.length === 0) && (
         <div className="no-numeric-data">

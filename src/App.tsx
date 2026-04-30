@@ -8,6 +8,7 @@ import Vendas from './pages/Vendas'
 import SetPassword from './pages/SetPassword'
 import SecurityStatement from './pages/SecurityStatement'
 import TermsOfUse from './pages/TermsOfUse'
+import Pricing from './pages/Pricing'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { checkAndMigrate } from './services/migrationService'
 
@@ -138,6 +139,7 @@ function AppRoutes() {
       />
       <Route path="/terms" element={<TermsOfUse />} />
       <Route path="/security" element={<SecurityStatement />} />
+      <Route path="/pricing" element={<Pricing />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   )

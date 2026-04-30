@@ -7,7 +7,6 @@ import DataVisualization from '../components/DataVisualization'
 import ChatBot from '../components/ChatBot'
 import { sendSupportMessage } from '../services/supportService'
 import { saveCSVData, loadCSVData, deleteCSVData } from '../services/csvService'
-import { createPaymentLink } from '../services/paymentService'
 import { isTrialExpired, getTrialDaysRemaining } from '../services/authService'
 import { getSmartDiscovery } from '../services/groqService'
 import './Dashboard.css'
@@ -257,27 +256,21 @@ export default function Dashboard() {
                 <div className="profile-plan">
                   <span>Plano Atual:</span>
                   {user?.role === 'user' ? (
-                    user?.isPro ? (
-                      <span className="pro-badge-large">PRO</span>
-                    ) : (
-                      user?.trialEndDate && !isTrialExpired(new Date(user.trialEndDate)) ? (
-                        <span className="trial-badge">Teste Grátis</span>
-                      ) : (
-                        <span className="base-badge">Base</span>
-                      )
-                    )
+                    <span className={`plan-badge ${user?.plan || 'free'}`}>
+                      {user?.plan?.toUpperCase() || 'GRÁTIS'}
+                    </span>
                   ) : (
                     <span className="admin-badge">Admin</span>
                   )}
                 </div>
 
-                {user?.role === 'user' && !user?.isPro && (
+                {user?.role === 'user' && user?.plan !== 'pro' && (
                   <button 
-                    onClick={() => createPaymentLink('pro')} 
+                    onClick={() => window.location.href = '/pricing'} 
                     className="dropdown-upgrade-btn"
                   >
                     <Sparkles size={16} />
-                    {user?.trialEndDate && !isTrialExpired(new Date(user.trialEndDate)) ? 'Ativar Plano PRO' : 'Fazer Upgrade para PRO'}
+                    Fazer Upgrade
                   </button>
                 )}
 
@@ -413,7 +406,12 @@ export default function Dashboard() {
                               <h3>Insights da Lupa</h3>
                             </div>
                             <div className="insights-grid">
-                              {smartDiscovery.insights.map((insight: string, idx: number) => (
+                              {smartDiscovery.insights.slice(0, 
+                                user?.role === 'admin' || user?.role === 'vendas' ? 10 :
+                                (user?.plan === 'pro' ? 6 :
+                                 user?.plan === 'plus' ? 3 :
+                                 user?.plan === 'basic' ? 2 : 1)
+                              ).map((insight: string, idx: number) => (
                                 <div key={idx} className="insight-card">
                                   <div className="insight-number">{idx + 1}</div>
                                   <p>{insight}</p>

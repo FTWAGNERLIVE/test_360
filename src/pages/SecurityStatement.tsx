@@ -86,7 +86,7 @@ export default function SecurityStatement() {
 
         <footer className="legal-footer">
           <p>&copy; 2026 Lupa Analytics AI - Desenvolvido por FTWagner</p>
-          <p>Versão 1.0 - Última atualização: 29 de Abril de 2026</p>
+          <p>Versão 1.1 - Última atualização: 30 de Abril de 2026</p>
         </footer>
       </main>
     </div>

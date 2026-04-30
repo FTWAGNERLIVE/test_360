@@ -21,18 +21,29 @@ interface ChatBotProps {
 export default function ChatBot({ data, headers, onboardingData }: ChatBotProps) {
   const { user } = useAuth()
   
-  // Limite de 60 linhas para o Chat se não for PRO ou Trial Ativo
+  // Limite de linhas para o Chat baseado no Plano
   const limitedData = useMemo(() => {
-    const hasFullAccess = !user || user.role === 'admin' || user.role === 'vendas' || user.isPro || (user.trialEndDate && !isTrialExpired(new Date(user.trialEndDate)))
-    if (hasFullAccess) return data
-    return data.slice(0, 60)
+    if (!user || user.role === 'admin' || user.role === 'vendas') return data
+    
+    // Se for Trial ativo, libera 5000 linhas
+    if (user.trialEndDate && !isTrialExpired(new Date(user.trialEndDate))) return data.slice(0, 5000)
+
+    const userPlan = user.plan || 'free'
+    const limits = {
+      free: 400,
+      basic: 5000,
+      plus: 50000,
+      pro: 200000
+    }
+    const limit = limits[userPlan] || 60
+    return data.slice(0, limit)
   }, [data, user])
 
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: `Olá! Sou o Agente 360, seu assistente de análise de dados. Analisei seu arquivo CSV com ${limitedData.length} registros e ${headers.length} colunas. Como posso ajudá-lo hoje?`,
+      content: `Olá! Sou a Lupa, sua assistente de análise de dados. Analisei seu arquivo CSV com ${limitedData.length} registros e ${headers.length} colunas. Como posso ajudá-lo hoje?`,
       timestamp: new Date()
     }
   ])
@@ -105,7 +116,7 @@ export default function ChatBot({ data, headers, onboardingData }: ChatBotProps)
       <div className="chatbot-header">
         <div className="chatbot-title">
           <Bot size={24} />
-          <h3>Agente 360</h3>
+          <h3>Lupa</h3>
         </div>
         <p className="chatbot-subtitle">Creattive</p>
       </div>

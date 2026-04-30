@@ -24,6 +24,7 @@ export interface UserData {
   onboardingData?: any
   passwordSet?: boolean
   isPro?: boolean
+  plan?: 'free' | 'basic' | 'plus' | 'pro'
 }
 
 const USERS_COLLECTION = 'users'
@@ -312,7 +313,8 @@ export async function login(email: string, password: string): Promise<UserData> 
     createdAt: userData.createdAt?.toDate() || new Date(),
     trialEndDate,
     passwordSet: userData.passwordSet !== undefined ? userData.passwordSet : true,
-    isPro: userData.isPro || false
+    isPro: userData.isPro || false,
+    plan: userData.plan || 'free'
   }
 }
 
@@ -392,7 +394,8 @@ export async function loginWithGoogle(): Promise<UserData> {
       createdAt: userData.createdAt?.toDate() || new Date(),
       trialEndDate,
       passwordSet: userData.passwordSet !== undefined ? userData.passwordSet : true,
-      isPro: userData.isPro || false
+      isPro: userData.isPro || false,
+      plan: userData.plan || 'free'
     }
   } else {
     // Novo usuário - criar documento no Firestore
@@ -581,7 +584,8 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
           createdAt: userData.createdAt?.toDate() || new Date(),
           trialEndDate,
           passwordSet: userData.passwordSet !== undefined ? userData.passwordSet : true,
-          isPro: userData.isPro || false
+          isPro: userData.isPro || false,
+          plan: userData.plan || 'free'
         })
       } else {
         // Documento não existe - criar automaticamente
@@ -706,7 +710,8 @@ export async function getAllUsers(): Promise<UserData[]> {
         createdAt: data.createdAt?.toDate() || new Date(),
         trialEndDate: data.trialEndDate?.toDate() || new Date(),
         onboardingData: data.onboardingData,
-        isPro: data.isPro || false
+        isPro: data.isPro || false,
+        plan: data.plan || 'free'
       })
     })
 
@@ -746,6 +751,9 @@ export async function updateUserData(userId: string, data: Partial<UserData>): P
   if (data.trialEndDate !== undefined) {
     updateData.trialEndDate = Timestamp.fromDate(data.trialEndDate)
   }
+
+  if (data.plan !== undefined) updateData.plan = data.plan
+  if (data.isPro !== undefined) updateData.isPro = data.isPro
 
   await updateDoc(doc(db!, USERS_COLLECTION, userId), updateData)
 }

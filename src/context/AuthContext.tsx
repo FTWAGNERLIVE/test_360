@@ -13,6 +13,7 @@ export interface User {
   createdAt?: Date
   passwordSet?: boolean
   isPro?: boolean
+  plan?: 'free' | 'basic' | 'plus' | 'pro'
 }
 
 export interface OnboardingData {
@@ -64,7 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           onboardingData: firebaseUser.onboardingData,
           trialEndDate: firebaseUser.trialEndDate,
           passwordSet: firebaseUser.passwordSet,
-          isPro: firebaseUser.isPro
+          isPro: firebaseUser.isPro,
+          plan: firebaseUser.plan
         })
       } else {
         setUser(null)
@@ -86,7 +88,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onboardingCompleted: userData.onboardingCompleted,
         onboardingData: userData.onboardingData,
         trialEndDate: userData.trialEndDate,
-        passwordSet: userData.passwordSet
+        passwordSet: userData.passwordSet,
+        plan: userData.plan
       })
       return true
     } catch (error: any) {
@@ -106,7 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onboardingCompleted: userData.onboardingCompleted,
         onboardingData: userData.onboardingData,
         trialEndDate: userData.trialEndDate,
-        passwordSet: userData.passwordSet
+        passwordSet: userData.passwordSet,
+        plan: userData.plan
       })
       return true
     } catch (error: any) {
@@ -126,7 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onboardingCompleted: userData.onboardingCompleted,
         onboardingData: userData.onboardingData,
         trialEndDate: userData.trialEndDate,
-        passwordSet: userData.passwordSet
+        passwordSet: userData.passwordSet,
+        plan: userData.plan
       })
       return true
     } catch (error: any) {

@@ -69,11 +69,25 @@ export default function TermsOfUse() {
           <p>
             Para questões relacionadas a estes termos, entre em contato através do nosso canal de suporte integrado na plataforma.
           </p>
+
+          <h2>10. Planos e Limites de Dados</h2>
+          <p>
+            A Lupa Analytics AI oferece diferentes níveis de serviço baseados no volume de dados processados e funcionalidades extras:
+          </p>
+          <ul>
+            <li><strong>Plano Grátis:</strong> Limite de processamento de até 400 linhas por arquivo.</li>
+            <li><strong>Plano Basic:</strong> Limite de processamento de até 5.000 linhas por arquivo.</li>
+            <li><strong>Plano Plus:</strong> Limite de processamento de até 50.000 linhas por arquivo.</li>
+            <li><strong>Plano Pro:</strong> Limite de processamento de 200.000+ linhas por arquivo.</li>
+          </ul>
+          <p>
+            O upgrade ou downgrade de planos pode ser realizado a qualquer momento através da página de Preços. Os pagamentos são processados via Mercado Pago e a liberação dos recursos ocorre após a confirmação do pagamento.
+          </p>
         </section>
 
         <footer className="legal-footer">
           <p>&copy; 2026 Lupa Analytics AI - Desenvolvido por FTWagner</p>
-          <p>Última atualização: 29 de Abril de 2026</p>
+          <p>Última atualização: 30 de Abril de 2026</p>
         </footer>
       </main>
     </div>
