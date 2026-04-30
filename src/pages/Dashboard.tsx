@@ -403,7 +403,6 @@ export default function Dashboard() {
                       
                       // PRIORIDADE ABSOLUTA: Se for Admin/Staff, não existe limite
                       if (isStaff || isImpersonating) {
-                        const limit = 999
                         return (
                           <button 
                             className={`add-tab-btn ${isAddingNew ? 'active' : ''}`}
