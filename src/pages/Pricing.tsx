@@ -53,7 +53,7 @@ export const PLANS: Record<string, Plan> = {
     color: '#3b82f6',
     icon: <Shield size={24} />,
     popular: true,
-    checkoutUrl: 'https://mpago.la/2YMTwuF'
+    checkoutUrl: 'https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=7a14336197a24cf1ab246b9bbe30a7d3'
   },
   plus: {
     id: 'plus',
@@ -69,7 +69,7 @@ export const PLANS: Record<string, Plan> = {
     ],
     color: '#8b5cf6',
     icon: <Sparkles size={24} />,
-    checkoutUrl: 'https://mpago.la/2awWQQD'
+    checkoutUrl: 'https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=34e35fbb218946f89ffc8ba4aab266de'
   },
   pro: {
     id: 'pro',
@@ -86,7 +86,7 @@ export const PLANS: Record<string, Plan> = {
     ],
     color: '#10b981',
     icon: <Crown size={24} />,
-    checkoutUrl: 'https://mpago.la/18Ze9k6'
+    checkoutUrl: 'https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=58958908ed6841df9e97ad648d85f807'
   }
 }
 
