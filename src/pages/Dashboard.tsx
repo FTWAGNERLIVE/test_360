@@ -383,7 +383,7 @@ export default function Dashboard() {
                       const atLimit = userFiles.length >= limit
                       const isStaff = user?.role === 'admin' || user?.role === 'vendas'
                       
-                      // Se for STAFF (admin/vendas), sempre libera tudo
+                      // PRIORIDADE MÁXIMA: Se for STAFF ou estiver impersonando, libera TUDO sempre
                       if (isStaff || isImpersonating) {
                         return (
                           <button 
@@ -396,7 +396,7 @@ export default function Dashboard() {
                         )
                       }
 
-                      // Se for FREE e atingiu o limite, mostra apagado
+                      // Se for FREE e atingiu o limite, mostra apagado com o aviso de upgrade
                       if (plan === 'free' && atLimit) {
                         return (
                           <button 
