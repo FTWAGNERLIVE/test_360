@@ -31,7 +31,8 @@ export async function saveCSVData(
   csvHeaders: string[], 
   csvFileName?: string,
   targetUserId?: string,
-  smartDiscovery?: any
+  smartDiscovery?: any,
+  docIdToUpdate?: string
 ): Promise<void> {
   if (!db) {
     throw new Error('Firebase não está configurado')
@@ -57,8 +58,8 @@ export async function saveCSVData(
   }
 
   try {
-    const docId = `${userId}_${(csvFileName || 'dados').replace(/\s+/g, '_')}_${Date.now()}`
-    await setDoc(doc(db, CSV_DATA_COLLECTION, docId), csvDataDoc)
+    const finalDocId = docIdToUpdate || `${userId}_${(csvFileName || 'dados').replace(/\s+/g, '_')}_${Date.now()}`
+    await setDoc(doc(db, CSV_DATA_COLLECTION, finalDocId), csvDataDoc)
   } catch (error: any) {
     console.error('❌ Erro ao salvar dados do CSV:', error)
     throw new Error(`Erro ao salvar dados do CSV: ${error.message}`)

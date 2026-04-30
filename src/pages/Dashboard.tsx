@@ -88,9 +88,14 @@ export default function Dashboard() {
     const userPlan = user?.plan || 'free'
     const limit = planLimits[userPlan] || 1
     
-    if (userFiles.length >= limit && !isImpersonating) {
+    // Se não estivermos criando uma aba nova (isAddingNew = false), 
+    // significa que estamos substituindo os dados da aba atual (activeFileId).
+    const isReplacing = !isAddingNew && activeFileId !== null;
+
+    if (!isReplacing && userFiles.length >= limit && !isImpersonating) {
       alert(`Seu plano (${userPlan.toUpperCase()}) permite até ${limit} planilha(s).`)
       setIsAddingNew(false)
+      setLoadingInsights(false)
       return
     }
 
@@ -103,7 +108,9 @@ export default function Dashboard() {
     try {
       const discovery = await getSmartDiscovery(headers, data, effectiveUser?.onboardingData)
       setSmartDiscovery(discovery)
-      await saveCSVData(data, headers, fileName, effectiveUser?.id, discovery)
+      
+      // Passar o activeFileId se for uma substituição
+      await saveCSVData(data, headers, fileName, effectiveUser?.id, discovery, isReplacing ? activeFileId! : undefined)
       
       const files = await listUserFiles(effectiveUser?.id)
       const sortedFiles = [...files].sort((a, b) => {
@@ -112,7 +119,9 @@ export default function Dashboard() {
         return dateB - dateA
       })
       setUserFiles(sortedFiles)
-      if (sortedFiles.length > 0) setActiveFileId(sortedFiles[0].id)
+      if (sortedFiles.length > 0 && !isReplacing) {
+        setActiveFileId(sortedFiles[0].id)
+      }
     } catch (err) {
       console.error("Erro ao salvar/analisar:", err)
       alert("Erro ao salvar os dados. Verifique sua conexão.")
