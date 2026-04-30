@@ -982,11 +982,11 @@
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
   border-radius: 12px;
   width: 280px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
   padding: 16px;
   z-index: 1000;
   display: flex;
@@ -1004,17 +1004,17 @@
   display: flex;
   flex-direction: column;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #eeeeee;
 }
 
 .profile-header strong {
   font-size: 16px;
-  color: var(--text-primary);
+  color: #202124; /* Google Text Black */
 }
 
 .profile-header span {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: #5f6368; /* Google Text Gray */
 }
 
 .profile-plan {
@@ -1025,13 +1025,13 @@
 }
 
 .profile-plan > span {
-  color: var(--text-secondary);
+  color: #5f6368;
   font-size: 14px;
 }
 
 .base-badge {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
+  background: #f1f3f4;
+  color: #5f6368;
   padding: 4px 10px;
   border-radius: 8px;
   font-size: 12px;
@@ -1039,13 +1039,13 @@
 }
 
 .pro-badge-large {
-  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-  color: #000;
+  background: linear-gradient(135deg, #fbbc05 0%, #f9ab00 100%); /* Google Yellow */
+  color: #202124;
   padding: 4px 12px;
   border-radius: 8px;
   font-size: 13px;
   font-weight: bold;
-  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(251, 188, 5, 0.2);
 }
 
 .plan-badge {
@@ -1055,37 +1055,37 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  border: 1px solid transparent;
 }
 
 .plan-badge.free {
-  background: rgba(148, 163, 184, 0.1);
-  color: #94a3b8;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: #f1f3f4;
+  color: #5f6368;
+  border-color: #dadce0;
 }
 
 .plan-badge.basic {
-  background: rgba(66, 133, 244, 0.1);
-  color: #4285F4;
-  border: 1px solid rgba(66, 133, 244, 0.2);
+  background: #e8f0fe;
+  color: #1967d2;
+  border-color: #d2e3fc;
 }
 
 .plan-badge.plus {
-  background: rgba(139, 92, 246, 0.1);
-  color: #8b5cf6;
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  background: #f3e8fd;
+  color: #9333ea;
+  border-color: #e9d5ff;
 }
 
 .plan-badge.pro {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+  background: #e6f4ea;
+  color: #137333;
+  border-color: #ceead6;
 }
 
 .trial-badge {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: #e6f4ea;
+  color: #137333;
+  border-color: #ceead6;
   padding: 4px 10px;
   border-radius: 8px;
   font-size: 12px;
@@ -1093,7 +1093,7 @@
 }
 
 .admin-badge {
-  background: var(--primary);
+  background: #4285f4; /* Google Blue */
   color: white;
   padding: 4px 10px;
   border-radius: 8px;
@@ -1108,26 +1108,24 @@
   gap: 8px;
   width: 100%;
   padding: 10px;
-  background: linear-gradient(135deg, #4285f4, #1a73e8);
+  background: #1a73e8;
   color: white;
   border: none;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: background 0.2s;
   margin-top: 4px;
-  box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
 }
 
 .dropdown-upgrade-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(66, 133, 244, 0.4);
+  background: #1967d2;
 }
 
 .dropdown-divider {
   height: 1px;
-  background: var(--border);
-  margin: 4px 0;
+  background: #eeeeee;
+  margin: 8px 0;
 }
 
 .dropdown-logout-btn {
@@ -1136,7 +1134,7 @@
   gap: 8px;
   padding: 10px;
   background: transparent;
-  color: var(--danger);
+  color: #ea4335; /* Google Red */
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -1147,7 +1145,7 @@
 }
 
 .dropdown-logout-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: #fef7f6;
 }
 
 /* Smart Insights Section */
