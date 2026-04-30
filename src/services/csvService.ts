@@ -6,8 +6,7 @@ import {
   collection,
   query,
   where,
-  getDocs,
-  orderBy
+  getDocs
 } from 'firebase/firestore'
 import { db, auth } from '../config/firebase'
 
@@ -31,7 +30,6 @@ export async function saveCSVData(
   csvData: any[], 
   csvHeaders: string[], 
   csvFileName?: string,
-  csvFileContent?: string,
   targetUserId?: string,
   smartDiscovery?: any
 ): Promise<void> {
@@ -44,19 +42,22 @@ export async function saveCSVData(
   }
 
   const userId = targetUserId || auth.currentUser.uid
-  const csvDataDoc: Omit<CSVData, 'uploadedAt' | 'updatedAt'> & { uploadedAt: Timestamp, updatedAt: Timestamp } = {
+  
+  // Limpar dados para evitar erros de campos vazios/undefined no Firestore
+  const sanitizedDiscovery = smartDiscovery || null
+
+  const csvDataDoc = {
     userId,
     csvData,
     csvHeaders,
     csvFileName: csvFileName || 'dados.csv',
-    csvFileContent: csvFileContent || '',
-    smartDiscovery: smartDiscovery || null,
+    smartDiscovery: sanitizedDiscovery,
     uploadedAt: Timestamp.now(),
     updatedAt: Timestamp.now()
   }
 
   try {
-    const docId = `${userId}_${csvFileName || 'dados'}_${Date.now()}`
+    const docId = `${userId}_${(csvFileName || 'dados').replace(/\s+/g, '_')}_${Date.now()}`
     await setDoc(doc(db, CSV_DATA_COLLECTION, docId), csvDataDoc)
   } catch (error: any) {
     console.error('❌ Erro ao salvar dados do CSV:', error)
@@ -74,8 +75,7 @@ export async function listUserFiles(targetUserId?: string): Promise<any[]> {
   try {
     const q = query(
       collection(db, CSV_DATA_COLLECTION),
-      where('userId', '==', userId),
-      orderBy('uploadedAt', 'desc')
+      where('userId', '==', userId)
     )
     
     const querySnapshot = await getDocs(q)

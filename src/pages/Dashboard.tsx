@@ -42,10 +42,16 @@ export default function Dashboard() {
 
       try {
         const files = await listUserFiles(effectiveUser.id)
-        setUserFiles(files)
+        // Ordenar por data (mais recente primeiro) no cliente para evitar necessidade de índice no Firestore
+        const sortedFiles = [...files].sort((a, b) => {
+          const dateA = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0
+          const dateB = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0
+          return dateB - dateA
+        })
+        setUserFiles(sortedFiles)
 
-        if (files.length > 0) {
-          setActiveFileId(files[0].id)
+        if (sortedFiles.length > 0) {
+          setActiveFileId(sortedFiles[0].id)
           const fileData = await loadFileById(files[0].id)
           if (fileData) {
             setCsvData(fileData.csvData)
@@ -63,7 +69,7 @@ export default function Dashboard() {
     loadData()
   }, [effectiveUser?.id])
 
-  const handleFileUploaded = async (data: any[], headers: string[], fileName?: string, fileContent?: string) => {
+  const handleFileUploaded = async (data: any[], headers: string[], fileName?: string) => {
     // Verificar limite de arquivos do plano
     const planLimits: Record<string, number> = {
       'free': 1,
@@ -88,11 +94,16 @@ export default function Dashboard() {
     try {
       const discovery = await getSmartDiscovery(headers, data, effectiveUser?.onboardingData)
       setSmartDiscovery(discovery)
-      await saveCSVData(data, headers, fileName, fileContent, effectiveUser?.id, discovery)
+      await saveCSVData(data, headers, fileName, effectiveUser?.id, discovery)
       
       const files = await listUserFiles(effectiveUser?.id)
-      setUserFiles(files)
-      if (files.length > 0) setActiveFileId(files[0].id)
+      const sortedFiles = [...files].sort((a, b) => {
+        const dateA = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0
+        const dateB = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0
+        return dateB - dateA
+      })
+      setUserFiles(sortedFiles)
+      if (sortedFiles.length > 0) setActiveFileId(sortedFiles[0].id)
     } catch (err) {
       console.error("Erro ao salvar/analisar:", err)
       alert("Erro ao salvar os dados. Verifique sua conexão.")

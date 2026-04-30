@@ -169,7 +169,7 @@ export const getSmartDiscovery = async (
     // Simulando um delay de processamento para maior "certeza" conforme solicitado pelo usuário
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    const sample = data.slice(0, 40); 
+    const sample = data.slice(0, 10); 
     const dataProfile = generateDataProfile(data, headers);
     
     const prompt = `
@@ -184,7 +184,7 @@ CONTEXTO DO CLIENTE:
 - Setor: ${onboardingData?.industry || 'Geral'}
 - Objetivos: ${JSON.stringify(onboardingData?.goals || [])}
 
-AMOSTRA DOS DADOS (40 linhas):
+AMOSTRA DOS DADOS (10 linhas):
 ${JSON.stringify(sample)}
 
 INSTRUÇÕES CRÍTICAS DE MAPEAMENTO:
@@ -211,7 +211,7 @@ Tipos: "currency", "date", "number", "category", "text", "ignore".
 `;
 
     const response = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile", // Usando o modelo mais potente para garantir o cumprimento das regras
+      model: "llama-3.1-8b-instant", 
       messages: [
         { role: "system", content: "Você é um especialista em BI e Analytics que analisa perfis de dados para extrair inteligência de negócio." },
         { role: "user", content: prompt }
