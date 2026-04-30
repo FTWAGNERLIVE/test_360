@@ -377,16 +377,30 @@ export default function Dashboard() {
                       const planLimits: Record<string, number> = {
                         'free': 1, 'basic': 2, 'plus': 4, 'pro': 8
                       }
-                      const limit = planLimits[user?.plan || 'free'] || 1
+                      const plan = user?.plan || 'free'
+                      const limit = planLimits[plan] || 1
+                      const atLimit = userFiles.length >= limit
+                      
+                      if (plan === 'free' && atLimit && !isImpersonating) {
+                        return (
+                          <button 
+                            className="add-tab-btn faded"
+                            onClick={() => alert("O plano FREE permite apenas 1 aba. Faça upgrade para adicionar mais!")}
+                            title="Limite do plano FREE atingido"
+                          >
+                            <Plus size={18} />
+                          </button>
+                        )
+                      }
+
                       if (userFiles.length < limit || isImpersonating) {
                         return (
                           <button 
                             className={`add-tab-btn ${isAddingNew ? 'active' : ''}`}
                             onClick={handleAddNewTab}
-                            title="Adicionar nova planilha"
+                            title="Adicionar nova análise"
                           >
-                            <Plus size={16} />
-                            <span>Nova Análise</span>
+                            <Plus size={18} />
                           </button>
                         )
                       }
