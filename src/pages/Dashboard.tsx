@@ -87,12 +87,13 @@ export default function Dashboard() {
     
     const userPlan = user?.plan || 'free'
     const limit = planLimits[userPlan] || 1
+    const isStaff = user?.role === 'admin' || user?.role === 'vendas'
     
     // Se não estivermos criando uma aba nova (isAddingNew = false), 
     // significa que estamos substituindo os dados da aba atual (activeFileId).
     const isReplacing = !isAddingNew && activeFileId !== null;
 
-    if (!isReplacing && userFiles.length >= limit && !isImpersonating) {
+    if (!isReplacing && !isStaff && !isImpersonating && userFiles.length >= limit) {
       alert(`Seu plano (${userPlan.toUpperCase()}) permite até ${limit} planilha(s).`)
       setIsAddingNew(false)
       setLoadingInsights(false)
@@ -380,8 +381,23 @@ export default function Dashboard() {
                       const plan = user?.plan || 'free'
                       const limit = planLimits[plan] || 1
                       const atLimit = userFiles.length >= limit
+                      const isStaff = user?.role === 'admin' || user?.role === 'vendas'
                       
-                      if (plan === 'free' && atLimit && !isImpersonating) {
+                      // Se for STAFF (admin/vendas), sempre libera tudo
+                      if (isStaff || isImpersonating) {
+                        return (
+                          <button 
+                            className={`add-tab-btn ${isAddingNew ? 'active' : ''}`}
+                            onClick={handleAddNewTab}
+                            title="Adicionar nova análise (Staff)"
+                          >
+                            <Plus size={18} />
+                          </button>
+                        )
+                      }
+
+                      // Se for FREE e atingiu o limite, mostra apagado
+                      if (plan === 'free' && atLimit) {
                         return (
                           <button 
                             className="add-tab-btn faded"
@@ -393,7 +409,8 @@ export default function Dashboard() {
                         )
                       }
 
-                      if (userFiles.length < limit || isImpersonating) {
+                      // Para outros planos, se não atingiu o limite, mostra normal
+                      if (userFiles.length < limit) {
                         return (
                           <button 
                             className={`add-tab-btn ${isAddingNew ? 'active' : ''}`}
