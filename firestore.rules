@@ -55,22 +55,17 @@ service cloud.firestore {
     
     // Regras para dados do CSV do usuário
     match /user_csv_data/{docId} {
-      // Prioridade: Primeiro checa se é o dono (mais rápido), depois se é admin
-      allow read: if isAuthenticated() && (
-        (resource != null && resource.data.userId == request.auth.uid) || 
-        isAdminOrVendas() ||
-        resource == null
+      // Regra para o dono (rápida e não depende de consulta extra)
+      allow read, delete: if isAuthenticated() && (
+        resource == null || resource.data.userId == request.auth.uid
       );
       
       allow create, update: if isAuthenticated() && (
-        request.resource.data.userId == request.auth.uid || 
-        isAdminOrVendas()
+        request.resource.data.userId == request.auth.uid
       );
-      
-      allow delete: if isAuthenticated() && (
-        (resource != null && resource.data.userId == request.auth.uid) || 
-        isAdminOrVendas()
-      );
+
+      // Regra para Admins/Vendas (consulta extra ao perfil)
+      allow read, write: if isAdminOrVendas();
     }
     
     match /{document=**} {
