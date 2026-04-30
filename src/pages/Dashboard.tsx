@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { LogOut, FileText, Search, Sparkles, Clock, CheckCircle2, HelpCircle, Send, X, LayoutDashboard, Plus } from 'lucide-react'
+import { LogOut, FileText, Search, Sparkles, Clock, CheckCircle2, HelpCircle, Send, X, LayoutDashboard, Plus, CreditCard, ExternalLink } from 'lucide-react'
 import CSVUploader from '../components/CSVUploader'
 import GoogleSheetsImporter from '../components/GoogleSheetsImporter'
 import DataVisualization from '../components/DataVisualization'
@@ -280,7 +280,30 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                {user?.role === 'user' && user?.plan !== 'pro' && (
+                {/* Seção de Gestão de Assinatura (Apenas para clientes pagantes) */}
+                {user?.role === 'user' && user?.plan && user?.plan !== 'free' && (
+                  <div className="subscription-management">
+                    <p>Gerencie sua assinatura no Mercado Pago:</p>
+                    <a 
+                      href="https://www.mercadopago.com.br/subscriptions" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="manage-billing-btn"
+                    >
+                      <CreditCard size={14} />
+                      Gerenciar Pagamentos
+                      <ExternalLink size={14} />
+                    </a>
+                    <button 
+                      className="support-cancel-btn"
+                      onClick={() => window.open('https://wa.me/5592984151281', '_blank')}
+                    >
+                      Precisa de ajuda para cancelar?
+                    </button>
+                  </div>
+                )}
+
+                {user?.role === 'user' && (user?.plan === 'free' || !user?.plan) && (
                   <button 
                     onClick={() => window.location.href = '/pricing'} 
                     className="dropdown-upgrade-btn"

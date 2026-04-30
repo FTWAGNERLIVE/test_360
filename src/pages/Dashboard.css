@@ -599,6 +599,61 @@
   100% { background-position: 0% 50%; }
 }
 
+/* Gestão de Assinatura no Menu */
+.subscription-management {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  margin: 8px 0;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.subscription-management p {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.manage-billing-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px;
+  background: #009ee3; /* Mercado Pago Blue */
+  color: white;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  margin-bottom: 8px;
+}
+
+.manage-billing-btn:hover {
+  background: #0087c1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 158, 227, 0.3);
+}
+
+.support-cancel-btn {
+  width: 100%;
+  padding: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.support-cancel-btn:hover {
+  color: var(--text-primary);
+}
+
 @keyframes pulseGlowChat {
   0%, 100% { box-shadow: 0 10px 25px rgba(155, 81, 224, 0.4); }
   50% { box-shadow: 0 0 30px rgba(155, 81, 224, 0.8); }
