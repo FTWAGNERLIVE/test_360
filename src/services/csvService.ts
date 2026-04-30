@@ -44,30 +44,43 @@ export async function saveCSVData(
 
   const userId = targetUserId || auth.currentUser.uid
   
-  // ESTRATÉGIA PARA ARQUIVOS GIGANTES:
-  // Se o CSV tiver muitas linhas, salvamos apenas uma amostra (ex: 1000 linhas) 
-  // para não estourar o limite de 1MB do Firestore.
-  const MAX_ROWS_TO_SAVE = 1000
-  const isSampled = csvData.length > MAX_ROWS_TO_SAVE
-  const dataToSave = isSampled ? csvData.slice(0, MAX_ROWS_TO_SAVE) : csvData
+  // SANITIZAÇÃO PROFUNDA: Firebase não aceita chaves vazias "" ou campos undefined
+  // Isso acontece muito em arquivos Excel com colunas fantasmas.
+  const cleanHeaders = csvHeaders.filter(h => h && h.trim() !== "")
+  
+  const sanitizedData = csvData.map(row => {
+    const cleanRow: any = {}
+    cleanHeaders.forEach(header => {
+      const val = row[header]
+      cleanRow[header] = (val === undefined || val === null) ? "" : val
+    })
+    return cleanRow
+  })
 
-  // Limpar dados para evitar erros de campos vazios/undefined no Firestore
+  // ESTRATÉGIA PARA ARQUIVOS GIGANTES:
+  const MAX_ROWS_TO_SAVE = 1000
+  const isSampled = sanitizedData.length > MAX_ROWS_TO_SAVE
+  const dataToSave = isSampled ? sanitizedData.slice(0, MAX_ROWS_TO_SAVE) : sanitizedData
+
   const sanitizedDiscovery = smartDiscovery || null
 
   const csvDataDoc = {
     userId,
     csvData: dataToSave,
-    csvHeaders,
+    csvHeaders: cleanHeaders,
     csvFileName: csvFileName || 'dados.csv',
     smartDiscovery: sanitizedDiscovery,
     uploadedAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
-    totalRows: csvData.length,
+    totalRows: sanitizedData.length,
     isSampled
   }
 
   try {
-    const finalDocId = docIdToUpdate || `${userId}_${(csvFileName || 'dados').replace(/\s+/g, '_')}_${Date.now()}`
+    // Gerar um ID de documento limpo e seguro
+    const safeFileName = (csvFileName || 'dados').replace(/[^a-z0-9]/gi, '_').toLowerCase()
+    const finalDocId = docIdToUpdate || `${userId}_${safeFileName}_${Date.now()}`
+    
     await setDoc(doc(db, CSV_DATA_COLLECTION, finalDocId), csvDataDoc)
   } catch (error: any) {
     console.error('❌ Erro ao salvar dados do CSV:', error)
