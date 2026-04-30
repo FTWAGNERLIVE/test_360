@@ -79,18 +79,13 @@ export default function Dashboard() {
   const handleFileUploaded = async (data: any[], headers: string[], fileName?: string) => {
     // Verificar limite de arquivos do plano
     const planLimits: Record<string, number> = {
-      'free': 1,
-      'basic': 2,
-      'plus': 4,
-      'pro': 8
+      'free': 1, 'basic': 2, 'plus': 4, 'pro': 8, 'admin': 999
     }
-    
-    const userPlan = user?.plan || 'free'
+    const userPlan = (user?.plan || 'free').toLowerCase()
     const limit = planLimits[userPlan] || 1
-    const isStaff = user?.role === 'admin' || user?.role === 'vendas'
+    const userRole = (user?.role || 'user').toLowerCase()
+    const isStaff = userRole === 'admin' || userRole === 'vendas' || userPlan === 'admin'
     
-    // Se não estivermos criando uma aba nova (isAddingNew = false), 
-    // significa que estamos substituindo os dados da aba atual (activeFileId).
     const isReplacing = !isAddingNew && activeFileId !== null;
 
     if (!isReplacing && !isStaff && !isImpersonating && userFiles.length >= limit) {
@@ -376,12 +371,13 @@ export default function Dashboard() {
                     {/* Botão de Adicionar Nova Aba (+) */}
                     {(() => {
                       const planLimits: Record<string, number> = {
-                        'free': 1, 'basic': 2, 'plus': 4, 'pro': 8
+                        'free': 1, 'basic': 2, 'plus': 4, 'pro': 8, 'admin': 999
                       }
-                      const plan = user?.plan || 'free'
-                      const limit = planLimits[plan] || 1
+                      const userPlan = (user?.plan || 'free').toLowerCase()
+                      const limit = planLimits[userPlan] || 1
                       const atLimit = userFiles.length >= limit
-                      const isStaff = user?.role === 'admin' || user?.role === 'vendas'
+                      const userRole = (user?.role || 'user').toLowerCase()
+                      const isStaff = userRole === 'admin' || userRole === 'vendas' || userPlan === 'admin'
                       
                       // PRIORIDADE MÁXIMA: Se for STAFF ou estiver impersonando, libera TUDO sempre
                       if (isStaff || isImpersonating) {
@@ -397,7 +393,7 @@ export default function Dashboard() {
                       }
 
                       // Se for FREE e atingiu o limite, mostra apagado com o aviso de upgrade
-                      if (plan === 'free' && atLimit) {
+                      if (userPlan === 'free' && atLimit) {
                         return (
                           <button 
                             className="add-tab-btn faded"
