@@ -1,12 +1,13 @@
-import { 
+import {
+  doc,
+  setDoc,
+  getDoc,
   Timestamp,
   collection,
   query,
   where,
   getDocs,
-  orderBy,
-  limit,
-  deleteDoc
+  orderBy
 } from 'firebase/firestore'
 import { db, auth } from '../config/firebase'
 
