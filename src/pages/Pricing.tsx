@@ -34,7 +34,7 @@ export const PLANS: Record<string, Plan> = {
       { text: 'Suporte Básico', included: true },
       { text: 'Suporte Refinado', included: false },
     ],
-    color: '#64748b',
+    color: '#70757a', // Google Neutral Gray
     icon: <Zap size={24} />
   },
   basic: {
@@ -50,7 +50,7 @@ export const PLANS: Record<string, Plan> = {
       { text: 'Suporte via Email', included: true },
       { text: 'Suporte Refinado', included: false },
     ],
-    color: '#3b82f6',
+    color: '#4285f4', // Google Blue
     icon: <Shield size={24} />,
     popular: true,
     checkoutUrl: 'https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=7a14336197a24cf1ab246b9bbe30a7d3'
@@ -67,7 +67,7 @@ export const PLANS: Record<string, Plan> = {
       { text: '3 insights gerados pela IA', included: true },
       { text: 'Suporte Refinado Prioritário', included: true },
     ],
-    color: '#8b5cf6',
+    color: '#a142f4', // Google Purple
     icon: <Sparkles size={24} />,
     checkoutUrl: 'https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=34e35fbb218946f89ffc8ba4aab266de'
   },
@@ -84,7 +84,7 @@ export const PLANS: Record<string, Plan> = {
       { text: 'Relatório em PDF Profissional', included: true },
       { text: 'Suporte Refinado VIP e Personalizado', included: true },
     ],
-    color: '#10b981',
+    color: '#34a853', // Google Green
     icon: <Crown size={24} />,
     checkoutUrl: 'https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=58958908ed6841df9e97ad648d85f807'
   }
