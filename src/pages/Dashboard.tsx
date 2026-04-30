@@ -58,7 +58,13 @@ export default function Dashboard() {
             setCsvData(fileData.csvData)
             setCsvHeaders(fileData.csvHeaders)
             setSmartDiscovery(fileData.smartDiscovery)
+          } else {
+            // Se falhou ao carregar o arquivo específico, tenta resetar
+            setIsAddingNew(true)
           }
+        } else {
+          // Se não tem nenhum arquivo, força o modo de adição
+          setIsAddingNew(true)
         }
       } catch (error) {
         console.error('Erro ao carregar dados:', error)
@@ -345,13 +351,14 @@ export default function Dashboard() {
                         className={`file-tab-item ${activeFileId === file.id && !isAddingNew ? 'active' : ''}`}
                         onClick={() => handleSwitchFile(file.id)}
                       >
-                        <FileText size={14} />
-                        <span title={file.fileName}>{file.fileName.split('.')[0]}</span>
+                        <FileText size={14} className="tab-icon" />
+                        <span>{file.fileName || 'Planilha sem nome'}</span>
                         <button 
                           className="tab-close-btn"
                           onClick={(e) => handleDeleteFile(e, file.id)}
+                          title="Remover planilha"
                         >
-                          <X size={12} />
+                          <X size={14} />
                         </button>
                       </div>
                     ))}
