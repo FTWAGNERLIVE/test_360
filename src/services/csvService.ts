@@ -1,8 +1,12 @@
 import { 
-  doc, 
-  setDoc, 
-  getDoc,
-  Timestamp 
+  Timestamp,
+  collection,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  limit,
+  deleteDoc
 } from 'firebase/firestore'
 import { db, auth } from '../config/firebase'
 
@@ -51,26 +55,66 @@ export async function saveCSVData(
   }
 
   try {
-    // console.log('💾 Salvando CSV')
-
-    // Salvar no Firestore (um documento por usuário, sempre atualizado)
-    await setDoc(doc(db, CSV_DATA_COLLECTION, userId), csvDataDoc)
-    
-    // console.log('✅ CSV salvo')
+    const docId = `${userId}_${csvFileName || 'dados'}_${Date.now()}`
+    await setDoc(doc(db, CSV_DATA_COLLECTION, docId), csvDataDoc)
   } catch (error: any) {
-    console.error('❌ Erro ao salvar dados do CSV:', {
-      code: error.code,
-      message: error.message,
-      error: error
-    })
+    console.error('❌ Erro ao salvar dados do CSV:', error)
+    throw new Error(`Erro ao salvar dados do CSV: ${error.message}`)
+  }
+}
 
-    if (error.code === 'permission-denied') {
-      throw new Error('Permissão negada. Verifique as regras do Firestore.')
-    } else if (error.code === 'unavailable') {
-      throw new Error('Serviço temporariamente indisponível. Tente novamente em alguns instantes.')
-    } else {
-      throw new Error(`Erro ao salvar dados do CSV: ${error.message || 'Erro desconhecido'}`)
+/**
+ * Lista todos os arquivos CSV salvos pelo usuário
+ */
+export async function listUserFiles(targetUserId?: string): Promise<any[]> {
+  if (!db || !auth?.currentUser) return []
+  const userId = targetUserId || auth.currentUser.uid
+
+  try {
+    const q = query(
+      collection(db, CSV_DATA_COLLECTION),
+      where('userId', '==', userId),
+      orderBy('uploadedAt', 'desc')
+    )
+    
+    const querySnapshot = await getDocs(q)
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      fileName: doc.data().csvFileName,
+      uploadedAt: doc.data().uploadedAt?.toDate(),
+      rowCount: doc.data().csvData?.length || 0
+    }))
+  } catch (error) {
+    console.error('❌ Erro ao listar arquivos:', error)
+    return []
+  }
+}
+
+/**
+ * Carrega um arquivo específico pelo ID
+ */
+export async function loadFileById(fileId: string): Promise<CSVData | null> {
+  if (!db) return null
+  try {
+    const docRef = doc(db, CSV_DATA_COLLECTION, fileId)
+    const docSnap = await getDoc(docRef)
+    
+    if (!docSnap.exists()) return null
+    
+    const data = docSnap.data()
+    return {
+      userId: data.userId,
+      csvData: data.csvData || [],
+      csvHeaders: data.csvHeaders || [],
+      csvFileName: data.csvFileName,
+      csvFileContent: data.csvFileContent,
+      smartDiscovery: data.smartDiscovery,
+      uploadedAt: data.uploadedAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date()
     }
+  } catch (error) {
+    console.error('❌ Erro ao carregar arquivo:', error)
+    return null
   }
 }
 

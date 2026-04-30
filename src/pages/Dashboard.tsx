@@ -6,7 +6,7 @@ import GoogleSheetsImporter from '../components/GoogleSheetsImporter'
 import DataVisualization from '../components/DataVisualization'
 import ChatBot from '../components/ChatBot'
 import { sendSupportMessage } from '../services/supportService'
-import { saveCSVData, loadCSVData, deleteCSVData } from '../services/csvService'
+import { saveCSVData, loadCSVData, deleteCSVData, listUserFiles, loadFileById } from '../services/csvService'
 import { isTrialExpired, getTrialDaysRemaining } from '../services/authService'
 import { getSmartDiscovery } from '../services/groqService'
 import './Dashboard.css'
@@ -26,60 +26,36 @@ export default function Dashboard() {
   const [supportSuccess, setSupportSuccess] = useState(false)
   const [loadingCSV, setLoadingCSV] = useState(true)
   const [importMethod, setImportMethod] = useState<'file' | 'url'>('file')
-  const [showProfileDropdown, setShowProfileDropdown] = useState(false)
+  const [userFiles, setUserFiles] = useState<any[]>([])
+  const [activeFileId, setActiveFileId] = useState<string | null>(null)
+  const [loadingFile, setLoadingFile] = useState(false)
 
   const effectiveUser = impersonatedUser || user
   const isImpersonating = !!impersonatedUser
 
   // Carregar dados salvos ao montar o componente
-  useEffect(() => {
-    const loadSavedData = async () => {
-      if (!effectiveUser?.id) {
+        // Carregar lista de arquivos
+        const files = await listUserFiles(effectiveUser.id)
+        setUserFiles(files)
+
+        if (files.length > 0) {
+          // Carregar o mais recente por padrão se não houver dados ativos
+          setActiveFileId(files[0].id)
+          const fileData = await loadFileById(files[0].id)
+          if (fileData) {
+            setCsvData(fileData.csvData)
+            setCsvHeaders(fileData.csvHeaders)
+            setSmartDiscovery(fileData.smartDiscovery)
+          }
+        }
+        
         setLoadingCSV(false)
         return
+      } catch (err) {
+        console.error('Erro ao carregar dados:', err)
+        setLoadingCSV(false)
       }
-
-      try {
-        // Primeiro tentar carregar do Firestore
-        try {
-          const firestoreData = await loadCSVData(effectiveUser.id)
-          if (firestoreData && firestoreData.csvData.length > 0 && firestoreData.csvHeaders.length > 0) {
-            // console.log('✅ CSV carregado')
-            setCsvData(firestoreData.csvData)
-            setCsvHeaders(firestoreData.csvHeaders)
-            setShowSavedMessage(true)
-            setTimeout(() => setShowSavedMessage(false), 5000)
-            
-            // Disparar Smart Discovery apenas se não estiver cacheado
-            if (firestoreData.smartDiscovery) {
-              setSmartDiscovery(firestoreData.smartDiscovery)
-            } else {
-              setLoadingInsights(true)
-              getSmartDiscovery(firestoreData.csvHeaders, firestoreData.csvData, effectiveUser?.onboardingData)
-                .then(discovery => {
-                  setSmartDiscovery(discovery)
-                  // Salvar com o discovery no Firestore
-                  saveCSVData(firestoreData.csvData, firestoreData.csvHeaders, firestoreData.csvFileName, firestoreData.csvFileContent, effectiveUser?.id, discovery)
-                })
-                .catch((err: any) => console.error("Erro no Smart Discovery:", err))
-                .finally(() => setLoadingInsights(false))
-            }
-
-            // Sincronizar com localStorage como cache
-            if (!isImpersonating && effectiveUser?.id) {
-              localStorage.setItem(`csvData_${effectiveUser.id}`, JSON.stringify(firestoreData.csvData))
-              localStorage.setItem(`csvHeaders_${effectiveUser.id}`, JSON.stringify(firestoreData.csvHeaders))
-              if (firestoreData.smartDiscovery) {
-                localStorage.setItem(`smartDiscovery_${effectiveUser.id}`, JSON.stringify(firestoreData.smartDiscovery))
-              }
-            }
-            
-            setLoadingCSV(false)
-            return
-          }
-        } catch (firestoreError) {
-          console.warn('⚠️ Erro ao carregar do Firestore, tentando localStorage:', firestoreError)
-        }
+    }
 
         // Fallback: tentar carregar do localStorage (apenas para o próprio usuário)
         if (!isImpersonating && effectiveUser?.id) {
@@ -140,26 +116,41 @@ export default function Dashboard() {
   const handleFileUploaded = async (data: any[], headers: string[], fileName?: string, fileContent?: string) => {
     setCsvData(data)
     setCsvHeaders(headers)
-    
-    // Iniciar Smart Discovery
+    setSmartDiscovery(null)
     setLoadingInsights(true)
-    getSmartDiscovery(headers, data, effectiveUser?.onboardingData)
-      .then(discovery => {
-        setSmartDiscovery(discovery)
-        // Salvar dados com o discovery no Firestore
-        saveCSVData(data, headers, fileName, fileContent, effectiveUser?.id, discovery)
-        
-        // Cache local
-        if (!isImpersonating && effectiveUser?.id) {
-          localStorage.setItem(`csvData_${effectiveUser.id}`, JSON.stringify(data))
-          localStorage.setItem(`csvHeaders_${effectiveUser.id}`, JSON.stringify(headers))
-          localStorage.setItem(`smartDiscovery_${effectiveUser.id}`, JSON.stringify(discovery))
-        }
-      })
-      .catch((err: any) => console.error("Erro no Smart Discovery:", err))
-      .finally(() => setLoadingInsights(false))
+    
+    try {
+      const discovery = await getSmartDiscovery(headers, data, effectiveUser?.onboardingData)
+      setSmartDiscovery(discovery)
+      await saveCSVData(data, headers, fileName, fileContent, effectiveUser?.id, discovery)
+      
+      // Atualizar lista de arquivos
+      const files = await listUserFiles(effectiveUser?.id)
+      setUserFiles(files)
+      if (files.length > 0) setActiveFileId(files[0].id)
+    } catch (err) {
+      console.error("Erro ao salvar/analisar:", err)
+    } finally {
+      setLoadingInsights(false)
+    }
+  }
 
-    setShowSavedMessage(false)
+  const handleSwitchFile = async (fileId: string) => {
+    if (fileId === activeFileId) return
+    setLoadingFile(true)
+    try {
+      const fileData = await loadFileById(fileId)
+      if (fileData) {
+        setCsvData(fileData.csvData)
+        setCsvHeaders(fileData.csvHeaders)
+        setSmartDiscovery(fileData.smartDiscovery)
+        setActiveFileId(fileId)
+      }
+    } catch (err) {
+      console.error("Erro ao trocar arquivo:", err)
+    } finally {
+      setLoadingFile(false)
+    }
   }
 
   const handleClearData = async () => {
@@ -372,7 +363,25 @@ export default function Dashboard() {
             <>
               <div className="data-section">
                 <div className="section-header">
-                  <h2>Visualização dos Dados</h2>
+                  <div className="header-title-group">
+                    <h2>Visualização dos Dados</h2>
+                    {userFiles.length > 1 && (
+                      <div className="file-switcher">
+                        {userFiles.map(file => (
+                          <button
+                            key={file.id}
+                            className={`file-tab ${activeFileId === file.id ? 'active' : ''}`}
+                            onClick={() => handleSwitchFile(file.id)}
+                            title={file.fileName}
+                          >
+                            <FileText size={14} />
+                            <span>{file.fileName.split('.')[0]}</span>
+                            <small>{file.rowCount} linhas</small>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <button
                     onClick={handleClearData}
                     className="btn-secondary"

@@ -33,7 +33,7 @@ export const PLANS: Record<string, Plan> = {
       { text: 'Suporte Básico', included: true },
       { text: 'Suporte Refinado', included: false },
     ],
-    color: '#94a3b8',
+    color: '#64748b',
     icon: <Zap size={24} />
   },
   basic: {
@@ -49,7 +49,7 @@ export const PLANS: Record<string, Plan> = {
       { text: 'Suporte via Email', included: true },
       { text: 'Suporte Refinado', included: false },
     ],
-    color: '#4285F4',
+    color: '#3b82f6',
     icon: <Shield size={24} />,
     popular: true
   },
@@ -102,13 +102,25 @@ export default function Pricing() {
       return
     }
 
-    // Simulação de checkout - em produção redirecionaria para Stripe/MercadoPago
+    // SEGURANÇA: Removido o upgrade automático. 
+    // Agora o sistema apenas redireciona para o checkout.
+    // O plano REAL só deve ser alterado via Webhook após confirmação de pagamento.
+    
+    alert(`Redirecionando para o Checkout do Mercado Pago (Plano ${PLANS[planId as keyof typeof PLANS].name})...`);
+    
+    // Simulação de link do Mercado Pago - Aqui entraria a URL gerada pela API
+    const checkoutUrl = 'https://www.mercadopago.com.br/'; // Link temporário
+    window.open(checkoutUrl, '_blank');
+    
+    // NOTA: O código abaixo foi comentado para evitar assinaturas gratuitas.
+    /*
     const confirm = window.confirm(`Deseja assinar o plano ${PLANS[planId as keyof typeof PLANS].name}?`)
     if (confirm) {
       await updateProfile({ plan: planId as any, isPro: true })
       alert('Plano assinado com sucesso!')
       navigate('/dashboard')
     }
+    */
   }
 
   return (

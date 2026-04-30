@@ -369,18 +369,34 @@ export default function DataVisualization({ data, headers, smartMapping, insight
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      // Background dark para a página inteira
+      pdf.setFillColor(15, 23, 42); // #0f172a
+      pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+      
       const imgWidth = pdfWidth - 20;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
-      pdf.setFontSize(18);
+      // Faixa de cabeçalho profissional
+      pdf.setFillColor(30, 41, 59); // #1e293b
+      pdf.rect(0, 0, pdfWidth, 40, 'F');
+      
+      pdf.setFontSize(22);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text('Lupa Analytics AI', 15, 20);
+      
+      pdf.setFontSize(14);
       pdf.setTextColor(66, 133, 244);
-      pdf.text('Relatório Lupa Analytics AI', 10, 15);
+      pdf.text('Relatório Executivo de Dados', 15, 30);
       
       pdf.setFontSize(10);
-      pdf.setTextColor(100, 116, 139);
-      pdf.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 10, 22);
+      pdf.setTextColor(148, 163, 184); // #94a3b8
+      pdf.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, pdfWidth - 15, 20, { align: 'right' });
+      pdf.text(`Usuário: ${user?.name || 'Assinante Lupa'}`, pdfWidth - 15, 28, { align: 'right' });
       
-      pdf.addImage(imgData, 'PNG', 10, 30, imgWidth, imgHeight);
+      // Adicionar a imagem do dashboard abaixo do cabeçalho
+      pdf.addImage(imgData, 'PNG', 10, 50, imgWidth, imgHeight);
       pdf.save(`relatorio-lupa-${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (err) {
       console.error('Erro ao gerar PDF:', err);
