@@ -581,7 +581,6 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
     return () => unsubscribeSnapshot()
   })
 }
-}
 
 /**
  * Buscar todos os usuários (admin/vendas)
