@@ -6,7 +6,7 @@ import GoogleSheetsImporter from '../components/GoogleSheetsImporter'
 import DataVisualization from '../components/DataVisualization'
 import ChatBot from '../components/ChatBot'
 import { sendSupportMessage } from '../services/supportService'
-import { saveCSVData, loadCSVData, deleteCSVData, listUserFiles, loadFileById } from '../services/csvService'
+import { saveCSVData, deleteCSVData, listUserFiles, loadFileById } from '../services/csvService'
 import { isTrialExpired, getTrialDaysRemaining } from '../services/authService'
 import { getSmartDiscovery } from '../services/groqService'
 import './Dashboard.css'
@@ -18,7 +18,6 @@ export default function Dashboard() {
   const [smartDiscovery, setSmartDiscovery] = useState<any>(null)
   const [loadingInsights, setLoadingInsights] = useState(false)
   const [showChat, setShowChat] = useState(false)
-  const [showSavedMessage, setShowSavedMessage] = useState(false)
   const [showSupport, setShowSupport] = useState(false)
   const [supportSubject, setSupportSubject] = useState('')
   const [supportMessage, setSupportMessage] = useState('')
@@ -26,81 +25,32 @@ export default function Dashboard() {
   const [supportSuccess, setSupportSuccess] = useState(false)
   const [loadingCSV, setLoadingCSV] = useState(true)
   const [importMethod, setImportMethod] = useState<'file' | 'url'>('file')
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false)
   const [userFiles, setUserFiles] = useState<any[]>([])
   const [activeFileId, setActiveFileId] = useState<string | null>(null)
-  const [loadingFile, setLoadingFile] = useState(false)
 
   const effectiveUser = impersonatedUser || user
   const isImpersonating = !!impersonatedUser
 
   // Carregar dados salvos ao montar o componente
-        // Carregar lista de arquivos
+  useEffect(() => {
+    const loadData = async () => {
+      if (!effectiveUser?.id) {
+        setLoadingCSV(false)
+        return
+      }
+
+      try {
         const files = await listUserFiles(effectiveUser.id)
         setUserFiles(files)
 
         if (files.length > 0) {
-          // Carregar o mais recente por padrão se não houver dados ativos
           setActiveFileId(files[0].id)
           const fileData = await loadFileById(files[0].id)
           if (fileData) {
             setCsvData(fileData.csvData)
             setCsvHeaders(fileData.csvHeaders)
             setSmartDiscovery(fileData.smartDiscovery)
-          }
-        }
-        
-        setLoadingCSV(false)
-        return
-      } catch (err) {
-        console.error('Erro ao carregar dados:', err)
-        setLoadingCSV(false)
-      }
-    }
-
-        // Fallback: tentar carregar do localStorage (apenas para o próprio usuário)
-        if (!isImpersonating && effectiveUser?.id) {
-          const savedData = localStorage.getItem(`csvData_${effectiveUser.id}`)
-          const savedHeaders = localStorage.getItem(`csvHeaders_${effectiveUser.id}`)
-          
-          if (savedData && savedHeaders) {
-            try {
-              const parsedData = JSON.parse(savedData)
-              const parsedHeaders = JSON.parse(savedHeaders)
-              
-                if (parsedData.length > 0 && parsedHeaders.length > 0) {
-                  // console.log('✅ Cache carregado')
-                  setCsvData(parsedData)
-                  setCsvHeaders(parsedHeaders)
-                  setShowSavedMessage(true)
-                  setTimeout(() => setShowSavedMessage(false), 5000)
-                  
-                  // Disparar Smart Discovery apenas se não estiver cacheado no localStorage
-                  const savedDiscovery = localStorage.getItem(`smartDiscovery_${effectiveUser.id}`)
-                  if (savedDiscovery) {
-                    setSmartDiscovery(JSON.parse(savedDiscovery))
-                  } else {
-                    setLoadingInsights(true)
-                    getSmartDiscovery(parsedHeaders, parsedData, effectiveUser?.onboardingData)
-                      .then(discovery => {
-                        setSmartDiscovery(discovery)
-                        localStorage.setItem(`smartDiscovery_${effectiveUser.id}`, JSON.stringify(discovery))
-                        saveCSVData(parsedData, parsedHeaders, 'dados.csv', '', effectiveUser?.id, discovery)
-                      })
-                      .catch((err: any) => console.error("Erro no Smart Discovery:", err))
-                      .finally(() => setLoadingInsights(false))
-                  }
-
-                  // Tentar sincronizar com Firestore em background
-                  try {
-                    await saveCSVData(parsedData, parsedHeaders)
-                    // console.log('✅ Sincronizado')
-                  } catch (syncError) {
-                    console.warn('⚠️ Erro ao sincronizar com Firestore:', syncError)
-                  }
-                }
-            } catch (error) {
-              console.error('Erro ao carregar dados salvos:', error)
-            }
           }
         }
       } catch (error) {
@@ -110,8 +60,8 @@ export default function Dashboard() {
       }
     }
 
-    loadSavedData()
-  }, [user?.id])
+    loadData()
+  }, [effectiveUser?.id])
 
   const handleFileUploaded = async (data: any[], headers: string[], fileName?: string, fileContent?: string) => {
     setCsvData(data)
@@ -124,7 +74,6 @@ export default function Dashboard() {
       setSmartDiscovery(discovery)
       await saveCSVData(data, headers, fileName, fileContent, effectiveUser?.id, discovery)
       
-      // Atualizar lista de arquivos
       const files = await listUserFiles(effectiveUser?.id)
       setUserFiles(files)
       if (files.length > 0) setActiveFileId(files[0].id)
@@ -137,7 +86,6 @@ export default function Dashboard() {
 
   const handleSwitchFile = async (fileId: string) => {
     if (fileId === activeFileId) return
-    setLoadingFile(true)
     try {
       const fileData = await loadFileById(fileId)
       if (fileData) {
@@ -148,8 +96,6 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.error("Erro ao trocar arquivo:", err)
-    } finally {
-      setLoadingFile(false)
     }
   }
 
@@ -168,7 +114,6 @@ export default function Dashboard() {
     // Remover dados do Firestore
     try {
       await deleteCSVData(effectiveUser?.id)
-      // console.log('✅ Removido')
     } catch (error: any) {
       console.error('❌ Erro ao remover do Firestore:', error)
     }
@@ -310,12 +255,6 @@ export default function Dashboard() {
           </div>
         )}
         
-        {showSavedMessage && (
-          <div className="saved-data-notice">
-            <CheckCircle2 size={20} />
-            <span>Dados carregados automaticamente da sua última sessão</span>
-          </div>
-        )}
         
         <div className="dashboard-content">
           {loadingCSV ? (
