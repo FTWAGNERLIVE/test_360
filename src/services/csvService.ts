@@ -44,17 +44,26 @@ export async function saveCSVData(
 
   const userId = targetUserId || auth.currentUser.uid
   
+  // ESTRATÉGIA PARA ARQUIVOS GIGANTES:
+  // Se o CSV tiver muitas linhas, salvamos apenas uma amostra (ex: 1000 linhas) 
+  // para não estourar o limite de 1MB do Firestore.
+  const MAX_ROWS_TO_SAVE = 1000
+  const isSampled = csvData.length > MAX_ROWS_TO_SAVE
+  const dataToSave = isSampled ? csvData.slice(0, MAX_ROWS_TO_SAVE) : csvData
+
   // Limpar dados para evitar erros de campos vazios/undefined no Firestore
   const sanitizedDiscovery = smartDiscovery || null
 
   const csvDataDoc = {
     userId,
-    csvData,
+    csvData: dataToSave,
     csvHeaders,
     csvFileName: csvFileName || 'dados.csv',
     smartDiscovery: sanitizedDiscovery,
     uploadedAt: Timestamp.now(),
-    updatedAt: Timestamp.now()
+    updatedAt: Timestamp.now(),
+    totalRows: csvData.length,
+    isSampled
   }
 
   try {

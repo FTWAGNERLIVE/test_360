@@ -166,11 +166,11 @@ export const getSmartDiscovery = async (
   if (!API_KEY) return null;
 
   try {
-    // Simulando um delay de processamento para maior "certeza" conforme solicitado pelo usuário
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Simulando um delay de processamento um pouco maior para evitar spam na API (429)
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     const sample = data.slice(0, 10); 
-    const dataProfile = generateDataProfile(data, headers);
+    const dataProfile = generateDataProfile(data.slice(0, 20), headers);
     
     const prompt = `
 [LUPA ANALYTICS - INTELIGÊNCIA DE NEGÓCIOS - PERFIL DE DADOS]
