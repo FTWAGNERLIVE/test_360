@@ -56,8 +56,12 @@ service cloud.firestore {
     // Regras para dados do CSV do usuário
     match /user_csv_data/{docId} {
       // Usuário pode ler seus próprios dados, admin e vendas podem ler de qualquer um
-      allow read: if isAuthenticated() && 
-                     (resource == null || resource.data.userId == request.auth.uid || isAdminOrVendas());
+      allow read: if isAuthenticated() && (
+        isAdminOrVendas() || 
+        (resource != null && resource.data.userId == request.auth.uid) ||
+        // Permitir listagem (onde resource é null na avaliação da regra da coleção)
+        (resource == null)
+      );
       
       // Permitir criação e atualização se o userId gravado for o do próprio usuário ou admin
       allow create, update: if isAuthenticated() && (

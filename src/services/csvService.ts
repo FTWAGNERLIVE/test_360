@@ -12,6 +12,30 @@ import { db, auth } from '../config/firebase'
 
 const CSV_DATA_COLLECTION = 'user_csv_data'
 
+// Função auxiliar para esperar o Firebase Auth estar pronto
+const waitForAuth = (): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    if (auth.currentUser) {
+      resolve(auth.currentUser.uid);
+      return;
+    }
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      unsubscribe();
+      if (user) {
+        resolve(user.uid);
+      } else {
+        reject(new Error("Usuário não autenticado"));
+      }
+    });
+    // Timeout de segurança
+    setTimeout(() => {
+      unsubscribe();
+      if (auth.currentUser) resolve(auth.currentUser.uid);
+      else reject(new Error("Timeout esperando autenticação"));
+    }, 5000);
+  });
+};
+
 export interface CSVData {
   userId: string
   csvData: any[]
@@ -38,11 +62,14 @@ export async function saveCSVData(
     throw new Error('Firebase não está configurado')
   }
 
-  if (!auth || !auth.currentUser) {
+  // Esperar o Auth estar pronto antes de prosseguir
+  let userId: string;
+  try {
+    userId = await waitForAuth();
+    if (targetUserId) userId = targetUserId; // Se for admin impersonando, usa o target
+  } catch (error) {
     throw new Error('Usuário não autenticado. Faça login novamente.')
   }
-
-  const userId = targetUserId || auth.currentUser.uid
   
   // SANITIZAÇÃO PROFUNDA: Firebase não aceita chaves vazias "" ou campos undefined
   // Isso acontece muito em arquivos Excel com colunas fantasmas.
@@ -91,14 +118,22 @@ export async function saveCSVData(
 /**
  * Lista todos os arquivos CSV salvos pelo usuário
  */
-export async function listUserFiles(targetUserId?: string): Promise<any[]> {
-  if (!db || !auth?.currentUser) return []
-  const userId = targetUserId || auth.currentUser.uid
+export async function listUserFiles(userId?: string) {
+  if (!db) return []
+  
+  // Esperar o Auth estar pronto para evitar erro de permissão no carregamento inicial
+  let effectiveUserId: string;
+  try {
+    effectiveUserId = userId || await waitForAuth();
+  } catch (error) {
+    console.warn("Aguardando autenticação para listar arquivos...");
+    return [];
+  }
 
   try {
     const q = query(
       collection(db, CSV_DATA_COLLECTION),
-      where('userId', '==', userId)
+      where('userId', '==', effectiveUserId)
     )
     
     const querySnapshot = await getDocs(q)
