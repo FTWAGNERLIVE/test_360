@@ -10,7 +10,7 @@ import {
   GoogleAuthProvider,
   updatePassword
 } from 'firebase/auth'
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, Timestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, collection, getDocs, Timestamp, onSnapshot } from 'firebase/firestore'
 import { auth, db } from '../config/firebase'
 
 export interface UserData {
@@ -508,72 +508,18 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
     return () => {}
   }
 
-  return onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+  return onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
     if (!firebaseUser || !db) {
       callback(null)
       return
     }
 
-    // console.log('🔐 onAuthStateChange: Sessão verificada')
-
-    try {
-      // Não chamar enableNetwork - o Firestore gerencia a conexão automaticamente
-
-      let userDoc = null
-      let retries = 3
-      
-      while (retries > 0) {
-        try {
-          userDoc = await getDoc(doc(db, USERS_COLLECTION, firebaseUser.uid))
-          break
-        } catch (error: any) {
-          retries--
-          
-          // Log detalhado do erro para debug
-          console.warn(`⚠️ Tentativa de buscar dados do Firestore falhou (${4 - retries}/3):`, {
-            code: error.code,
-            message: error.message,
-            retriesLeft: retries
-          })
-          
-          if ((error.code === 'unavailable' || 
-               error.code === 'failed-precondition' || 
-               error.message?.includes('offline') ||
-               error.message?.includes('client is offline')) && retries > 0) {
-            // Aguardar progressivamente mais tempo entre tentativas
-            const waitTime = 1000 * (4 - retries)
-            console.log(`⏳ Aguardando ${waitTime}ms antes de tentar novamente...`)
-            await new Promise(resolve => setTimeout(resolve, waitTime))
-          } else if (error.code === 'permission-denied') {
-            // Erro de permissão - não adianta tentar novamente
-            console.error('❌ Permissão negada ao buscar dados do usuário. Verifique as regras do Firestore.')
-            // Retornar dados básicos para não bloquear o usuário
-            const trialEndDate = new Date()
-            trialEndDate.setDate(trialEndDate.getDate() + 15)
-            
-            callback({
-              id: firebaseUser.uid,
-              email: firebaseUser.email!,
-              name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
-              role: 'user',
-              onboardingCompleted: false,
-              createdAt: new Date(),
-              trialEndDate
-            })
-            return
-          } else {
-            // Outro tipo de erro - não adianta tentar novamente
-            console.error('❌ Erro ao buscar dados do Firestore:', error)
-            break // Sair do loop e tentar criar documento
-          }
-        }
-      }
-
-      if (userDoc && userDoc.exists()) {
-        const userData = userDoc.data()
+    // Listener em tempo real para o perfil do usuário
+    const userDocRef = doc(db, USERS_COLLECTION, firebaseUser.uid)
+    const unsubscribeSnapshot = onSnapshot(userDocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const userData = snapshot.data()
         const trialEndDate = userData.trialEndDate?.toDate() || new Date()
-        
-        // console.log('✅ Dados carregados')
         
         callback({
           id: firebaseUser.uid,
@@ -588,8 +534,7 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
           plan: userData.plan || 'free'
         })
       } else {
-        // Documento não existe - criar automaticamente
-        // console.log('📝 Novo perfil')
+        // Se o documento não existe, criamos um padrão
         const trialEndDate = new Date()
         trialEndDate.setDate(trialEndDate.getDate() + 15)
         
@@ -603,85 +548,39 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
           passwordSet: false
         }
         
-        try {
-          await setDoc(doc(db, USERS_COLLECTION, firebaseUser.uid), newUserData)
-          // console.log('✅ Perfil criado')
-          
-          callback({
-            id: firebaseUser.uid,
-            email: firebaseUser.email!,
-            name: newUserData.name,
-            role: 'user',
-            onboardingCompleted: false,
-            createdAt: new Date(),
-            trialEndDate,
-            passwordSet: false
-          })
-        } catch (createError: any) {
-          console.warn('⚠️ Não foi possível criar documento no Firestore, usando dados básicos:', createError)
-          // Se não conseguir criar, retornar dados básicos mesmo assim
-          callback({
-            id: firebaseUser.uid,
-            email: firebaseUser.email!,
-            name: newUserData.name,
-            role: 'user',
-            onboardingCompleted: false,
-            createdAt: new Date(),
-            trialEndDate,
-            passwordSet: false
-          })
-        }
-      }
-    } catch (error: any) {
-      // Se der erro mas tiver dados do Firebase Auth, usar dados básicos
-      if (error.code === 'unavailable' || 
-          error.code === 'failed-precondition' ||
-          error.message?.includes('offline') ||
-          error.message?.includes('client is offline')) {
-        console.warn('Firestore offline, usando dados básicos do Firebase Auth:', {
-          code: error.code,
-          message: error.message
+        setDoc(userDocRef, newUserData).catch(err => {
+          console.error("Erro ao criar perfil inicial:", err)
         })
-        const trialEndDate = new Date()
-        trialEndDate.setDate(trialEndDate.getDate() + 15)
-        
+
         callback({
           id: firebaseUser.uid,
           email: firebaseUser.email!,
-          name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
+          name: newUserData.name,
           role: 'user',
           onboardingCompleted: false,
           createdAt: new Date(),
           trialEndDate,
-          passwordSet: true // fallback to avoid redirect loop when offline
+          passwordSet: false
         })
-      } else if (error.code === 'permission-denied') {
-        console.error('Permissão negada ao buscar dados do usuário. Verifique as regras do Firestore.')
-        // Retornar dados básicos para não bloquear o usuário
-        const trialEndDate = new Date()
-        trialEndDate.setDate(trialEndDate.getDate() + 15)
-        
-        callback({
-          id: firebaseUser.uid,
-          email: firebaseUser.email!,
-          name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
-          role: 'user',
-          onboardingCompleted: false,
-          createdAt: new Date(),
-          trialEndDate,
-          passwordSet: true // fallback to avoid redirect loop on permission error
-        })
-      } else {
-        console.error('Erro ao buscar dados do usuário:', {
-          code: error.code,
-          message: error.message,
-          error: error
-        })
-        // Em caso de erro desconhecido, retornar null para forçar novo login
-        callback(null)
       }
-    }
+    }, (error) => {
+      console.error("Erro no listener de usuário:", error)
+      // Fallback em caso de erro de permissão temporário
+      callback({
+        id: firebaseUser.uid,
+        email: firebaseUser.email!,
+        name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
+        role: 'user',
+        onboardingCompleted: false,
+        createdAt: new Date(),
+        trialEndDate: new Date(),
+        passwordSet: true
+      })
+    })
+
+    return () => unsubscribeSnapshot()
   })
+}
 }
 
 /**
