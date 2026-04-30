@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { LogOut, FileText, Search, Sparkles, Clock, CheckCircle2, HelpCircle, Send, X, LayoutDashboard } from 'lucide-react'
+import { LogOut, FileText, Search, Sparkles, Clock, CheckCircle2, HelpCircle, Send, X, LayoutDashboard, Plus } from 'lucide-react'
 import CSVUploader from '../components/CSVUploader'
 import GoogleSheetsImporter from '../components/GoogleSheetsImporter'
 import DataVisualization from '../components/DataVisualization'
@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [importMethod, setImportMethod] = useState<'file' | 'url'>('file')
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
   const [userFiles, setUserFiles] = useState<any[]>([])
+  const [isAddingNew, setIsAddingNew] = useState(false)
   const [activeFileId, setActiveFileId] = useState<string | null>(null)
 
   const effectiveUser = impersonatedUser || user
@@ -82,7 +83,8 @@ export default function Dashboard() {
     const limit = planLimits[userPlan] || 1
     
     if (userFiles.length >= limit && !isImpersonating) {
-      alert(`Seu plano (${userPlan.toUpperCase()}) permite até ${limit} planilha(s) salva(s). Por favor, apague uma planilha antiga ou faça upgrade para enviar mais.`)
+      alert(`Seu plano (${userPlan.toUpperCase()}) permite até ${limit} planilha(s).`)
+      setIsAddingNew(false)
       return
     }
 
@@ -90,6 +92,7 @@ export default function Dashboard() {
     setCsvHeaders(headers)
     setSmartDiscovery(null)
     setLoadingInsights(true)
+    setIsAddingNew(false)
     
     try {
       const discovery = await getSmartDiscovery(headers, data, effectiveUser?.onboardingData)
@@ -113,6 +116,7 @@ export default function Dashboard() {
   }
 
   const handleSwitchFile = async (fileId: string) => {
+    setIsAddingNew(false)
     if (fileId === activeFileId) return
     try {
       const fileData = await loadFileById(fileId)
@@ -135,16 +139,24 @@ export default function Dashboard() {
     try {
       await deleteCSVData(fileId)
       const updatedFiles = await listUserFiles(effectiveUser?.id)
-      setUserFiles(updatedFiles)
+      
+      const sortedFiles = [...updatedFiles].sort((a, b) => {
+        const dateA = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0
+        const dateB = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0
+        return dateB - dateA
+      })
+      
+      setUserFiles(sortedFiles)
       
       if (fileId === activeFileId) {
-        if (updatedFiles.length > 0) {
-          handleSwitchFile(updatedFiles[0].id)
+        if (sortedFiles.length > 0) {
+          handleSwitchFile(sortedFiles[0].id)
         } else {
           setCsvData([])
           setCsvHeaders([])
           setSmartDiscovery(null)
           setActiveFileId(null)
+          setIsAddingNew(true)
         }
       }
     } catch (err) {
@@ -153,25 +165,28 @@ export default function Dashboard() {
     }
   }
 
-  const handleClearData = async () => {
+  const handleAddNewTab = () => {
+    const planLimits: Record<string, number> = {
+      'free': 1,
+      'basic': 2,
+      'plus': 4,
+      'pro': 8
+    }
+    const userPlan = user?.plan || 'free'
+    const limit = planLimits[userPlan] || 1
+
+    if (userFiles.length >= limit && !isImpersonating) {
+      alert(`Seu plano (${userPlan.toUpperCase()}) permite até ${limit} planilha(s). Faça upgrade para adicionar mais!`)
+      return
+    }
+
     setCsvData([])
     setCsvHeaders([])
     setSmartDiscovery(null)
-    
-    // Remover dados salvos do localStorage - apenas se for o próprio usuário
-    if (effectiveUser?.id && !isImpersonating) {
-      localStorage.removeItem(`csvData_${effectiveUser?.id}`)
-      localStorage.removeItem(`csvHeaders_${effectiveUser?.id}`)
-      localStorage.removeItem(`smartDiscovery_${effectiveUser?.id}`)
-    }
-    
-    // Remover dados do Firestore
-    try {
-      await deleteCSVData(effectiveUser?.id)
-    } catch (error: any) {
-      console.error('❌ Erro ao remover do Firestore:', error)
-    }
+    setActiveFileId(null)
+    setIsAddingNew(true)
   }
+
 
   const handleSendSupport = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -318,126 +333,146 @@ export default function Dashboard() {
                 <p>Carregando seus dados...</p>
               </div>
             </div>
-          ) : csvData.length === 0 ? (
-            <div className="upload-section">
-              <div className="upload-card">
-                <FileText size={48} className="upload-icon" />
-                <h2>Conecte seus dados</h2>
-                <p>Escolha como deseja enviar seus dados para análise inteligente</p>
-                
-                <div className="import-method-tabs">
-                  <button 
-                    className={`method-tab ${importMethod === 'file' ? 'active' : ''}`}
-                    onClick={() => setImportMethod('file')}
-                  >
-                    Arquivo CSV
-                  </button>
-                  <button 
-                    className={`method-tab ${importMethod === 'url' ? 'active' : ''}`}
-                    onClick={() => setImportMethod('url')}
-                  >
-                    Google Sheets
-                  </button>
-                </div>
-
-                {importMethod === 'file' ? (
-                  <CSVUploader 
-                    onFileUploaded={handleFileUploaded} 
-                    onboardingData={user?.onboardingData}
-                  />
-                ) : (
-                  <GoogleSheetsImporter 
-                    onDataLoaded={handleFileUploaded}
-                  />
-                )}
-              </div>
-            </div>
           ) : (
             <>
-              <div className="data-section">
-                <div className="section-header">
-                  <div className="header-title-group">
-                    <h2>Visualização dos Dados</h2>
-                    {userFiles.length > 0 && (
-                      <div className="file-switcher">
-                        {userFiles.map(file => (
-                          <div 
-                            key={file.id} 
-                            className={`file-tab-container ${activeFileId === file.id ? 'active' : ''}`}
-                          >
-                            <button
-                              className={`file-tab ${activeFileId === file.id ? 'active' : ''}`}
-                              onClick={() => handleSwitchFile(file.id)}
-                              title={file.fileName}
-                            >
-                              <FileText size={14} />
-                              <span>{file.fileName.split('.')[0]}</span>
-                              <small>{file.rowCount} linhas</small>
-                            </button>
-                            <button 
-                              className="delete-file-btn"
-                              onClick={(e) => handleDeleteFile(e, file.id)}
-                              title="Apagar planilha"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        ))}
+              {/* Barra de Abas Estilo Navegador */}
+              {(userFiles.length > 0 || isAddingNew) && (
+                <div className="dashboard-tabs-container">
+                  <div className="tabs-scroll">
+                    {userFiles.map(file => (
+                      <div 
+                        key={file.id} 
+                        className={`file-tab-item ${activeFileId === file.id && !isAddingNew ? 'active' : ''}`}
+                        onClick={() => handleSwitchFile(file.id)}
+                      >
+                        <FileText size={14} />
+                        <span title={file.fileName}>{file.fileName.split('.')[0]}</span>
+                        <button 
+                          className="tab-close-btn"
+                          onClick={(e) => handleDeleteFile(e, file.id)}
+                        >
+                          <X size={12} />
+                        </button>
                       </div>
+                    ))}
+                    
+                    {/* Botão de Adicionar Nova Aba (+) */}
+                    {(() => {
+                      const planLimits: Record<string, number> = {
+                        'free': 1, 'basic': 2, 'plus': 4, 'pro': 8
+                      }
+                      const limit = planLimits[user?.plan || 'free'] || 1
+                      if (userFiles.length < limit || isImpersonating) {
+                        return (
+                          <button 
+                            className={`add-tab-btn ${isAddingNew ? 'active' : ''}`}
+                            onClick={handleAddNewTab}
+                            title="Adicionar nova planilha"
+                          >
+                            <Plus size={16} />
+                            <span>Nova Análise</span>
+                          </button>
+                        )
+                      }
+                      return null
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* Conteúdo da Aba (Upload ou Visualização) */}
+              {(csvData.length === 0 || isAddingNew) ? (
+                <div className="upload-section">
+                  <div className="upload-card">
+                    <div className="upload-header">
+                      <Sparkles size={32} className="upload-sparkle" />
+                      <h2>{isAddingNew ? 'Adicionar Nova Planilha' : 'Conecte seus dados'}</h2>
+                      <p>Sua IA está pronta para analisar mais um dataset.</p>
+                    </div>
+                    
+                    <div className="import-method-tabs">
+                      <button 
+                        className={`method-tab ${importMethod === 'file' ? 'active' : ''}`}
+                        onClick={() => setImportMethod('file')}
+                      >
+                        Arquivo CSV
+                      </button>
+                      <button 
+                        className={`method-tab ${importMethod === 'url' ? 'active' : ''}`}
+                        onClick={() => setImportMethod('url')}
+                      >
+                        Google Sheets
+                      </button>
+                    </div>
+
+                    {importMethod === 'file' ? (
+                      <CSVUploader 
+                        onFileUploaded={handleFileUploaded} 
+                        onboardingData={user?.onboardingData}
+                      />
+                    ) : (
+                      <GoogleSheetsImporter 
+                        onDataLoaded={handleFileUploaded}
+                      />
+                    )}
+
+                    {isAddingNew && userFiles.length > 0 && (
+                      <button 
+                        className="cancel-upload-btn"
+                        onClick={() => handleSwitchFile(userFiles[0].id)}
+                      >
+                        Cancelar e Voltar
+                      </button>
                     )}
                   </div>
-                  <button
-                    onClick={handleClearData}
-                    className="btn-secondary"
-                  >
-                    Carregar Novo Arquivo
-                  </button>
                 </div>
-
-                {loadingInsights ? (
-                  <div className="processing-data-loader">
-                    <div className="spinner-large"></div>
-                    <h2>Fase de Análise Profunda...</h2>
-                    <p>Nossa IA está lendo uma amostra expandida (40 registros) para garantir 100% de precisão na leitura e montagem do seu dashboard.</p>
-                    <div className="loading-steps">
-                      <span>✓ Leitura de Dados</span>
-                      <span className="active">○ Análise Estrutural</span>
-                      <span>○ Montagem Inteligente</span>
+              ) : (
+                <div className="data-section">
+                  {loadingInsights ? (
+                    <div className="processing-data-loader">
+                      <div className="spinner-large"></div>
+                      <h2>Fase de Análise Profunda...</h2>
+                      <p>Nossa IA está lendo uma amostra expandida (10 registros) para garantir 100% de precisão.</p>
+                      <div className="loading-steps">
+                        <span>✓ Leitura de Dados</span>
+                        <span className="active">○ Análise Estrutural</span>
+                        <span>○ Montagem Inteligente</span>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <>
-                    <DataVisualization 
-                      data={csvData} 
-                      headers={csvHeaders} 
-                      smartMapping={smartDiscovery?.columnMapping}
-                      insightsComponent={
-                        smartDiscovery && smartDiscovery.insights ? (
-                          <div className="smart-insights-section" style={{ marginTop: '24px' }}>
-                            <div className="insights-header">
-                              <Sparkles size={20} className="sparkle-icon" />
-                              <h3>Insights da Lupa</h3>
+                  ) : (
+                    <div className="visualization-container-fade">
+                      <DataVisualization 
+                        data={csvData} 
+                        headers={csvHeaders} 
+                        smartMapping={smartDiscovery?.columnMapping}
+                        insightsComponent={
+                          smartDiscovery && smartDiscovery.insights ? (
+                            <div className="smart-insights-section" style={{ marginTop: '24px' }}>
+                              <div className="insights-header">
+                                <Sparkles size={20} className="sparkle-icon" />
+                                <h3>Insights da Lupa</h3>
+                              </div>
+                              <div className="insights-grid">
+                                {smartDiscovery.insights.slice(0, 
+                                  user?.role === 'admin' || user?.role === 'vendas' ? 10 :
+                                  (user?.plan === 'pro' ? 6 :
+                                   user?.plan === 'plus' ? 3 :
+                                   user?.plan === 'basic' ? 2 : 1)
+                                ).map((insight: string, idx: number) => (
+                                  <div key={idx} className="insight-card">
+                                    <div className="insight-number">{idx + 1}</div>
+                                    <p>{insight}</p>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                            <div className="insights-grid">
-                              {smartDiscovery.insights.slice(0, 
-                                user?.role === 'admin' || user?.role === 'vendas' ? 10 :
-                                (user?.plan === 'pro' ? 6 :
-                                 user?.plan === 'plus' ? 3 :
-                                 user?.plan === 'basic' ? 2 : 1)
-                              ).map((insight: string, idx: number) => (
-                                <div key={idx} className="insight-card">
-                                  <div className="insight-number">{idx + 1}</div>
-                                  <p>{insight}</p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null
-                      }
-                    />
-                  </>
-                )}
-              </div>
+                          ) : null
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
