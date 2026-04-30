@@ -11,7 +11,6 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 }
 
-// Verificar se as variáveis de ambiente essenciais estão presentes
 const isFirebaseConfigured = 
   import.meta.env.VITE_FIREBASE_API_KEY && 
   import.meta.env.VITE_FIREBASE_PROJECT_ID
@@ -20,7 +19,6 @@ let app: FirebaseApp
 let db: Firestore
 let auth: Auth
 
-// Inicializar Firebase apenas se estiver configurado
 if (isFirebaseConfigured) {
   try {
     if (getApps().length > 0) {
@@ -30,8 +28,6 @@ if (isFirebaseConfigured) {
     }
     db = getFirestore(app)
     auth = getAuth(app)
-    
-    // Configuração validada com sucesso
   } catch (error) {
     console.error('❌ Erro ao inicializar o Firebase:', error)
   }

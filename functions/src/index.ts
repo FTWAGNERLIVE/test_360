@@ -41,7 +41,7 @@ export const createMercadoPagoLink = functions.https.onCall(async (data, context
           email: userEmail
         },
         // VITAL: Passa o userId pro webhook saber quem pagou!
-        external_reference: userId, 
+        external_reference: userId,
         back_urls: {
           success: "https://seusite.com/dashboard",
           pending: "https://seusite.com/dashboard",
@@ -83,7 +83,7 @@ export const webhookPagamento = functions.https.onRequest(async (req, res) => {
     if (payload.action === "payment.created" || payload.action === "payment.updated" || payload.type === "payment") {
       // O MP manda apenas o ID do pagamento no webhook. Precisamos buscar os detalhes.
       const paymentId = payload.data?.id || req.query.id || req.body.id;
-      
+
       if (!paymentId) {
         res.status(200).send("Sem ID de pagamento");
         return;
@@ -99,7 +99,7 @@ export const webhookPagamento = functions.https.onRequest(async (req, res) => {
       userId = paymentData.external_reference; // O ID do Firestore que passamos antes!
       valorTransacao = paymentData.transaction_amount;
       transactionId = paymentId.toString();
-    } 
+    }
 
     // Verifica se o pagamento foi confirmado
     const isApproved = statusPagamento === "approved";

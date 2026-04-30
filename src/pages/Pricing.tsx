@@ -17,6 +17,7 @@ interface Plan {
   color: string;
   icon: JSX.Element;
   popular?: boolean;
+  checkoutUrl?: string;
 }
 
 export const PLANS: Record<string, Plan> = {
@@ -51,7 +52,8 @@ export const PLANS: Record<string, Plan> = {
     ],
     color: '#3b82f6',
     icon: <Shield size={24} />,
-    popular: true
+    popular: true,
+    checkoutUrl: 'https://mpago.la/2YMTwuF'
   },
   plus: {
     id: 'plus',
@@ -66,7 +68,8 @@ export const PLANS: Record<string, Plan> = {
       { text: 'Suporte Refinado Prioritário', included: true },
     ],
     color: '#8b5cf6',
-    icon: <Sparkles size={24} />
+    icon: <Sparkles size={24} />,
+    checkoutUrl: 'https://mpago.la/2awWQQD'
   },
   pro: {
     id: 'pro',
@@ -82,7 +85,8 @@ export const PLANS: Record<string, Plan> = {
       { text: 'Suporte Refinado VIP e Personalizado', included: true },
     ],
     color: '#10b981',
-    icon: <Crown size={24} />
+    icon: <Crown size={24} />,
+    checkoutUrl: 'https://mpago.la/18Ze9k6'
   }
 }
 
@@ -102,16 +106,13 @@ export default function Pricing() {
       return
     }
 
-    // SEGURANÇA: Removido o upgrade automático. 
-    // Agora o sistema apenas redireciona para o checkout.
-    // O plano REAL só deve ser alterado via Webhook após confirmação de pagamento.
+    const plan = PLANS[planId as keyof typeof PLANS];
     
-    alert(`Redirecionando para o Checkout do Mercado Pago (Plano ${PLANS[planId as keyof typeof PLANS].name})...`);
-    
-    // Simulação de link do Mercado Pago - Aqui entraria a URL gerada pela API
-    const checkoutUrl = 'https://www.mercadopago.com.br/'; // Link temporário
-    window.open(checkoutUrl, '_blank');
-    
+    if (plan.checkoutUrl) {
+      alert(`Redirecionando para o Checkout do Mercado Pago (Plano ${plan.name})...`);
+      window.open(plan.checkoutUrl, '_blank');
+    }
+
     // NOTA: O código abaixo foi comentado para evitar assinaturas gratuitas.
     /*
     const confirm = window.confirm(`Deseja assinar o plano ${PLANS[planId as keyof typeof PLANS].name}?`)
@@ -135,27 +136,27 @@ export default function Pricing() {
 
       <div className="plans-grid">
         {Object.values(PLANS).map((plan) => (
-          <div 
-            key={plan.id} 
+          <div
+            key={plan.id}
             className={`plan-card ${plan.popular ? 'popular' : ''} ${user?.plan === plan.id ? 'current' : ''}`}
             style={{ '--plan-color': plan.color } as any}
           >
             {plan.popular && <div className="popular-tag">Mais Escolhido</div>}
-            
+
             <div className="plan-icon" style={{ color: plan.color }}>
               {plan.icon}
             </div>
-            
+
             <h2 className="plan-name">{plan.name}</h2>
             <p className="plan-description">{plan.description}</p>
-            
+
             <div className="plan-price">
               <span className="currency">R$</span>
               <span className="amount">{plan.price}</span>
               <span className="period">/mês</span>
             </div>
 
-            <button 
+            <button
               className={`select-plan-btn ${user?.plan === plan.id ? 'current' : ''}`}
               onClick={() => handleSelectPlan(plan.id)}
               disabled={user?.plan === plan.id}
