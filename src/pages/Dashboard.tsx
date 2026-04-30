@@ -64,6 +64,22 @@ export default function Dashboard() {
   }, [effectiveUser?.id])
 
   const handleFileUploaded = async (data: any[], headers: string[], fileName?: string, fileContent?: string) => {
+    // Verificar limite de arquivos do plano
+    const planLimits: Record<string, number> = {
+      'free': 1,
+      'basic': 2,
+      'plus': 4,
+      'pro': 8
+    }
+    
+    const userPlan = user?.plan || 'free'
+    const limit = planLimits[userPlan] || 1
+    
+    if (userFiles.length >= limit && !isImpersonating) {
+      alert(`Seu plano (${userPlan.toUpperCase()}) permite até ${limit} planilha(s) salva(s). Por favor, apague uma planilha antiga ou faça upgrade para enviar mais.`)
+      return
+    }
+
     setCsvData(data)
     setCsvHeaders(headers)
     setSmartDiscovery(null)
@@ -79,6 +95,7 @@ export default function Dashboard() {
       if (files.length > 0) setActiveFileId(files[0].id)
     } catch (err) {
       console.error("Erro ao salvar/analisar:", err)
+      alert("Erro ao salvar os dados. Verifique sua conexão.")
     } finally {
       setLoadingInsights(false)
     }
@@ -96,6 +113,32 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.error("Erro ao trocar arquivo:", err)
+    }
+  }
+
+  const handleDeleteFile = async (e: React.MouseEvent, fileId: string) => {
+    e.stopPropagation()
+    const confirm = window.confirm('Tem certeza que deseja apagar esta planilha?')
+    if (!confirm) return
+
+    try {
+      await deleteCSVData(fileId)
+      const updatedFiles = await listUserFiles(effectiveUser?.id)
+      setUserFiles(updatedFiles)
+      
+      if (fileId === activeFileId) {
+        if (updatedFiles.length > 0) {
+          handleSwitchFile(updatedFiles[0].id)
+        } else {
+          setCsvData([])
+          setCsvHeaders([])
+          setSmartDiscovery(null)
+          setActiveFileId(null)
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao apagar arquivo:", err)
+      alert("Erro ao apagar arquivo.")
     }
   }
 
@@ -304,19 +347,30 @@ export default function Dashboard() {
                 <div className="section-header">
                   <div className="header-title-group">
                     <h2>Visualização dos Dados</h2>
-                    {userFiles.length > 1 && (
+                    {userFiles.length > 0 && (
                       <div className="file-switcher">
                         {userFiles.map(file => (
-                          <button
-                            key={file.id}
-                            className={`file-tab ${activeFileId === file.id ? 'active' : ''}`}
-                            onClick={() => handleSwitchFile(file.id)}
-                            title={file.fileName}
+                          <div 
+                            key={file.id} 
+                            className={`file-tab-container ${activeFileId === file.id ? 'active' : ''}`}
                           >
-                            <FileText size={14} />
-                            <span>{file.fileName.split('.')[0]}</span>
-                            <small>{file.rowCount} linhas</small>
-                          </button>
+                            <button
+                              className={`file-tab ${activeFileId === file.id ? 'active' : ''}`}
+                              onClick={() => handleSwitchFile(file.id)}
+                              title={file.fileName}
+                            >
+                              <FileText size={14} />
+                              <span>{file.fileName.split('.')[0]}</span>
+                              <small>{file.rowCount} linhas</small>
+                            </button>
+                            <button 
+                              className="delete-file-btn"
+                              onClick={(e) => handleDeleteFile(e, file.id)}
+                              title="Apagar planilha"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
                         ))}
                       </div>
                     )}
