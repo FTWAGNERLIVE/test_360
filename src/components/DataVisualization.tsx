@@ -23,30 +23,57 @@ const formatNumber = (value: number) => {
   return value.toLocaleString('pt-BR')
 }
 
-const parseDate = (dateStr: string) => {
-  if (!dateStr || dateStr === 'null' || dateStr === 'undefined') return null
-  const s = String(dateStr).trim()
-
-  // Formato ISO ou similar: 2024-01-01...
-  if (s.match(/^\d{4}-\d{2}-\d{2}/)) {
-    const parts = s.split('T')[0].split('-')
-    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2].substring(0, 2)))
+const parseDate = (dateStr: any) => {
+  if (dateStr === null || dateStr === undefined || dateStr === '' || dateStr === 'null' || dateStr === 'undefined') return null
+  
+  // 1. Tratar Números (Timestamps, Excel, Nanosegundos)
+  const num = Number(dateStr);
+  if (!isNaN(num) && String(dateStr).trim() !== '') {
+    // Excel (dias desde 1900): Geralmente entre 1.000 e 100.000
+    if (num > 1000 && num < 100000) {
+      // Ajuste Excel: data base 30/12/1899 (devido a bug de ano bissexto 1900 do Excel)
+      return new Date(Math.round((num - 25569) * 86400 * 1000));
+    }
+    
+    // Nanosegundos (19 dígitos+): dividimos por 1.000.000 -> ms
+    if (num > 1000000000000000000) return new Date(num / 1000000);
+    
+    // Microsegundos (16 dígitos+): dividimos por 1.000 -> ms
+    if (num > 1000000000000000) return new Date(num / 1000);
+    
+    // Milisegundos (13 dígitos): padrão JS
+    if (num > 1000000000000) return new Date(num);
+    
+    // Segundos (10 dígitos): Unix timestamp
+    if (num > 100000000) return new Date(num * 1000);
   }
 
-  // Formato PT-BR: 01/01/2024
+  const s = String(dateStr).trim()
+
+  // 2. Formato ISO ou similar: 2024-01-01...
+  const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)
+  if (isoMatch) {
+    return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]))
+  }
+
+  // 3. Formato PT-BR ou US: 01/01/2024
   if (s.includes('/')) {
     const parts = s.split(' ')[0].split('/')
     if (parts.length === 3) {
-      if (parts[0].length <= 2 && parts[2].length === 4) {
-        return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]))
+      let day = Number(parts[0])
+      let month = Number(parts[1]) - 1
+      let year = Number(parts[2])
+      
+      if (parts[2].length === 2) year += 2000;
+      if (parts[0].length === 4) { // YYYY/MM/DD
+        year = Number(parts[0])
+        day = Number(parts[2])
       }
-      if (parts[0].length === 4) {
-        return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
-      }
+      return new Date(year, month, day)
     }
   }
 
-  // Tentar Date.parse nativo
+  // 4. Fallback Date.parse
   const d = new Date(s)
   return isNaN(d.getTime()) ? null : d
 }
@@ -481,32 +508,60 @@ export default function DataVisualization({ data, headers, smartMapping, insight
   const trendData = useMemo(() => {
     if (!stats || stats.numericHeaders.length === 0 || !dateHeader) return []
 
+    // 1. Processar todas as datas primeiro
+    const processedRows = limitedData.map(row => {
+      const parsed = parseDate(row[dateHeader])
+      return parsed ? { row, date: parsed } : null
+    }).filter((r): r is { row: any; date: Date } => r !== null)
+
+    if (processedRows.length === 0) return []
+
+    // 2. Decidir o nível de agrupamento baseado no volume de pontos
+    const uniqueDays = new Set(processedRows.map(r => r.date.toISOString().split('T')[0])).size
+    
+    let groupingLevel: 'day' | 'month' | 'year' = 'day'
+    if (uniqueDays > 45) {
+      const uniqueMonths = new Set(processedRows.map(r => `${r.date.getFullYear()}-${r.date.getMonth()}`)).size
+      groupingLevel = uniqueMonths > 40 ? 'year' : 'month'
+    }
+
     const grouped: Record<string, any> = {}
-    limitedData.forEach(row => {
-      const rawDate = row[dateHeader]
-      const parsedDate = parseDate(String(rawDate))
+    processedRows.forEach(({ row, date }) => {
+      let key = ''
+      let displayDate = ''
+      let sortKey = 0
 
-      if (!parsedDate) return
+      if (groupingLevel === 'year') {
+        key = String(date.getFullYear())
+        displayDate = key
+        sortKey = new Date(date.getFullYear(), 0, 1).getTime()
+      } else if (groupingLevel === 'month') {
+        const month = (date.getMonth() + 1).toString().padStart(2, '0')
+        const yearShort = date.getFullYear().toString().slice(-2)
+        key = `${date.getFullYear()}-${month}`
+        displayDate = `${month}/${yearShort}`
+        sortKey = new Date(date.getFullYear(), date.getMonth(), 1).getTime()
+      } else {
+        key = date.toISOString().split('T')[0]
+        displayDate = date.toLocaleDateString('pt-BR')
+        sortKey = date.getTime()
+      }
 
-      // Chave de agrupamento normalizada YYYY-MM-DD
-      const dateKey = parsedDate.toISOString().split('T')[0]
-
-      if (!grouped[dateKey]) {
-        grouped[dateKey] = {
-          date: parsedDate.toLocaleDateString('pt-BR'),
-          sortKey: parsedDate.getTime(),
+      if (!grouped[key]) {
+        grouped[key] = {
+          date: displayDate,
+          sortKey,
           ...stats.numericHeaders.reduce((acc, h) => ({ ...acc, [h]: 0 }), {})
         }
       }
 
       stats.numericHeaders.forEach(header => {
-        grouped[dateKey][header] = (grouped[dateKey][header] || 0) + cleanNumber(row[header])
+        grouped[key][header] = (grouped[key][header] || 0) + (cleanNumber(row[header]) || 0)
       })
     })
 
     return Object.values(grouped)
       .sort((a: any, b: any) => a.sortKey - b.sortKey)
-      .slice(0, 30) // Mostra até 30 pontos no tempo
   }, [limitedData, stats, dateHeader])
 
   // Dados para gráfico de barras/linhas comparativo (ComposedChart)
