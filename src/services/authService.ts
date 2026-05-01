@@ -10,7 +10,7 @@ import {
   GoogleAuthProvider,
   updatePassword
 } from 'firebase/auth'
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, Timestamp, onSnapshot } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, Timestamp, onSnapshot } from 'firebase/firestore'
 import { auth, db } from '../config/firebase'
 
 export interface UserData {
@@ -25,6 +25,7 @@ export interface UserData {
   passwordSet?: boolean
   isPro?: boolean
   plan?: 'free' | 'basic' | 'plus' | 'pro'
+  lastAccess?: Date
 }
 
 const USERS_COLLECTION = 'users'
@@ -304,6 +305,12 @@ export async function login(email: string, password: string): Promise<UserData> 
   const userData = userDoc.data()
   const trialEndDate = userData.trialEndDate?.toDate() || new Date()
   
+  // Atualizar lastAccess
+  const lastAccess = new Date()
+  await updateDoc(doc(db, USERS_COLLECTION, firebaseUser.uid), {
+    lastAccess: Timestamp.fromDate(lastAccess)
+  })
+
   return {
     id: firebaseUser.uid,
     email: firebaseUser.email!,
@@ -314,7 +321,8 @@ export async function login(email: string, password: string): Promise<UserData> 
     trialEndDate,
     passwordSet: userData.passwordSet !== undefined ? userData.passwordSet : true,
     isPro: userData.isPro || false,
-    plan: userData.plan || 'free'
+    plan: userData.plan || 'free',
+    lastAccess
   }
 }
 
@@ -422,10 +430,20 @@ export async function loginWithGoogle(): Promise<UserData> {
       // Continuar mesmo se não conseguir salvar, o Firestore tentará sincronizar depois
     }
 
+    const lastAccess = new Date()
+    try {
+      await updateDoc(doc(db, USERS_COLLECTION, firebaseUser.uid), {
+        lastAccess: Timestamp.fromDate(lastAccess)
+      })
+    } catch (e) {
+      console.warn('Não foi possível atualizar lastAccess:', e)
+    }
+
     return {
       id: firebaseUser.uid,
       ...newUserData,
-      passwordSet: false
+      passwordSet: false,
+      lastAccess
     }
   }
 }
@@ -531,7 +549,8 @@ export function onAuthStateChange(callback: (user: UserData | null) => void): ()
           trialEndDate,
           passwordSet: userData.passwordSet !== undefined ? userData.passwordSet : true,
           isPro: userData.isPro || false,
-          plan: userData.plan || 'free'
+          plan: userData.plan || 'free',
+          lastAccess: userData.lastAccess?.toDate()
         })
       } else {
         // Se o documento não existe, criamos um padrão
@@ -609,7 +628,8 @@ export async function getAllUsers(): Promise<UserData[]> {
         trialEndDate: data.trialEndDate?.toDate() || new Date(),
         onboardingData: data.onboardingData,
         isPro: data.isPro || false,
-        plan: data.plan || 'free'
+        plan: data.plan || 'free',
+        lastAccess: data.lastAccess?.toDate()
       })
     })
 
@@ -659,6 +679,17 @@ export async function updateUserData(userId: string, data: Partial<UserData>): P
 /**
  * Verificar se o trial expirou
  */
+/**
+ * Deletar conta de usuário (Firestore apenas)
+ */
+export async function deleteUserAccount(userId: string): Promise<void> {
+  if (!db) {
+    throw new Error('Firebase não está configurado')
+  }
+
+  await deleteDoc(doc(db, USERS_COLLECTION, userId))
+}
+
 export function isTrialExpired(trialEndDate: Date): boolean {
   return new Date() > trialEndDate
 }

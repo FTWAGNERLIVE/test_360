@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { login as firebaseLogin, loginWithGoogle as firebaseLoginWithGoogle, logout as firebaseLogout, onAuthStateChange, resetPassword, getAllUsers, updateUserData, resetUserPassword, createAccount as firebaseCreateAccount, UserData, isTrialExpired, getTrialDaysRemaining, updateAccountPassword as firebaseUpdatePassword } from '../services/authService'
+import { login as firebaseLogin, loginWithGoogle as firebaseLoginWithGoogle, logout as firebaseLogout, onAuthStateChange, resetPassword, getAllUsers, updateUserData, resetUserPassword, createAccount as firebaseCreateAccount, UserData, isTrialExpired, getTrialDaysRemaining, updateAccountPassword as firebaseUpdatePassword, deleteUserAccount as firebaseDeleteUserAccount } from '../services/authService'
 import { getAllOnboardingData as getFirestoreOnboardingData } from '../services/firestoreService'
 
 export interface User {
@@ -14,6 +14,7 @@ export interface User {
   passwordSet?: boolean
   isPro?: boolean
   plan?: 'free' | 'basic' | 'plus' | 'pro'
+  lastAccess?: Date
 }
 
 export interface OnboardingData {
@@ -43,6 +44,7 @@ interface AuthContextType {
   getTrialDaysRemaining: (trialEndDate: Date) => number
   updatePassword: (password: string) => Promise<void>
   updateProfile: (data: Partial<User>) => Promise<void>
+  deleteUserAccount: (userId: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -66,7 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           trialEndDate: firebaseUser.trialEndDate,
           passwordSet: firebaseUser.passwordSet,
           isPro: firebaseUser.isPro,
-          plan: firebaseUser.plan
+          plan: firebaseUser.plan,
+          lastAccess: firebaseUser.lastAccess
         })
       } else {
         setUser(null)
@@ -89,7 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onboardingData: userData.onboardingData,
         trialEndDate: userData.trialEndDate,
         passwordSet: userData.passwordSet,
-        plan: userData.plan
+        plan: userData.plan,
+        lastAccess: userData.lastAccess
       })
       return true
     } catch (error: any) {
@@ -110,7 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onboardingData: userData.onboardingData,
         trialEndDate: userData.trialEndDate,
         passwordSet: userData.passwordSet,
-        plan: userData.plan
+        plan: userData.plan,
+        lastAccess: userData.lastAccess
       })
       return true
     } catch (error: any) {
@@ -131,7 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onboardingData: userData.onboardingData,
         trialEndDate: userData.trialEndDate,
         passwordSet: userData.passwordSet,
-        plan: userData.plan
+        plan: userData.plan,
+        lastAccess: userData.lastAccess
       })
       return true
     } catch (error: any) {
@@ -233,7 +239,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onboardingCompleted: u.onboardingCompleted,
         onboardingData: u.onboardingData,
         trialEndDate: u.trialEndDate,
-        createdAt: u.createdAt
+        createdAt: u.createdAt,
+        plan: u.plan,
+        lastAccess: u.lastAccess
       }))
     } catch (error: any) {
       console.error('❌ AuthContext: Erro ao buscar usuários:', error)
@@ -276,7 +284,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isTrialExpired,
       getTrialDaysRemaining,
       updatePassword: handleUpdatePassword,
-      updateProfile
+      updateProfile,
+      deleteUserAccount: firebaseDeleteUserAccount
     }}>
       {children}
     </AuthContext.Provider>

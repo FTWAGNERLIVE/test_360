@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Download, User, Building2, Phone, Mail, Calendar, FileText, RefreshCw, Key, Clock, AlertTriangle, CheckCircle, MessageSquare, Users, Shield, Eye, XCircle, UserPlus, Search } from 'lucide-react'
+import { LogOut, Download, User, Building2, Phone, Mail, Calendar, FileText, RefreshCw, Key, Clock, AlertTriangle, CheckCircle, MessageSquare, Users, Shield, Eye, XCircle, UserPlus, Search, X } from 'lucide-react'
 import { getAllOnboardingData as getFirestoreData, ClientStatus } from '../services/firestoreService'
 import { getAllSupportMessages, updateSupportMessageStatus, SupportMessage } from '../services/supportService'
 import { createAccount, updateUserData } from '../services/authService'
@@ -30,10 +30,12 @@ interface UserAccount {
   onboardingCompleted: boolean
   trialEndDate?: Date
   createdAt?: Date
+  plan?: string
+  lastAccess?: Date
 }
 
 export default function Admin() {
-  const { user, logout, getAllOnboardingData, getAllUsers, resetUserPassword, isTrialExpired, getTrialDaysRemaining, impersonateUser } = useAuth()
+  const { user, logout, getAllOnboardingData, getAllUsers, resetUserPassword, isTrialExpired, getTrialDaysRemaining, impersonateUser, deleteUserAccount } = useAuth()
   const navigate = useNavigate()
   const [onboardingData, setOnboardingData] = useState<OnboardingRecord[]>([])
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>([])
@@ -111,14 +113,35 @@ export default function Admin() {
       // Carregar contas de usuários
       try {
         const users = await getAllUsers()
-        setUserAccounts(users.map((u: any) => ({
+        
+        // Verificar auto-deleção de usuários free inativos (40 dias)
+        const now = new Date()
+        const fortyDaysAgo = new Date(now.getTime() - 40 * 24 * 60 * 60 * 1000)
+        let deletedAny = false
+
+        for (const u of users) {
+          if (u.role === 'user' && (u.plan === 'free' || !u.plan) && u.lastAccess) {
+            const lastAccessDate = new Date(u.lastAccess)
+            if (lastAccessDate < fortyDaysAgo) {
+              console.log(`Auto-deletando usuário inativo: ${u.email}`)
+              await deleteUserAccount(u.id)
+              deletedAny = true
+            }
+          }
+        }
+
+        const finalUsers = deletedAny ? await getAllUsers() : users
+
+        setUserAccounts(finalUsers.map((u: any) => ({
           id: u.id,
           email: u.email,
           name: u.name,
           role: u.role,
           onboardingCompleted: u.onboardingCompleted,
           trialEndDate: u.trialEndDate,
-          createdAt: u.createdAt || (u.trialEndDate ? new Date(u.trialEndDate.getTime() - 15 * 24 * 60 * 60 * 1000) : undefined)
+          createdAt: u.createdAt || (u.trialEndDate ? new Date(u.trialEndDate.getTime() - 15 * 24 * 60 * 60 * 1000) : undefined),
+          plan: u.plan || 'free',
+          lastAccess: u.lastAccess
         })))
       } catch (err: any) {
         console.error('❌ Erro ao carregar usuários:', err)
@@ -188,6 +211,21 @@ export default function Admin() {
       alert(err.message || 'Erro ao atualizar perfil do usuário')
     } finally {
       setUpdateRoleLoading(null)
+    }
+  }
+
+  const handleDeleteAccount = async (userId: string, email: string) => {
+    if (!confirm(`Tem certeza que deseja EXCLUIR permanentemente a conta de ${email}? Esta ação não pode ser desfeita.`)) {
+      return
+    }
+
+    try {
+      await deleteUserAccount(userId)
+      alert('Conta excluída com sucesso!')
+      await loadData()
+    } catch (err: any) {
+      console.error('Erro ao excluir conta:', err)
+      alert(err.message || 'Erro ao excluir conta')
     }
   }
 
@@ -691,9 +729,11 @@ export default function Admin() {
                     <th>Email</th>
                     <th>Nome</th>
                     <th>Perfil</th>
+                    <th>Plano</th>
                     <th>Status</th>
                     <th>Trial</th>
                     <th>Dias Restantes</th>
+                    <th>Último Acesso</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
@@ -722,6 +762,11 @@ export default function Admin() {
                               {account.role === 'vendas' && <User size={12} />}
                               {account.role === 'user' && <User size={12} />}
                               {account.role === 'admin' ? 'Admin' : account.role === 'vendas' ? 'Vendas' : 'Cliente'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`plan-badge plan-${account.plan}`}>
+                              {account.plan?.toUpperCase() || 'FREE'}
                             </span>
                           </td>
                           <td>
@@ -768,6 +813,14 @@ export default function Admin() {
                             ) : (
                               <span>-</span>
                             )}
+                          </td>
+                          <td>
+                            <div className="table-cell">
+                              <Clock size={14} />
+                              {account.lastAccess 
+                                ? new Date(account.lastAccess).toLocaleDateString('pt-BR')
+                                : 'Nunca'}
+                            </div>
                           </td>
                           <td>
                             <div className="account-actions">
@@ -818,6 +871,13 @@ export default function Admin() {
                               >
                                 <Key size={14} />
                                 {resetPasswordLoading === account.id ? 'Enviando...' : 'Resetar Senha'}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAccount(account.id, account.email)}
+                                className="delete-account-btn"
+                                title="Excluir Conta"
+                              >
+                                <X size={18} />
                               </button>
                             </div>
                           </td>
