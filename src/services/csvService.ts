@@ -6,7 +6,8 @@ import {
   collection,
   query,
   where,
-  getDocs
+  getDocs,
+  deleteDoc
 } from 'firebase/firestore'
 import { db, auth } from '../config/firebase'
 
@@ -234,7 +235,26 @@ export async function loadCSVData(targetUserId?: string): Promise<CSVData | null
 }
 
 /**
- * Remove os dados do CSV do Firestore
+ * Remove um arquivo específico pelo ID
+ */
+export async function deleteFileById(fileId: string): Promise<void> {
+  if (!db) {
+    throw new Error('Firebase não está configurado')
+  }
+
+  try {
+    await deleteDoc(doc(db, CSV_DATA_COLLECTION, fileId))
+  } catch (error: any) {
+    console.error('❌ Erro ao apagar arquivo no Firestore:', error)
+    if (error.code === 'permission-denied') {
+      throw new Error('Permissão negada. Verifique as regras do Firestore.')
+    }
+    throw error
+  }
+}
+
+/**
+ * Remove os dados do CSV do Firestore (Legado/Reset)
  */
 export async function deleteCSVData(targetUserId?: string): Promise<void> {
   if (!db) {
@@ -248,18 +268,20 @@ export async function deleteCSVData(targetUserId?: string): Promise<void> {
   const userId = targetUserId || auth.currentUser.uid
 
   try {
-    // console.log('🗑️ Removendo CSV')
-
-    await setDoc(doc(db, CSV_DATA_COLLECTION, userId), {
-      userId,
-      csvData: [],
-      csvHeaders: [],
-      csvFileName: '',
-      csvFileContent: '',
-      updatedAt: Timestamp.now()
-    }, { merge: true })
-    
-    // console.log('✅ CSV removido')
+    // Para manter retrocompatibilidade, se o ID for o UID do usuário, limpamos
+    // Se for um ID de arquivo, deletamos
+    if (userId === auth.currentUser.uid) {
+      await setDoc(doc(db, CSV_DATA_COLLECTION, userId), {
+        userId,
+        csvData: [],
+        csvHeaders: [],
+        csvFileName: '',
+        csvFileContent: '',
+        updatedAt: Timestamp.now()
+      }, { merge: true })
+    } else {
+      await deleteDoc(doc(db, CSV_DATA_COLLECTION, userId))
+    }
   } catch (error: any) {
     console.error('❌ Erro ao remover dados do CSV:', {
       code: error.code,

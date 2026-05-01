@@ -1169,8 +1169,8 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                     : 'Distribuição dos Dados'
                   }
                 </h3>
-                <ResponsiveContainer width="100%" height={350}>
-                  <PieChart>
+                <ResponsiveContainer width="100%" height={400}>
+                  <PieChart margin={{ bottom: 20 }}>
                     <Pie
                       data={pieData}
                       cx="50%"
@@ -1188,8 +1188,8 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                           </text>
                         );
                       }}
-                      outerRadius={120}
-                      innerRadius={40}
+                      outerRadius={100}
+                      innerRadius={50}
                       fill="#8884d8"
                       dataKey="value"
                       paddingAngle={2}
@@ -1214,9 +1214,12 @@ export default function DataVisualization({ data, headers, smartMapping, insight
                     />
                     <Legend
                       verticalAlign="bottom"
-                      height={36}
                       iconType="circle"
-                      wrapperStyle={{ cursor: 'pointer' }}
+                      wrapperStyle={{ 
+                        cursor: 'pointer',
+                        paddingTop: '10px',
+                        fontSize: '12px'
+                      }}
                       onClick={(e: any) => {
                         // O payload da legenda no recharts passa o nome no campo "value"
                         if (e && e.value) {

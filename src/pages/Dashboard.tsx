@@ -6,7 +6,7 @@ import GoogleSheetsImporter from '../components/GoogleSheetsImporter'
 import DataVisualization from '../components/DataVisualization'
 import ChatBot from '../components/ChatBot'
 import { sendSupportMessage } from '../services/supportService'
-import { saveCSVData, deleteCSVData, listUserFiles, loadFileById } from '../services/csvService'
+import { saveCSVData, listUserFiles, loadFileById, deleteFileById } from '../services/csvService'
 import { isTrialExpired, getTrialDaysRemaining } from '../services/authService'
 import { getSmartDiscovery } from '../services/groqService'
 import './Dashboard.css'
@@ -148,7 +148,7 @@ export default function Dashboard() {
     if (!confirm) return
 
     try {
-      await deleteCSVData(fileId)
+      await deleteFileById(fileId)
       const updatedFiles = await listUserFiles(effectiveUser?.id)
       
       const sortedFiles = [...updatedFiles].sort((a, b) => {

@@ -531,7 +531,21 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   transition: all 0.3s;
   position: relative;
-  overflow: visible;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-card .recharts-legend-item {
+  margin-right: 15px !important;
+  margin-bottom: 5px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.chart-card .recharts-legend-wrapper {
+  bottom: 0 !important;
+  padding-bottom: 5px;
 }
 
 .chart-card:hover {
