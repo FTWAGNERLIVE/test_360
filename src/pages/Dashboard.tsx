@@ -551,10 +551,10 @@ export default function Dashboard() {
               onClick={() => setShowChat(!showChat)}
             >
               <div className="chat-toggle-icon">
-                <Search size={24} />
+                <Sparkles size={28} />
               </div>
               <span className="chat-toggle-text">
-                {showChat ? 'Ocultar Chat' : 'Converse com a Lupa'}
+                {showChat ? 'Ocultar Chat' : 'Dê uma Lupa nos Dados'}
               </span>
             </button>
           )}

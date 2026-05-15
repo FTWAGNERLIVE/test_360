@@ -14,11 +14,61 @@ export interface ChatMessage {
   content: string;
 }
 
+const calculateDataStats = (data: any[], headers: string[]) => {
+  if (!data || data.length === 0) return "Sem dados para análise.";
+
+  const stats: any = {};
+  
+  headers.forEach(header => {
+    const values = data.map(row => row[header]).filter(v => v !== null && v !== undefined && v !== '');
+    
+    // Identificar tipo de dado
+    const numericValues = values.map(v => {
+      if (typeof v === 'number') return v;
+      const parsed = parseFloat(String(v).replace(',', '.').replace(/[^\d.-]/g, ''));
+      return isNaN(parsed) ? null : parsed;
+    }).filter(v => v !== null) as number[];
+
+    if (numericValues.length > values.length * 0.8) {
+      // É uma coluna numérica
+      const sum = numericValues.reduce((a, b) => a + b, 0);
+      const avg = sum / numericValues.length;
+      stats[header] = {
+        tipo: 'numérico',
+        min: Math.min(...numericValues),
+        max: Math.max(...numericValues),
+        media: avg.toFixed(2),
+        soma: sum.toFixed(2),
+        totalValores: numericValues.length
+      };
+    } else {
+      // É uma coluna categórica/texto
+      const counts: any = {};
+      values.forEach(v => {
+        counts[v] = (counts[v] || 0) + 1;
+      });
+      
+      const sortedCategories = Object.entries(counts)
+        .sort((a: any, b: any) => b[1] - a[1])
+        .slice(0, 5);
+
+      stats[header] = {
+        tipo: 'categórico',
+        topCategorias: sortedCategories.map(([val, count]) => `${val} (${count} ocorrências)`),
+        unicos: Object.keys(counts).length
+      };
+    }
+  });
+
+  return JSON.stringify(stats, null, 2);
+};
+
 const prepareDataContext = (data: any[], headers: string[], onboardingData?: any) => {
   const totalRecords = data.length;
   const columns = headers.join(", ");
   
-  const sampleData = data.slice(0, 10).map(row => {
+  // Amostra pequena para estrutura
+  const sampleData = data.slice(0, 5).map(row => {
     const simplifiedRow: any = {};
     headers.forEach(h => {
       simplifiedRow[h] = row[h];
@@ -26,47 +76,44 @@ const prepareDataContext = (data: any[], headers: string[], onboardingData?: any
     return simplifiedRow;
   });
 
+  // Resumo estatístico para inteligência
+  const statsSummary = calculateDataStats(data, headers);
+
   let onboardingContext = "";
   if (onboardingData && Object.keys(onboardingData).length > 0) {
     onboardingContext = `
-[CONTEXTO DE NEGÓCIO DO CLIENTE - USE PARA CALIBRAR SEU TOM E INSIGHTS]
+[CONTEXTO DE NEGÓCIO DO CLIENTE]
 - Empresa: ${onboardingData.companyName || 'Não informado'}
-- Setor/Indústria: ${onboardingData.industry || 'Não informado'}
-- Objetivos Principais: ${Array.isArray(onboardingData.goals) ? onboardingData.goals.join(", ") : (onboardingData.goals || 'Análise geral')}
-- Perguntas que o cliente quer responder: ${onboardingData.specificQuestions || 'Nenhuma específica'}
-
-REGRA DE PRIVACIDADE: Use essas informações apenas para dar respostas mais inteligentes e personalizadas para o setor do cliente. Não repita os dados pessoais dele na resposta final.
+- Setor: ${onboardingData.industry || 'Não informado'}
+- Objetivos: ${Array.isArray(onboardingData.goals) ? onboardingData.goals.join(", ") : (onboardingData.goals || 'Análise geral')}
 `;
   }
 
   const systemInstructions = `
-1. PERSONA: Você é o Analista Lupa AI, um consultor sênior de BI (Business Intelligence) integrado ao sistema Lupa Analytics AI (desenvolvido por FTWagner). Sua comunicação é executiva, técnica e orientada a resultados.
-
-2. ESCOPO DE ATUAÇÃO E BLOQUEIO (REGRA CRÍTICA):
-   - Você só responde sobre: análise de dados, métricas, tendências de mercado e estratégia de negócios fundamentada nos dados fornecidos.
-   - BLOQUEIO TOTAL: Para qualquer tema sem correlação direta com os dados (ex: culinária, entretenimento, filosofia, biologia), utilize EXATAMENTE a frase: "Como seu Analista de Dados da Lupa AI, meu foco é ajudar você a extrair valor dos seus registros. Não tenho informações sobre esse assunto fora do contexto analítico. Como posso te ajudar com os seus dados hoje?"
-   - Não tente "adaptar" temas irrelevantes para o mundo dos dados. Se o assunto não for negócios ou estatística, bloqueie imediatamente.
-
-3. DIRETRIZES DE ANÁLISE:
-   - CONTEXTUALIZAÇÃO: Use benchmarks de mercado apenas para enriquecer a leitura dos dados reais da planilha.
-   - NÃO REPETIÇÃO: Proibido transcrever tabelas ou dados brutos que já estão visíveis na interface. Foque na interpretação ("por que os números mudaram?") e não na leitura ("quais são os números?").
-   - PRIVACIDADE: Ignore qualquer informação de identificação pessoal (PII).
-
-4. ESTILO E FORMATO:
-   - Use Markdown (Bullet points e negrito) para facilitar a leitura rápida.
-   - Respostas curtas, sem introduções prolixas.
-   - Tom de voz: Útil, sóbrio e direto ao ponto.
+1. PERSONA: Você é o Analista Lupa AI, consultor sênior de BI e Estratégia.
+2. MISSÃO: Analisar o dataset fornecido e responder perguntas de negócio.
+3. CONTEXTO ANALÍTICO: Você recebeu um RESUMO ESTATÍSTICO do dataset inteiro. Use esses números para dar respostas precisas sobre totais, médias e tendências, mesmo que você não veja todas as linhas individualmente.
+4. REGRAS:
+   - Use Markdown para formatação.
+   - Seja direto e executivo.
+   - Se perguntarem algo fora de dados/negócios, use a frase padrão de bloqueio.
+   - PRIORIZE INSIGHTS: Não diga apenas "o valor é X", diga "o valor é X, o que indica uma tendência de Y".
 `;
 
   return `
-CONTEXTO DO DATASET (Lupa Analytics AI):
-- Total de registros: ${totalRecords}
-- Colunas disponíveis: ${columns}
-- Amostra dos dados (primeiras 10 linhas):
+--- DATASET SUMMARY ---
+Total de registros: ${totalRecords}
+Colunas: ${columns}
+
+--- ESTATÍSTICAS GERAIS (BASEADAS NO DATASET COMPLETO) ---
+${statsSummary}
+
+--- AMOSTRA INICIAL ---
 ${JSON.stringify(sampleData, null, 2)}
+
 ${onboardingContext}
 
-INSTRUÇÕES DO SISTEMA:
+--- INSTRUÇÕES ---
 ${systemInstructions}
 `;
 };
@@ -76,45 +123,44 @@ export const chatWithGroq = async (
   history: ChatMessage[], 
   data: any[], 
   headers: string[],
-  onboardingData?: any
+  onboardingData: any,
+  onStream: (chunk: string) => void
 ) => {
   if (!API_KEY) {
-    return "Erro: Chave de API do Groq não configurada. Por favor, adicione VITE_GROQ_API_KEY ao seu arquivo .env e reinicie o servidor com 'npm run dev'.";
+    onStream("Erro: Chave de API do Groq não configurada.");
+    return;
   }
 
   try {
     const dataContext = prepareDataContext(data, headers, onboardingData);
     
-    const systemMessage = {
-      role: "system",
-      content: dataContext
-    };
+    const messages: any[] = [
+      { role: "system", content: dataContext },
+      ...history.map(msg => ({ role: msg.role, content: msg.content })),
+      { role: "user", content: userMessage }
+    ];
 
-    const formattedHistory: any[] = history.map(msg => ({
-      role: msg.role,
-      content: msg.content
-    }));
-
-    const response = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant", // Atualizado para o modelo suportado mais recente
-      messages: [
-        systemMessage,
-        ...formattedHistory,
-        { role: "user", content: userMessage }
-      ],
-      temperature: 0.7,
-      max_tokens: 1000
+    const stream = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages,
+      temperature: 0.5,
+      max_tokens: 2000,
+      stream: true,
     });
 
-    return response.choices[0]?.message?.content || "Desculpe, não consegui formular uma resposta.";
-  } catch (error: any) {
-    console.error("❌ Erro ao chamar o Groq:", error);
-
-    if (error.status === 401 || error.message?.includes("Invalid API Key")) {
-      return "Erro: Sua chave de API do Groq é inválida. Acesse console.groq.com/keys para pegar a chave correta.";
+    let fullResponse = "";
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || "";
+      if (content) {
+        fullResponse += content;
+        onStream(fullResponse);
+      }
     }
 
-    return "Ops! Ocorreu um erro na conexão com a inteligência artificial. Verifique sua conexão e sua chave de API.";
+    return fullResponse;
+  } catch (error: any) {
+    console.error("❌ Erro no streaming do Groq:", error);
+    onStream("Ops! Ocorreu um erro na conexão com a inteligência artificial.");
   }
 };
 

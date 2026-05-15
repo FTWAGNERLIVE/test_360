@@ -81,21 +81,37 @@ export default function ChatBot({ data, headers, onboardingData }: ChatBotProps)
         content: msg.content
       })).slice(1) // Skip first assistant message
 
-      const response = await chatWithGroq(currentInput, history, limitedData, headers, onboardingData)
+      const assistantMessageId = (Date.now() + 1).toString()
       
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+      // Adiciona uma mensagem vazia para o assistente que será preenchida pelo stream
+      setMessages(prev => [...prev, {
+        id: assistantMessageId,
         role: 'assistant',
-        content: response,
+        content: '',
         timestamp: new Date()
-      }
-      setMessages(prev => [...prev, assistantMessage])
+      }])
+
+      await chatWithGroq(
+        currentInput, 
+        history, 
+        limitedData, 
+        headers, 
+        onboardingData,
+        (fullText) => {
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, content: fullText }
+              : msg
+          ))
+        }
+      )
+      
     } catch (error) {
       console.error('ChatBot Error:', error)
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Desculpe, ocorreu um erro ao processar sua solicitação com o Gemini. Verifique sua conexão ou a chave de API.',
+        content: 'Desculpe, ocorreu um erro ao processar sua solicitação com o Lupa AI. Verifique sua conexão ou a chave de API.',
         timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMessage])
@@ -145,7 +161,7 @@ export default function ChatBot({ data, headers, onboardingData }: ChatBotProps)
             </div>
           </div>
         ))}
-        {isLoading && (
+        {isLoading && !messages.find(m => m.role === 'assistant' && m.content === '' && m.id === (messages[messages.length-1]?.role === 'assistant' ? messages[messages.length-1].id : '')) && (
           <div className="message assistant">
             <div className="message-avatar">
               <Bot size={20} />
