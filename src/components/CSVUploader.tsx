@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { Upload, FileCheck, AlertCircle, Download } from 'lucide-react'
 import Papa from 'papaparse'
+import * as XLSX from 'xlsx'
 import './CSVUploader.css'
 
 interface OnboardingData {
@@ -52,52 +53,151 @@ export default function CSVUploader({ onFileUploaded, onboardingData }: CSVUploa
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const processFile = async (file: File) => {
-    if (!file.name.endsWith('.csv')) {
-      setError('Por favor, envie apenas arquivos CSV')
+    const isCsv = file.name.endsWith('.csv')
+    const isExcel = file.name.endsWith('.xls') || file.name.endsWith('.xlsx')
+
+    if (!isCsv && !isExcel) {
+      setError('Por favor, envie apenas arquivos CSV ou Excel (.xls, .xlsx)')
       return
     }
 
     setIsProcessing(true)
     setError('')
 
-    // Ler o conteúdo do arquivo como texto para salvar depois
+    // Tentar ler o conteúdo como texto para o caso de CSV (para histórico/salvamento)
     let fileContent = ''
-    try {
-      fileContent = await file.text()
-    } catch (error) {
-      console.warn('⚠️ Não foi possível ler o conteúdo do arquivo:', error)
+    if (isCsv) {
+      try {
+        fileContent = await file.text()
+      } catch (error) {
+        console.warn('⚠️ Não foi possível ler o conteúdo do arquivo:', error)
+      }
     }
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        if (results.errors.length > 0) {
-          setError('Erro ao processar o arquivo CSV. Verifique o formato.')
+    if (isCsv) {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          if (results.errors.length > 0) {
+            setError('Erro ao processar o arquivo CSV. Verifique o formato.')
+            setIsProcessing(false)
+            return
+          }
+
+          const data = results.data as any[]
+          const headers = results.meta.fields || []
+
+          if (data.length === 0) {
+            setError('O arquivo CSV está vazio')
+            setIsProcessing(false)
+            return
+          }
+
+          setTimeout(() => {
+            onFileUploaded(data, headers, file.name, fileContent)
+            setIsProcessing(false)
+          }, 1500)
+        },
+        error: (error) => {
+          setError('Erro ao ler o arquivo CSV: ' + error.message)
           setIsProcessing(false)
-          return
         }
+      })
+    } else if (isExcel) {
+      try {
+        const buffer = await file.arrayBuffer()
+        const workbook = XLSX.read(buffer, { type: 'array' })
+        
+        // Pega a primeira planilha
+        const firstSheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[firstSheetName]
+        
+        // Lê como array 2D para inspecionar a estrutura
+        const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]
+        
+        // Heurística para detectar o "Relatório Financeiro do Clube" (que é todo desestruturado)
+        const isRelatorioBaguncado = rawData.slice(0, 20).some(row => {
+          if (!row) return false;
+          const rowStr = row.join(' ').toLowerCase();
+          return rowStr.includes('tempo atraso') || 
+                 rowStr.includes('categoria associado') ||
+                 rowStr.includes('parcelas em atraso');
+        });
 
-        const data = results.data as any[]
-        const headers = results.meta.fields || []
+        let data: any[] = [];
+        let headers: string[] = [];
 
+        if (isRelatorioBaguncado) {
+          console.log('Detectado relatório financeiro desestruturado. Limpando dados...');
+          headers = ["Número", "Nome", "Categoria Associado", "Tempo Atraso", "Parcelas em atraso", "Data", "Total"];
+          
+          for (let i = 0; i < rawData.length; i++) {
+            const row = rawData[i];
+            if (!row || row.length < 5) continue;
+            
+            // Baseado na estrutura do XLS analisado
+            const numero = row[2];
+            const nome = row[4];
+            
+            if (numero && nome && String(numero).trim() !== 'Número' && String(nome).trim() !== 'Nome') {
+              data.push({
+                "Número": String(numero).trim(),
+                "Nome": String(nome).trim(),
+                "Categoria Associado": row[13] || '',
+                "Tempo Atraso": row[14] || '',
+                "Parcelas em atraso": row[19] || '',
+                "Data": row[23] || '',
+                "Total": row[28] || 0
+              });
+            }
+          }
+        } else {
+          // Detecta a melhor linha de cabeçalho (com mais colunas preenchidas) nas primeiras 20 linhas
+          let bestHeaderRowIndex = 0;
+          let maxNonEmpty = 0;
+          
+          for (let i = 0; i < Math.min(20, rawData.length); i++) {
+             const row = rawData[i];
+             if (!row) continue;
+             const nonEmptyCount = row.filter(cell => cell !== undefined && cell !== null && String(cell).trim() !== '').length;
+             if (nonEmptyCount > maxNonEmpty) {
+                maxNonEmpty = nonEmptyCount;
+                bestHeaderRowIndex = i;
+             }
+          }
+          
+          if (bestHeaderRowIndex > 0 && maxNonEmpty >= 2) {
+             data = XLSX.utils.sheet_to_json(worksheet, { range: bestHeaderRowIndex, defval: '' }) as any[];
+          } else {
+             data = XLSX.utils.sheet_to_json(worksheet, { defval: '' }) as any[];
+          }
+
+          if (data.length > 0) {
+            headers = Object.keys(data[0]).filter(k => !k.startsWith('__EMPTY'));
+          }
+        }
+        
         if (data.length === 0) {
-          setError('O arquivo CSV está vazio')
+          setError('A planilha Excel está vazia ou não possui dados reconhecíveis')
           setIsProcessing(false)
           return
         }
 
-        // Simular processamento
+        // Opcional: Converter dados de volta para CSV como string para passar no fileContent se precisar
+        const csvContent = isRelatorioBaguncado 
+          ? Papa.unparse(data) // Gera um CSV limpo do relatório
+          : XLSX.utils.sheet_to_csv(worksheet);
+
         setTimeout(() => {
-          onFileUploaded(data, headers, file.name, fileContent)
+          onFileUploaded(data, headers, file.name, csvContent)
           setIsProcessing(false)
         }, 1500)
-      },
-      error: (error) => {
-        setError('Erro ao ler o arquivo: ' + error.message)
+      } catch (err: any) {
+        setError('Erro ao ler a planilha Excel: ' + (err.message || 'Formato inválido'))
         setIsProcessing(false)
       }
-    })
+    }
   }
 
   const handleDrop = async (e: React.DragEvent) => {
@@ -202,7 +302,7 @@ Teclado,Periféricos,6000,2024-01-19,Norte`
         <input
           ref={fileInputRef}
           type="file"
-          accept=".csv"
+          accept=".csv,.xls,.xlsx"
           onChange={handleFileSelect}
           style={{ display: 'none' }}
         />
@@ -210,15 +310,15 @@ Teclado,Periféricos,6000,2024-01-19,Norte`
         {isProcessing ? (
           <>
             <div className="spinner"></div>
-            <p>Processando arquivo com Farol 360...</p>
+            <p>Processando arquivo com Lupa Analytics AI...</p>
           </>
         ) : (
           <>
             <Upload size={48} className="upload-icon" />
             <p className="upload-text">
-              <strong>Clique aqui</strong> ou arraste um arquivo CSV
+              <strong>Clique aqui</strong> ou arraste uma planilha
             </p>
-            <p className="upload-hint">Formatos suportados: .csv</p>
+            <p className="upload-hint">Formatos suportados: .csv, .xls, .xlsx</p>
           </>
         )}
       </div>

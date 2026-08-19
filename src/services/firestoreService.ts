@@ -80,14 +80,6 @@ export async function saveOnboardingData(data: Omit<OnboardingData, 'timestamp'>
     timestamp: Timestamp.now()
   }
 
-  console.log('💾 Salvando dados de onboarding:', {
-    userId: currentUserId,
-    email: currentUserEmail,
-    companyName: dataToSave.companyName,
-    industry: dataToSave.industry,
-    goalsCount: dataToSave.goals.length
-  })
-
   try {
     // Criar promise de salvamento
     const savePromise = addDoc(collection(db, ONBOARDING_COLLECTION), dataToSave)
@@ -102,7 +94,7 @@ export async function saveOnboardingData(data: Omit<OnboardingData, 'timestamp'>
     // Executar com timeout
     const docRef = await Promise.race([savePromise, timeoutPromise])
 
-    console.log('✅ Dados salvos com sucesso! ID do documento:', docRef.id)
+    // console.log('✅ Dados salvos')
     return docRef.id
 
   } catch (error: any) {
@@ -180,13 +172,13 @@ export async function updateClientStatus(onboardingId: string, status: ClientSta
   }
 
   try {
-    console.log('🔄 Atualizando status do cliente:', { onboardingId, status })
+    // console.log('🔄 Atualizando status')
 
     await updateDoc(doc(db, ONBOARDING_COLLECTION, onboardingId), {
       status: status
     })
 
-    console.log('✅ Status atualizado com sucesso!')
+    // console.log('✅ Sucesso')
   } catch (error: any) {
     console.error('❌ Erro ao atualizar status:', {
       code: error.code,

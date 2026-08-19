@@ -1,83 +1,70 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { LogOut, FileText, BarChart3, MessageCircle, Clock, CheckCircle2, HelpCircle, Send, X } from 'lucide-react'
+import { LogOut, FileText, Search, Sparkles, Clock, CheckCircle2, HelpCircle, Send, X, LayoutDashboard, Plus, CreditCard, ExternalLink } from 'lucide-react'
 import CSVUploader from '../components/CSVUploader'
+import GoogleSheetsImporter from '../components/GoogleSheetsImporter'
 import DataVisualization from '../components/DataVisualization'
 import ChatBot from '../components/ChatBot'
 import { sendSupportMessage } from '../services/supportService'
-import { saveCSVData, loadCSVData, deleteCSVData } from '../services/csvService'
+import { saveCSVData, listUserFiles, loadFileById, deleteFileById } from '../services/csvService'
+import { isTrialExpired, getTrialDaysRemaining } from '../services/authService'
+import { getSmartDiscovery } from '../services/groqService'
 import './Dashboard.css'
 
 export default function Dashboard() {
-  const { user, logout } = useAuth()
+  const { user, logout, impersonatedUser, impersonateUser } = useAuth()
   const [csvData, setCsvData] = useState<any[]>([])
   const [csvHeaders, setCsvHeaders] = useState<string[]>([])
+  const [smartDiscovery, setSmartDiscovery] = useState<any>(null)
+  const [loadingInsights, setLoadingInsights] = useState(false)
   const [showChat, setShowChat] = useState(false)
-  const [showSavedMessage, setShowSavedMessage] = useState(false)
   const [showSupport, setShowSupport] = useState(false)
   const [supportSubject, setSupportSubject] = useState('')
   const [supportMessage, setSupportMessage] = useState('')
   const [supportLoading, setSupportLoading] = useState(false)
   const [supportSuccess, setSupportSuccess] = useState(false)
   const [loadingCSV, setLoadingCSV] = useState(true)
+  const [importMethod, setImportMethod] = useState<'file' | 'url'>('file')
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false)
+  const [userFiles, setUserFiles] = useState<any[]>([])
+  const [isAddingNew, setIsAddingNew] = useState(false)
+  const [activeFileId, setActiveFileId] = useState<string | null>(null)
+
+  const effectiveUser = impersonatedUser || user
+  const isImpersonating = !!impersonatedUser
 
   // Carregar dados salvos ao montar o componente
   useEffect(() => {
-    const loadSavedData = async () => {
-      if (!user?.id) {
+    const loadData = async () => {
+      if (!effectiveUser?.id) {
         setLoadingCSV(false)
         return
       }
 
       try {
-        // Primeiro tentar carregar do Firestore
-        try {
-          const firestoreData = await loadCSVData()
-          if (firestoreData && firestoreData.csvData.length > 0 && firestoreData.csvHeaders.length > 0) {
-            console.log('✅ Dados do CSV carregados do Firestore')
-            setCsvData(firestoreData.csvData)
-            setCsvHeaders(firestoreData.csvHeaders)
-            setShowSavedMessage(true)
-            setTimeout(() => setShowSavedMessage(false), 5000)
-            
-            // Sincronizar com localStorage como cache
-            localStorage.setItem(`csvData_${user.id}`, JSON.stringify(firestoreData.csvData))
-            localStorage.setItem(`csvHeaders_${user.id}`, JSON.stringify(firestoreData.csvHeaders))
-            
-            setLoadingCSV(false)
-            return
-          }
-        } catch (firestoreError) {
-          console.warn('⚠️ Erro ao carregar do Firestore, tentando localStorage:', firestoreError)
-        }
+        const files = await listUserFiles(effectiveUser.id)
+        // Ordenar por data (mais recente primeiro) no cliente para evitar necessidade de índice no Firestore
+        const sortedFiles = [...files].sort((a, b) => {
+          const dateA = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0
+          const dateB = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0
+          return dateB - dateA
+        })
+        setUserFiles(sortedFiles)
 
-        // Fallback: tentar carregar do localStorage
-        const savedData = localStorage.getItem(`csvData_${user.id}`)
-        const savedHeaders = localStorage.getItem(`csvHeaders_${user.id}`)
-        
-        if (savedData && savedHeaders) {
-          try {
-            const parsedData = JSON.parse(savedData)
-            const parsedHeaders = JSON.parse(savedHeaders)
-            
-            if (parsedData.length > 0 && parsedHeaders.length > 0) {
-              console.log('✅ Dados do CSV carregados do localStorage')
-              setCsvData(parsedData)
-              setCsvHeaders(parsedHeaders)
-              setShowSavedMessage(true)
-              setTimeout(() => setShowSavedMessage(false), 5000)
-              
-              // Tentar sincronizar com Firestore em background
-              try {
-                await saveCSVData(parsedData, parsedHeaders)
-                console.log('✅ Dados sincronizados com Firestore')
-              } catch (syncError) {
-                console.warn('⚠️ Erro ao sincronizar com Firestore:', syncError)
-              }
-            }
-          } catch (error) {
-            console.error('Erro ao carregar dados salvos:', error)
+        if (sortedFiles.length > 0) {
+          setActiveFileId(sortedFiles[0].id)
+          const fileData = await loadFileById(files[0].id)
+          if (fileData) {
+            setCsvData(fileData.csvData)
+            setCsvHeaders(fileData.csvHeaders)
+            setSmartDiscovery(fileData.smartDiscovery)
+          } else {
+            // Se falhou ao carregar o arquivo específico, tenta resetar
+            setIsAddingNew(true)
           }
+        } else {
+          // Se não tem nenhum arquivo, força o modo de adição
+          setIsAddingNew(true)
         }
       } catch (error) {
         console.error('Erro ao carregar dados:', error)
@@ -86,51 +73,131 @@ export default function Dashboard() {
       }
     }
 
-    loadSavedData()
-  }, [user?.id])
+    loadData()
+  }, [effectiveUser?.id])
 
-  const handleFileUploaded = async (data: any[], headers: string[], fileName?: string, fileContent?: string) => {
+  const handleFileUploaded = async (data: any[], headers: string[], fileName?: string) => {
+    // Verificar limite de arquivos do plano
+    const planLimits: Record<string, number> = {
+      'free': 1, 'basic': 2, 'plus': 4, 'pro': 8, 'admin': 999
+    }
+    const userPlan = (user?.plan || 'free').toLowerCase()
+    const limit = planLimits[userPlan] || 1
+    const userRole = (user?.role || 'user').toLowerCase()
+    const isStaff = userRole === 'admin' || userRole === 'vendas' || userPlan === 'admin'
+    
+    const isReplacing = !isAddingNew && activeFileId !== null;
+
+    if (!isReplacing && !isStaff && !isImpersonating && userFiles.length >= limit) {
+      alert(`Seu plano (${userPlan.toUpperCase()}) permite até ${limit} planilha(s).`)
+      setIsAddingNew(false)
+      setLoadingInsights(false)
+      return
+    }
+
     setCsvData(data)
     setCsvHeaders(headers)
+    setSmartDiscovery(null)
+    setLoadingInsights(true)
+    setIsAddingNew(false)
     
-    // Salvar dados no localStorage (cache local)
-    if (user?.id) {
-      localStorage.setItem(`csvData_${user.id}`, JSON.stringify(data))
-      localStorage.setItem(`csvHeaders_${user.id}`, JSON.stringify(headers))
-    }
-    
-    // Salvar no Firestore (sincronização entre dispositivos)
     try {
-      await saveCSVData(data, headers, fileName, fileContent)
-      console.log('✅ Dados do CSV salvos no Firestore com sucesso!')
-    } catch (error: any) {
-      console.error('❌ Erro ao salvar no Firestore:', error)
-      // Não bloquear o usuário se falhar - os dados já estão no localStorage
-      console.warn('⚠️ Dados salvos apenas localmente. Tente novamente mais tarde.')
+      const discovery = await getSmartDiscovery(headers, data, effectiveUser?.onboardingData)
+      setSmartDiscovery(discovery)
+      
+      // Passar o activeFileId se for uma substituição
+      await saveCSVData(data, headers, fileName, effectiveUser?.id, discovery, isReplacing ? activeFileId! : undefined)
+      
+      const files = await listUserFiles(effectiveUser?.id)
+      const sortedFiles = [...files].sort((a, b) => {
+        const dateA = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0
+        const dateB = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0
+        return dateB - dateA
+      })
+      setUserFiles(sortedFiles)
+      if (sortedFiles.length > 0 && !isReplacing) {
+        setActiveFileId(sortedFiles[0].id)
+      }
+    } catch (err) {
+      console.error("Erro ao salvar/analisar:", err)
+      alert("Erro ao salvar os dados. Verifique sua conexão.")
+    } finally {
+      setLoadingInsights(false)
     }
-    
-    setShowSavedMessage(false)
   }
 
-  const handleClearData = async () => {
-    setCsvData([])
-    setCsvHeaders([])
-    
-    // Remover dados salvos do localStorage
-    if (user?.id) {
-      localStorage.removeItem(`csvData_${user.id}`)
-      localStorage.removeItem(`csvHeaders_${user.id}`)
-    }
-    
-    // Remover dados do Firestore
+  const handleSwitchFile = async (fileId: string) => {
+    setIsAddingNew(false)
+    if (fileId === activeFileId) return
     try {
-      await deleteCSVData()
-      console.log('✅ Dados do CSV removidos do Firestore')
-    } catch (error: any) {
-      console.error('❌ Erro ao remover do Firestore:', error)
-      // Não bloquear o usuário se falhar
+      const fileData = await loadFileById(fileId)
+      if (fileData) {
+        setCsvData(fileData.csvData)
+        setCsvHeaders(fileData.csvHeaders)
+        setSmartDiscovery(fileData.smartDiscovery)
+        setActiveFileId(fileId)
+      }
+    } catch (err) {
+      console.error("Erro ao trocar arquivo:", err)
     }
   }
+
+  const handleDeleteFile = async (e: React.MouseEvent, fileId: string) => {
+    e.stopPropagation()
+    const confirm = window.confirm('Tem certeza que deseja apagar esta planilha?')
+    if (!confirm) return
+
+    try {
+      await deleteFileById(fileId)
+      const updatedFiles = await listUserFiles(effectiveUser?.id)
+      
+      const sortedFiles = [...updatedFiles].sort((a, b) => {
+        const dateA = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0
+        const dateB = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0
+        return dateB - dateA
+      })
+      
+      setUserFiles(sortedFiles)
+      
+      if (fileId === activeFileId) {
+        if (sortedFiles.length > 0) {
+          handleSwitchFile(sortedFiles[0].id)
+        } else {
+          setCsvData([])
+          setCsvHeaders([])
+          setSmartDiscovery(null)
+          setActiveFileId(null)
+          setIsAddingNew(true)
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao apagar arquivo:", err)
+      alert("Erro ao apagar arquivo.")
+    }
+  }
+
+  const handleAddNewTab = () => {
+    const planLimits: Record<string, number> = {
+      'free': 1,
+      'basic': 2,
+      'plus': 4,
+      'pro': 8
+    }
+    const userPlan = user?.plan || 'free'
+    const limit = planLimits[userPlan] || 1
+
+    if (userFiles.length >= limit && !isImpersonating) {
+      alert(`Seu plano (${userPlan.toUpperCase()}) permite até ${limit} planilha(s). Faça upgrade para adicionar mais!`)
+      return
+    }
+
+    setCsvData([])
+    setCsvHeaders([])
+    setSmartDiscovery(null)
+    setActiveFileId(null)
+    setIsAddingNew(true)
+  }
+
 
   const handleSendSupport = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -168,33 +235,129 @@ export default function Dashboard() {
     <div className="dashboard-container">
       <header className="dashboard-header">
         <div className="header-left">
-          <BarChart3 size={28} />
-          <h1>Farol 360</h1>
-          <span className="company-name">por Creattive</span>
+          <div className="logo-wrapper">
+            <Search size={28} className="logo-icon" />
+            <Sparkles size={14} className="logo-sparkle" />
+          </div>
+          <h1>Lupa <span className="brand-accent">Analytics AI</span></h1>
         </div>
         <div className="header-right">
-          <span className="user-name">{user?.name}</span>
-          <button onClick={logout} className="logout-button">
-            <LogOut size={20} />
-            Sair
-          </button>
+          {user?.role === 'admin' && !isImpersonating && (
+            <button 
+              onClick={() => window.location.href = '/admin'} 
+              className="back-admin-header-btn"
+              title="Voltar ao Painel Administrativo"
+            >
+              <LayoutDashboard size={20} />
+              Voltar ao Admin
+            </button>
+          )}
+
+          <div className="profile-dropdown-container">
+            <button 
+              className="profile-trigger" 
+              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+            >
+              <div className="user-avatar">{effectiveUser?.name?.charAt(0).toUpperCase()}</div>
+              <span className="user-name">{effectiveUser?.name}</span>
+            </button>
+            
+            {showProfileDropdown && (
+              <div className="profile-dropdown-menu">
+                <div className="profile-header">
+                  <strong>{effectiveUser?.name}</strong>
+                  <span>{effectiveUser?.email}</span>
+                </div>
+                
+                <div className="profile-plan">
+                  <span>Plano Atual:</span>
+                  {user?.role === 'user' ? (
+                    <span className={`plan-badge ${user?.plan || 'free'}`}>
+                      {user?.plan?.toUpperCase() || 'GRÁTIS'}
+                    </span>
+                  ) : (
+                    <span className="admin-badge">Admin</span>
+                  )}
+                </div>
+
+                {/* Seção de Gestão de Assinatura (Apenas para clientes pagantes) */}
+                {user?.role === 'user' && user?.plan && user?.plan !== 'free' && (
+                  <div className="subscription-management">
+                    <p>Gerencie sua assinatura no Mercado Pago:</p>
+                    <a 
+                      href="https://www.mercadopago.com.br/subscriptions" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="manage-billing-btn"
+                    >
+                      <CreditCard size={14} />
+                      Gerenciar Pagamentos
+                      <ExternalLink size={14} />
+                    </a>
+                    <button 
+                      className="support-cancel-btn"
+                      onClick={() => window.open('https://wa.me/5592984151281', '_blank')}
+                    >
+                      Precisa de ajuda para cancelar?
+                    </button>
+                  </div>
+                )}
+
+                {user?.role === 'user' && (user?.plan === 'free' || !user?.plan) && (
+                  <button 
+                    onClick={() => window.location.href = '/pricing'} 
+                    className="dropdown-upgrade-btn"
+                  >
+                    <Sparkles size={16} />
+                    Fazer Upgrade
+                  </button>
+                )}
+
+                <div className="dropdown-divider"></div>
+                
+                <button onClick={logout} className="dropdown-logout-btn">
+                  <LogOut size={16} />
+                  Sair da Conta
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
+      {isImpersonating && (
+        <div className="impersonation-banner">
+          <div className="banner-content">
+            <div className="banner-text">
+              <Clock size={18} />
+              <span>Você está visualizando o dashboard de: <strong>{effectiveUser?.name}</strong> ({effectiveUser?.email})</span>
+            </div>
+            <button 
+              className="back-to-admin-btn"
+              onClick={async () => {
+                await impersonateUser(null)
+                // Redirecionar para admin será automático pelo App.tsx ou podemos navegar
+                window.location.href = '/admin'
+              }}
+            >
+              Voltar ao Admin
+            </button>
+          </div>
+        </div>
+      )}
+
       <main className="dashboard-main">
-        {user?.role === 'user' && (
-          <div className="test-notice">
+        {user?.role === 'user' && !user?.isPro && (
+          <div className={`test-notice ${user?.trialEndDate && isTrialExpired(new Date(user.trialEndDate)) ? 'expired' : ''}`}>
             <Clock size={16} />
-            <span>Período de teste: 15 dias</span>
+            <span>
+              {user?.trialEndDate && !isTrialExpired(new Date(user.trialEndDate)) 
+                ? `Você está no período de teste: ${getTrialDaysRemaining(new Date(user.trialEndDate))} dias restantes` 
+                : 'Seu período de teste expirou. Você está no plano Base limitado.'}
+            </span>
           </div>
         )}
         
-        {showSavedMessage && (
-          <div className="saved-data-notice">
-            <CheckCircle2 size={20} />
-            <span>Dados carregados automaticamente da sua última sessão</span>
-          </div>
-        )}
         
         <div className="dashboard-content">
           {loadingCSV ? (
@@ -204,32 +367,179 @@ export default function Dashboard() {
                 <p>Carregando seus dados...</p>
               </div>
             </div>
-          ) : csvData.length === 0 ? (
-            <div className="upload-section">
-              <div className="upload-card">
-                <FileText size={48} className="upload-icon" />
-                <h2>Faça upload do seu arquivo CSV</h2>
-                <p>Envie seus dados para análise inteligente com IA</p>
-                <CSVUploader 
-                  onFileUploaded={handleFileUploaded} 
-                  onboardingData={user?.onboardingData}
-                />
-              </div>
-            </div>
           ) : (
             <>
-              <div className="data-section">
-                <div className="section-header">
-                  <h2>Visualização dos Dados</h2>
-                  <button
-                    onClick={handleClearData}
-                    className="btn-secondary"
-                  >
-                    Carregar Novo Arquivo
-                  </button>
+              {/* Barra de Abas Estilo Navegador */}
+              {(userFiles.length > 0 || isAddingNew) && (
+                <div className="dashboard-tabs-container">
+                  <div className="tabs-scroll">
+                    {userFiles.map(file => (
+                      <div 
+                        key={file.id} 
+                        className={`file-tab-item ${activeFileId === file.id && !isAddingNew ? 'active' : ''}`}
+                        onClick={() => handleSwitchFile(file.id)}
+                      >
+                        <FileText size={14} className="tab-icon" />
+                        <span>{file.fileName || 'Planilha sem nome'}</span>
+                        <button 
+                          className="tab-close-btn"
+                          onClick={(e) => handleDeleteFile(e, file.id)}
+                          title="Remover planilha"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    
+                    {/* Botão de Adicionar Nova Aba (+) */}
+                    {(() => {
+                      const planLimits: Record<string, number> = {
+                        'free': 1, 'basic': 2, 'plus': 4, 'pro': 8, 'admin': 999
+                      }
+                      
+                      const userRole = (user?.role || 'user').toLowerCase()
+                      const userPlan = (user?.plan || 'free').toLowerCase()
+                      const isStaff = userRole === 'admin' || userRole === 'vendas' || userPlan === 'admin'
+                      
+                      // PRIORIDADE ABSOLUTA: Se for Admin/Staff, não existe limite
+                      if (isStaff || isImpersonating) {
+                        return (
+                          <button 
+                            className={`add-tab-btn ${isAddingNew ? 'active' : ''}`}
+                            onClick={handleAddNewTab}
+                            title="Adicionar nova análise (Staff)"
+                          >
+                            <Plus size={18} />
+                          </button>
+                        )
+                      }
+
+                      // Lógica normal para usuários comuns
+                      const limit = planLimits[userPlan] || 1
+                      const atLimit = userFiles.length >= limit
+
+                      if (userPlan === 'free' && atLimit) {
+                        return (
+                          <button 
+                            className="add-tab-btn faded"
+                            onClick={() => alert("O plano FREE permite apenas 1 aba. Faça upgrade para adicionar mais!")}
+                            title="Limite do plano FREE atingido"
+                          >
+                            <Plus size={18} />
+                          </button>
+                        )
+                      }
+
+                      if (userFiles.length < limit) {
+                        return (
+                          <button 
+                            className={`add-tab-btn ${isAddingNew ? 'active' : ''}`}
+                            onClick={handleAddNewTab}
+                            title="Adicionar nova análise"
+                          >
+                            <Plus size={18} />
+                          </button>
+                        )
+                      }
+                      return null
+                    })()}
+                  </div>
                 </div>
-                <DataVisualization data={csvData} headers={csvHeaders} />
-              </div>
+              )}
+
+              {/* Conteúdo da Aba (Upload ou Visualização) */}
+              {(csvData.length === 0 || isAddingNew) ? (
+                <div className="upload-section">
+                  <div className="upload-card">
+                    <div className="upload-header">
+                      <Sparkles size={32} className="upload-sparkle" />
+                      <h2>{isAddingNew ? 'Adicionar Nova Planilha' : 'Conecte seus dados'}</h2>
+                      <p>Sua IA está pronta para analisar mais um dataset.</p>
+                    </div>
+                    
+                    <div className="import-method-tabs">
+                      <button 
+                        className={`method-tab ${importMethod === 'file' ? 'active' : ''}`}
+                        onClick={() => setImportMethod('file')}
+                      >
+                        Arquivo CSV
+                      </button>
+                      <button 
+                        className={`method-tab ${importMethod === 'url' ? 'active' : ''}`}
+                        onClick={() => setImportMethod('url')}
+                      >
+                        Google Sheets
+                      </button>
+                    </div>
+
+                    {importMethod === 'file' ? (
+                      <CSVUploader 
+                        onFileUploaded={handleFileUploaded} 
+                        onboardingData={user?.onboardingData}
+                      />
+                    ) : (
+                      <GoogleSheetsImporter 
+                        onDataLoaded={handleFileUploaded}
+                      />
+                    )}
+
+                    {isAddingNew && userFiles.length > 0 && (
+                      <button 
+                        className="cancel-upload-btn"
+                        onClick={() => handleSwitchFile(userFiles[0].id)}
+                      >
+                        Cancelar e Voltar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="data-section">
+                  {loadingInsights ? (
+                    <div className="processing-data-loader">
+                      <div className="spinner-large"></div>
+                      <h2>Fase de Análise Profunda...</h2>
+                      <p>Nossa IA está lendo uma amostra expandida (10 registros) para garantir 100% de precisão.</p>
+                      <div className="loading-steps">
+                        <span>✓ Leitura de Dados</span>
+                        <span className="active">○ Análise Estrutural</span>
+                        <span>○ Montagem Inteligente</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="visualization-container-fade">
+                      <DataVisualization 
+                        data={csvData} 
+                        headers={csvHeaders} 
+                        smartMapping={smartDiscovery?.columnMapping}
+                        insightsComponent={
+                          smartDiscovery && smartDiscovery.insights ? (
+                            <div className="smart-insights-section" style={{ marginTop: '24px' }}>
+                              <div className="insights-header">
+                                <Sparkles size={20} className="sparkle-icon" />
+                                <h3>Insights da Lupa</h3>
+                              </div>
+                              <div className="insights-grid">
+                                {smartDiscovery.insights.slice(0, 
+                                  user?.role === 'admin' || user?.role === 'vendas' ? 10 :
+                                  (user?.plan === 'pro' ? 6 :
+                                   user?.plan === 'plus' ? 3 :
+                                   user?.plan === 'basic' ? 2 : 1)
+                                ).map((insight: string, idx: number) => (
+                                  <div key={idx} className="insight-card">
+                                    <div className="insight-number">{idx + 1}</div>
+                                    <p>{insight}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -237,25 +547,33 @@ export default function Dashboard() {
         <div className="dashboard-actions">
           {csvData.length > 0 && (
             <button
-              className="chat-toggle"
+              className={`chat-toggle ${showChat ? 'active' : ''}`}
               onClick={() => setShowChat(!showChat)}
             >
-              <MessageCircle size={24} />
-              {showChat ? 'Ocultar' : 'Abrir'} Chat
+              <div className="chat-toggle-icon">
+                <Sparkles size={28} />
+              </div>
+              <span className="chat-toggle-text">
+                {showChat ? 'Ocultar Chat' : 'Dê uma Lupa nos Dados'}
+              </span>
             </button>
           )}
-          
+
           <button
             className="support-toggle"
             onClick={() => setShowSupport(!showSupport)}
           >
-            <HelpCircle size={24} />
-            {showSupport ? 'Fechar' : 'Suporte'}
+            <div className="support-toggle-icon">
+              <HelpCircle size={24} />
+            </div>
+            <span className="support-toggle-text">
+              {showSupport ? 'Fechar' : 'Suporte'}
+            </span>
           </button>
         </div>
 
         {showChat && csvData.length > 0 && (
-          <ChatBot data={csvData} headers={csvHeaders} />
+          <ChatBot data={csvData} headers={csvHeaders} onboardingData={effectiveUser?.onboardingData} />
         )}
 
         {showSupport && (

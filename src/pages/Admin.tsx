@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Download, User, Building2, Phone, Mail, Calendar, FileText, RefreshCw, Key, Clock, AlertTriangle, CheckCircle, MessageSquare, Users, Shield, Eye, XCircle, UserPlus, Database } from 'lucide-react'
+import { LogOut, Download, User, Building2, Phone, Mail, Calendar, FileText, RefreshCw, Key, Clock, AlertTriangle, CheckCircle, MessageSquare, Users, Shield, Eye, XCircle, UserPlus, Search, X } from 'lucide-react'
 import { getAllOnboardingData as getFirestoreData, ClientStatus } from '../services/firestoreService'
 import { getAllSupportMessages, updateSupportMessageStatus, SupportMessage } from '../services/supportService'
 import { createAccount, updateUserData } from '../services/authService'
-import { executeMigration, isFirebaseReady, isMigrationCompleted } from '../services/migrationService'
-import { db } from '../config/firebase'
+
 import './Admin.css'
 
 interface OnboardingRecord {
@@ -31,10 +30,12 @@ interface UserAccount {
   onboardingCompleted: boolean
   trialEndDate?: Date
   createdAt?: Date
+  plan?: string
+  lastAccess?: Date
 }
 
 export default function Admin() {
-  const { user, logout, getAllOnboardingData, getAllUsers, resetUserPassword, isTrialExpired, getTrialDaysRemaining } = useAuth()
+  const { user, logout, getAllOnboardingData, getAllUsers, resetUserPassword, isTrialExpired, getTrialDaysRemaining, impersonateUser, deleteUserAccount } = useAuth()
   const navigate = useNavigate()
   const [onboardingData, setOnboardingData] = useState<OnboardingRecord[]>([])
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>([])
@@ -57,12 +58,7 @@ export default function Admin() {
   const [newAdminName, setNewAdminName] = useState('')
   const [newAdminPassword, setNewAdminPassword] = useState('')
   const [createAdminLoading, setCreateAdminLoading] = useState(false)
-  const [migrationStatus, setMigrationStatus] = useState<{
-    completed: boolean
-    firebaseReady: boolean
-    message: string
-  } | null>(null)
-  const [migrationLoading, setMigrationLoading] = useState(false)
+
 
   const loadData = async () => {
     if (!user || user.role !== 'admin') {
@@ -116,17 +112,36 @@ export default function Admin() {
 
       // Carregar contas de usuários
       try {
-        console.log('🔄 Carregando contas de usuários...')
         const users = await getAllUsers()
-        console.log(`✅ ${users.length} contas carregadas com sucesso`)
-        setUserAccounts(users.map(u => ({
+        
+        // Verificar auto-deleção de usuários free inativos (40 dias)
+        const now = new Date()
+        const fortyDaysAgo = new Date(now.getTime() - 40 * 24 * 60 * 60 * 1000)
+        let deletedAny = false
+
+        for (const u of users) {
+          if (u.role === 'user' && (u.plan === 'free' || !u.plan) && u.lastAccess) {
+            const lastAccessDate = new Date(u.lastAccess)
+            if (lastAccessDate < fortyDaysAgo) {
+              console.log(`Auto-deletando usuário inativo: ${u.email}`)
+              await deleteUserAccount(u.id)
+              deletedAny = true
+            }
+          }
+        }
+
+        const finalUsers = deletedAny ? await getAllUsers() : users
+
+        setUserAccounts(finalUsers.map((u: any) => ({
           id: u.id,
           email: u.email,
           name: u.name,
           role: u.role,
           onboardingCompleted: u.onboardingCompleted,
           trialEndDate: u.trialEndDate,
-          createdAt: u.createdAt || (u.trialEndDate ? new Date(u.trialEndDate.getTime() - 15 * 24 * 60 * 60 * 1000) : undefined)
+          createdAt: u.createdAt || (u.trialEndDate ? new Date(u.trialEndDate.getTime() - 15 * 24 * 60 * 60 * 1000) : undefined),
+          plan: u.plan || 'free',
+          lastAccess: u.lastAccess
         })))
       } catch (err: any) {
         console.error('❌ Erro ao carregar usuários:', err)
@@ -199,6 +214,21 @@ export default function Admin() {
     }
   }
 
+  const handleDeleteAccount = async (userId: string, email: string) => {
+    if (!confirm(`Tem certeza que deseja EXCLUIR permanentemente a conta de ${email}? Esta ação não pode ser desfeita.`)) {
+      return
+    }
+
+    try {
+      await deleteUserAccount(userId)
+      alert('Conta excluída com sucesso!')
+      await loadData()
+    } catch (err: any) {
+      console.error('Erro ao excluir conta:', err)
+      alert(err.message || 'Erro ao excluir conta')
+    }
+  }
+
   const handleUpdateMessageStatus = async (messageId: string, status: 'pending' | 'in_progress' | 'resolved') => {
     try {
       await updateSupportMessageStatus(messageId, status, undefined, user?.email)
@@ -222,8 +252,8 @@ export default function Admin() {
     }
 
     // Validar senha mínima
-    if (newVendasPassword.length < 6) {
-      alert('A senha deve ter pelo menos 6 caracteres')
+    if (newVendasPassword.length < 8) {
+      alert('A senha deve ter pelo menos 8 caracteres')
       return
     }
 
@@ -253,8 +283,8 @@ export default function Admin() {
     }
 
     // Validar senha mínima
-    if (newAdminPassword.length < 6) {
-      alert('A senha deve ter pelo menos 6 caracteres')
+    if (newAdminPassword.length < 8) {
+      alert('A senha deve ter pelo menos 8 caracteres')
       return
     }
 
@@ -316,45 +346,10 @@ export default function Admin() {
 
   useEffect(() => {
     loadData()
-    checkMigrationStatus()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
-  const checkMigrationStatus = async () => {
-    const firebaseReady = await isFirebaseReady()
-    const completed = isMigrationCompleted()
-    setMigrationStatus({
-      completed,
-      firebaseReady: !!firebaseReady && !!db,
-      message: completed 
-        ? 'Migração já foi concluída. Dados locais foram removidos.' 
-        : firebaseReady && db
-          ? 'Firebase está configurado. Clique para migrar dados locais.'
-          : 'Firebase não está configurado. Dados estão sendo salvos localmente.'
-    })
-  }
 
-  const handleExecuteMigration = async () => {
-    if (!confirm('Tem certeza que deseja migrar os dados locais para o Firebase? Após a migração, os dados locais serão removidos.')) {
-      return
-    }
-
-    setMigrationLoading(true)
-    try {
-      const result = await executeMigration()
-      if (result.success) {
-        alert(`Migração concluída com sucesso!\n\n${result.message}\n\nDados locais foram removidos.`)
-        await checkMigrationStatus()
-        await loadData() // Recarregar dados do Firebase
-      } else {
-        alert(`Erro na migração: ${result.message}`)
-      }
-    } catch (error: any) {
-      alert(`Erro ao executar migração: ${error.message}`)
-    } finally {
-      setMigrationLoading(false)
-    }
-  }
 
   const handleLogout = () => {
     logout()
@@ -403,33 +398,28 @@ export default function Admin() {
       <header className="admin-header">
         <div className="admin-header-content">
           <div>
-            <h1>Painel Administrativo - Farol 360</h1>
-            <p>Creattive - Gestão de Usuários</p>
+            <h1>Painel Administrativo - Lupa Analytics AI</h1>
+            <p>Gestão de Usuários • Desenvolvido por FTWagner</p>
           </div>
-          <button onClick={handleLogout} className="logout-button">
-            <LogOut size={20} />
-            Sair
-          </button>
+          <div className="header-actions">
+            <button 
+              onClick={() => navigate('/dashboard')} 
+              className="analyst-view-btn"
+              title="Acessar ferramenta de análise de dados"
+            >
+              <Search size={20} />
+              Minha Visão de Analista
+            </button>
+            <button onClick={handleLogout} className="logout-button">
+              <LogOut size={20} />
+              Sair
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="admin-main">
-        {migrationStatus && !migrationStatus.completed && migrationStatus.firebaseReady && (
-          <div className="migration-banner">
-            <Database size={20} />
-            <div className="migration-info">
-              <strong>Migração Disponível</strong>
-              <span>{migrationStatus.message}</span>
-            </div>
-            <button
-              onClick={handleExecuteMigration}
-              className="migration-btn"
-              disabled={migrationLoading}
-            >
-              {migrationLoading ? 'Migrando...' : 'Migrar para Firebase'}
-            </button>
-          </div>
-        )}
+
 
         <div className="admin-tabs">
           <button 
@@ -515,7 +505,7 @@ export default function Admin() {
                       onChange={(e) => setNewAdminPassword(e.target.value)}
                       placeholder="Senha temporária"
                       required
-                      minLength={6}
+                      minLength={8}
                     />
                   </div>
                   <button
@@ -564,7 +554,7 @@ export default function Admin() {
                       onChange={(e) => setNewVendasPassword(e.target.value)}
                       placeholder="Senha temporária"
                       required
-                      minLength={6}
+                      minLength={8}
                     />
                   </div>
                   <button
@@ -739,9 +729,11 @@ export default function Admin() {
                     <th>Email</th>
                     <th>Nome</th>
                     <th>Perfil</th>
+                    <th>Plano</th>
                     <th>Status</th>
                     <th>Trial</th>
                     <th>Dias Restantes</th>
+                    <th>Último Acesso</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
@@ -770,6 +762,11 @@ export default function Admin() {
                               {account.role === 'vendas' && <User size={12} />}
                               {account.role === 'user' && <User size={12} />}
                               {account.role === 'admin' ? 'Admin' : account.role === 'vendas' ? 'Vendas' : 'Cliente'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`plan-badge plan-${account.plan}`}>
+                              {account.plan?.toUpperCase() || 'FREE'}
                             </span>
                           </td>
                           <td>
@@ -818,6 +815,14 @@ export default function Admin() {
                             )}
                           </td>
                           <td>
+                            <div className="table-cell">
+                              <Clock size={14} />
+                              {account.lastAccess 
+                                ? new Date(account.lastAccess).toLocaleDateString('pt-BR')
+                                : 'Nunca'}
+                            </div>
+                          </td>
+                          <td>
                             <div className="account-actions">
                               {account.role !== 'admin' && (
                                 <button
@@ -841,6 +846,23 @@ export default function Admin() {
                                   {updateRoleLoading === account.id ? 'Atualizando...' : 'Tornar Vendas'}
                                 </button>
                               )}
+                              {account.role === 'user' && (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await impersonateUser(account.id)
+                                      navigate('/dashboard')
+                                    } catch (err: any) {
+                                      alert(err.message || 'Erro ao acessar dashboard do cliente')
+                                    }
+                                  }}
+                                  className="view-client-dashboard-btn"
+                                  title="Ver visão do cliente"
+                                >
+                                  <Eye size={14} />
+                                  Ver Dash
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleResetPassword(account.id)}
                                 className="reset-password-btn"
@@ -849,6 +871,13 @@ export default function Admin() {
                               >
                                 <Key size={14} />
                                 {resetPasswordLoading === account.id ? 'Enviando...' : 'Resetar Senha'}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAccount(account.id, account.email)}
+                                className="delete-account-btn"
+                                title="Excluir Conta"
+                              >
+                                <X size={18} />
                               </button>
                             </div>
                           </td>

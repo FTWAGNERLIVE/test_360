@@ -78,6 +78,14 @@ export default function Onboarding() {
   const [saveError, setSaveError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState(false)
 
+  const formatPhone = (value: string) => {
+    if (!value) return ""
+    value = value.replace(/\D/g, "")
+    value = value.replace(/(\d{2})(\d)/, "($1) $2")
+    value = value.replace(/(\d{5})(\d)/, "$1-$2")
+    return value.substring(0, 15)
+  }
+
   const handleGoalToggle = (goal: string) => {
     setFormData(prev => ({
       ...prev,
@@ -127,7 +135,7 @@ export default function Onboarding() {
         // Executar salvamento primeiro (mais crítico)
         try {
           await saveOnboardingData(onboardingData)
-          console.log('✅ Dados de onboarding salvos com sucesso')
+          // console.log('✅ Onboarding salvo')
         } catch (saveError: any) {
           console.error('❌ Erro ao salvar dados de onboarding:', saveError)
           throw saveError // Re-throw para ser capturado pelo catch externo
@@ -202,8 +210,8 @@ export default function Onboarding() {
         </div>
 
         <div className="onboarding-header">
-          <h1>Bem-vindo ao Farol 360!</h1>
-          <p>Preencha este formulário para personalizar sua análise</p>
+          <h1>Bem-vindo ao Lupa Analytics AI!</h1>
+          <p>Personalize sua análise inteligente • Desenvolvido por FTWagner</p>
           {user?.role === 'user' && (
             <div className="test-info">
               <Clock size={14} />
@@ -260,8 +268,9 @@ export default function Onboarding() {
                   id="contact"
                   type="tel"
                   value={formData.contact}
-                  onChange={(e) => setFormData(prev => ({ ...prev, contact: e.target.value }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, contact: formatPhone(e.target.value) }))}
                   placeholder="(11) 99999-9999"
+                  maxLength={15}
                   required
                 />
               </div>
