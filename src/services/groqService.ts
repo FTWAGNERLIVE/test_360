@@ -18,7 +18,9 @@ const calculateDataStats = (data: any[], headers: string[]) => {
   if (!data || data.length === 0) return "Sem dados para análise.";
 
   const stats: any = {};
-  
+  const categoricalHeaders: string[] = [];
+  const numericHeaders: string[] = [];
+
   headers.forEach(header => {
     const values = data.map(row => row[header]).filter(v => v !== null && v !== undefined && v !== '');
     
@@ -29,20 +31,20 @@ const calculateDataStats = (data: any[], headers: string[]) => {
       return isNaN(parsed) ? null : parsed;
     }).filter(v => v !== null) as number[];
 
-    if (numericValues.length > values.length * 0.8) {
-      // É uma coluna numérica
+    if (numericValues.length > values.length * 0.8 && numericValues.length > 0) {
+      numericHeaders.push(header);
       const sum = numericValues.reduce((a, b) => a + b, 0);
       const avg = sum / numericValues.length;
       stats[header] = {
         tipo: 'numérico',
         min: Math.min(...numericValues),
         max: Math.max(...numericValues),
-        media: avg.toFixed(2),
-        soma: sum.toFixed(2),
+        media: Number(avg.toFixed(2)),
+        soma: Number(sum.toFixed(2)),
         totalValores: numericValues.length
       };
     } else {
-      // É uma coluna categórica/texto
+      categoricalHeaders.push(header);
       const counts: any = {};
       values.forEach(v => {
         counts[v] = (counts[v] || 0) + 1;
@@ -50,7 +52,7 @@ const calculateDataStats = (data: any[], headers: string[]) => {
       
       const sortedCategories = Object.entries(counts)
         .sort((a: any, b: any) => b[1] - a[1])
-        .slice(0, 5);
+        .slice(0, 10);
 
       stats[header] = {
         tipo: 'categórico',
@@ -60,6 +62,51 @@ const calculateDataStats = (data: any[], headers: string[]) => {
     }
   });
 
+  // Cruzamento Automático (Group By Categorias vs Numéricos)
+  const groupStats: any = {};
+  categoricalHeaders.slice(0, 4).forEach(catCol => {
+    numericHeaders.slice(0, 4).forEach(numCol => {
+      const groups: Record<string, number[]> = {};
+      data.forEach(row => {
+        const catVal = String(row[catCol] ?? 'Não Informado').trim();
+        const rawNum = row[numCol];
+        let numVal: number | null = null;
+        if (typeof rawNum === 'number') numVal = rawNum;
+        else if (rawNum !== null && rawNum !== undefined) {
+          const parsed = parseFloat(String(rawNum).replace(',', '.').replace(/[^\d.-]/g, ''));
+          if (!isNaN(parsed)) numVal = parsed;
+        }
+
+        if (numVal !== null) {
+          if (!groups[catVal]) groups[catVal] = [];
+          groups[catVal].push(numVal);
+        }
+      });
+
+      const groupSummary: any = {};
+      Object.entries(groups).forEach(([catVal, nums]) => {
+        if (nums.length > 0) {
+          const sum = nums.reduce((a, b) => a + b, 0);
+          groupSummary[catVal] = {
+            qtd: nums.length,
+            media: Number((sum / nums.length).toFixed(2)),
+            min: Math.min(...nums),
+            max: Math.max(...nums),
+            soma: Number(sum.toFixed(2))
+          };
+        }
+      });
+
+      if (Object.keys(groupSummary).length > 0 && Object.keys(groupSummary).length <= 20) {
+        groupStats[`${catCol} vs ${numCol}`] = groupSummary;
+      }
+    });
+  });
+
+  if (Object.keys(groupStats).length > 0) {
+    stats["_ESTATISTICAS_AGRUPADAS_POR_CATEGORIA"] = groupStats;
+  }
+
   return JSON.stringify(stats, null, 2);
 };
 
@@ -67,8 +114,10 @@ const prepareDataContext = (data: any[], headers: string[], onboardingData?: any
   const totalRecords = data.length;
   const columns = headers.join(", ");
   
-  // Amostra pequena para estrutura
-  const sampleData = data.slice(0, 5).map(row => {
+  // Se o conjunto tiver até 300 linhas, enviamos a tabela inteira!
+  // Se tiver mais de 300, enviamos 50 linhas como amostra expandida.
+  const sampleLimit = totalRecords <= 300 ? totalRecords : 50;
+  const sampleData = data.slice(0, sampleLimit).map(row => {
     const simplifiedRow: any = {};
     headers.forEach(h => {
       simplifiedRow[h] = row[h];
@@ -76,7 +125,7 @@ const prepareDataContext = (data: any[], headers: string[], onboardingData?: any
     return simplifiedRow;
   });
 
-  // Resumo estatístico para inteligência
+  // Resumo estatístico enriquecido com agrupamentos por categoria (Group-By)
   const statsSummary = calculateDataStats(data, headers);
 
   let onboardingContext = "";
@@ -92,11 +141,11 @@ const prepareDataContext = (data: any[], headers: string[], onboardingData?: any
   const systemInstructions = `
 1. PERSONA: Você é o Analista Lupa AI, consultor sênior de BI e Estratégia.
 2. MISSÃO: Analisar o dataset fornecido e responder perguntas de negócio.
-3. CONTEXTO ANALÍTICO: Você recebeu um RESUMO ESTATÍSTICO do dataset inteiro. Use esses números para dar respostas precisas sobre totais, médias e tendências, mesmo que você não veja todas as linhas individualmente.
+3. CONTEXTO ANALÍTICO: Você tem acesso às ESTATÍSTICAS GERAIS, ESTATÍSTICAS AGRUPADAS POR CATEGORIA (Group-By) e à TABELA DE DADOS (completa se tiver até 300 registros ou amostra expandida).
 4. REGRAS:
-   - Use Markdown para formatação.
+   - Use Markdown para formatação (tabelas, negrito, tópicos).
    - Seja direto e executivo.
-   - Se perguntarem algo fora de dados/negócios, use a frase padrão de bloqueio.
+   - Se perguntarem sobre médias, somas ou agrupamentos por categoria (ex: "média por status", "faturamento por setor"), consulte as ESTATÍSTICAS AGRUPADAS POR CATEGORIA para responder com precisão exata.
    - PRIORIZE INSIGHTS: Não diga apenas "o valor é X", diga "o valor é X, o que indica uma tendência de Y".
 `;
 
@@ -105,10 +154,10 @@ const prepareDataContext = (data: any[], headers: string[], onboardingData?: any
 Total de registros: ${totalRecords}
 Colunas: ${columns}
 
---- ESTATÍSTICAS GERAIS (BASEADAS NO DATASET COMPLETO) ---
+--- ESTATÍSTICAS GERAIS E AGRUPADAS POR CATEGORIA ---
 ${statsSummary}
 
---- AMOSTRA INICIAL ---
+--- REGISTROS / AMOSTRA DOS DADOS ---
 ${JSON.stringify(sampleData, null, 2)}
 
 ${onboardingContext}
