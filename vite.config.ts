@@ -6,7 +6,10 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true,
-    open: true
+    open: true,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups'
+    }
   },
   build: {
     chunkSizeWarningLimit: 1000

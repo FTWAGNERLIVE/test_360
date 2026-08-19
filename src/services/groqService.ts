@@ -140,24 +140,45 @@ export const chatWithGroq = async (
       { role: "user", content: userMessage }
     ];
 
-    const stream = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages,
-      temperature: 0.5,
-      max_tokens: 2000,
-      stream: true,
-    });
+    const CANDIDATE_MODELS = [
+      "groq/compound-mini",
+      "openai/gpt-oss-20b",
+      "qwen/qwen3.6-27b",
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant"
+    ];
 
-    let fullResponse = "";
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content || "";
-      if (content) {
-        fullResponse += content;
-        onStream(fullResponse);
+    let lastError: any = null;
+    for (const model of CANDIDATE_MODELS) {
+      try {
+        const stream = await groq.chat.completions.create({
+          model,
+          messages,
+          temperature: 0.5,
+          max_tokens: 2000,
+          stream: true,
+        });
+
+        let fullResponse = "";
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content || "";
+          if (content) {
+            fullResponse += content;
+            // Limpar tags <think> do streaming se houver
+            const cleanedResponse = fullResponse.replace(/<think>[\s\S]*?<\/think>/gi, '').trimStart();
+            onStream(cleanedResponse);
+          }
+        }
+
+        const finalCleaned = fullResponse.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        return finalCleaned;
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`⚠️ Modelo ${model} indisponível no Groq, tentando o próximo...`, err?.message || err);
       }
     }
 
-    return fullResponse;
+    throw lastError || new Error("Nenhum modelo Groq disponível.");
   } catch (error: any) {
     console.error("❌ Erro no streaming do Groq:", error);
     onStream("Ops! Ocorreu um erro na conexão com a inteligência artificial.");
@@ -256,18 +277,35 @@ Responda APENAS o JSON:
 Tipos: "currency", "date", "number", "category", "text", "ignore".
 `;
 
-    const response = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant", 
-      messages: [
-        { role: "system", content: "Você é um especialista em BI e Analytics que analisa perfis de dados para extrair inteligência de negócio." },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.1, 
-      max_tokens: 1500,
-      response_format: { type: "json_object" }
-    });
+    const CANDIDATE_MODELS = [
+      "groq/compound-mini",
+      "openai/gpt-oss-20b",
+      "qwen/qwen3.6-27b",
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant"
+    ];
 
-    return JSON.parse(response.choices[0]?.message?.content || "{}");
+    for (const model of CANDIDATE_MODELS) {
+      try {
+        const response = await groq.chat.completions.create({
+          model, 
+          messages: [
+            { role: "system", content: "Você é um especialista em BI e Analytics que analisa perfis de dados para extrair inteligência de negócio." },
+            { role: "user", content: prompt }
+          ],
+          temperature: 0.1, 
+          max_tokens: 1500,
+          response_format: { type: "json_object" }
+        });
+
+        const rawContent = response.choices[0]?.message?.content || "{}";
+        const cleanedContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        return JSON.parse(cleanedContent);
+      } catch (err) {
+        console.warn(`⚠️ SmartDiscovery: modelo ${model} indisponível, tentando próximo...`);
+      }
+    }
+    return null;
   } catch (error) {
     console.error("Erro no Smart Discovery:", error);
     return null;
