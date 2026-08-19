@@ -1,6 +1,6 @@
-# Farol 360 - Creattive
+# Lupa Analytics - Creattive
 
-Dashboard interativo para análise de dados com IA, desenvolvido pela Creattive para atrair clientes e demonstrar o poder do Farol 360.
+Dashboard interativo para análise de dados com IA, desenvolvido pela Creattive para atrair clientes e demonstrar o poder da Lupa Analytics.
 
 ## 🚀 Funcionalidades
 
@@ -8,7 +8,7 @@ Dashboard interativo para análise de dados com IA, desenvolvido pela Creattive 
 - **Onboarding Personalizado**: Formulário inicial para coletar informações do cliente e personalizar a análise
 - **Upload de CSV**: Interface drag-and-drop para upload de arquivos CSV
 - **Visualizações Interativas**: Gráficos de barras, linhas e pizza usando Recharts
-- **Agente 360**: Assistente inteligente que analisa os dados e responde perguntas
+- **Lupa**: Assistente inteligente que analisa os dados e responde perguntas
 - **Design Moderno**: Interface com cores inspiradas no Google e design limpo
 
 ## 📋 Pré-requisitos
@@ -105,7 +105,7 @@ O chatbot utiliza as informações do onboarding e os dados carregados para forn
 Para integrar com a plataforma real:
 1. Substituir a autenticação simulada por API real
 2. Integrar com backend para processamento de dados
-3. Conectar Agente 360 com modelo de IA real (OpenAI, etc.)
+3. Conectar Lupa com modelo de IA real (OpenAI, etc.)
 4. Adicionar mais tipos de visualizações
 5. Implementar exportação de relatórios
 

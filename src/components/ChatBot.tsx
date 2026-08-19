@@ -21,7 +21,7 @@ export default function ChatBot({ data, headers }: ChatBotProps) {
     {
       id: '1',
       role: 'assistant',
-      content: `Olá! Sou o Agente 360, seu assistente de análise de dados. Analisei seu arquivo CSV com ${data.length} registros e ${headers.length} colunas. Como posso ajudá-lo hoje?`,
+      content: `Olá! Sou a Lupa, sua assistente de análise de dados. Analisei seu arquivo CSV com ${data.length} registros e ${headers.length} colunas. Como posso ajudá-lo hoje?`,
       timestamp: new Date()
     }
   ])
@@ -153,7 +153,7 @@ export default function ChatBot({ data, headers }: ChatBotProps) {
       <div className="chatbot-header">
         <div className="chatbot-title">
           <Bot size={24} />
-          <h3>Agente 360</h3>
+          <h3>Lupa</h3>
         </div>
         <p className="chatbot-subtitle">Creattive</p>
       </div>
