@@ -114,9 +114,8 @@ const prepareDataContext = (data: any[], headers: string[], onboardingData?: any
   const totalRecords = data.length;
   const columns = headers.join(", ");
   
-  // Se o conjunto tiver até 300 linhas, enviamos a tabela inteira!
-  // Se tiver mais de 300, enviamos 50 linhas como amostra expandida.
-  const sampleLimit = totalRecords <= 300 ? totalRecords : 50;
+  // Limitar a amostra a 15 linhas no máximo para não estourar o limite de tokens da API do Groq (TPM 8000)
+  const sampleLimit = Math.min(totalRecords, 15);
   const sampleData = data.slice(0, sampleLimit).map(row => {
     const simplifiedRow: any = {};
     headers.forEach(h => {
@@ -141,7 +140,7 @@ const prepareDataContext = (data: any[], headers: string[], onboardingData?: any
   const systemInstructions = `
 1. PERSONA: Você é o Analista Lupa AI, consultor sênior de BI e Estratégia.
 2. MISSÃO: Analisar o dataset fornecido e responder perguntas de negócio.
-3. CONTEXTO ANALÍTICO: Você tem acesso às ESTATÍSTICAS GERAIS, ESTATÍSTICAS AGRUPADAS POR CATEGORIA (Group-By) e à TABELA DE DADOS (completa se tiver até 300 registros ou amostra expandida).
+3. CONTEXTO ANALÍTICO: Você tem acesso às ESTATÍSTICAS GERAIS, ESTATÍSTICAS AGRUPADAS POR CATEGORIA (Group-By) e a uma AMOSTRA DOS DADOS.
 4. REGRAS:
    - Use Markdown para formatação (tabelas, negrito, tópicos).
    - Seja direto e executivo.
@@ -190,11 +189,12 @@ export const chatWithGroq = async (
     ];
 
     const CANDIDATE_MODELS = [
-      "groq/compound-mini",
-      "openai/gpt-oss-20b",
-      "qwen/qwen3.6-27b",
       "llama-3.3-70b-versatile",
-      "llama-3.1-8b-instant"
+      "llama-3.1-8b-instant",
+      "llama3-70b-8192",
+      "llama3-8b-8192",
+      "mixtral-8x7b-32768",
+      "gemma2-9b-it"
     ];
 
     let lastError: any = null;
@@ -496,11 +496,12 @@ Responda APENAS o JSON:
 `;
 
     const CANDIDATE_MODELS = [
-      "groq/compound-mini",
-      "openai/gpt-oss-20b",
-      "qwen/qwen3.6-27b",
       "llama-3.3-70b-versatile",
-      "llama-3.1-8b-instant"
+      "llama-3.1-8b-instant",
+      "llama3-70b-8192",
+      "llama3-8b-8192",
+      "mixtral-8x7b-32768",
+      "gemma2-9b-it"
     ];
 
     for (const model of CANDIDATE_MODELS) {
