@@ -271,30 +271,193 @@ const generateDataProfile = (data: any[], headers: string[]) => {
   });
 };
 
+export interface DashboardConfig {
+  primaryMetric: string;
+  secondaryMetric: string;
+  primaryCategory: string;
+  primaryDate: string;
+  chartTitles: {
+    barChart?: string;
+    donutChart?: string;
+    areaChart?: string;
+    radarChart?: string;
+  };
+}
+
+export interface SmartDiscoveryResult {
+  insights?: string[];
+  columnMapping?: Record<string, 'currency' | 'number' | 'date' | 'category' | 'text' | 'ignore'>;
+  dashboardConfig?: DashboardConfig;
+}
+
 /**
- * SMART DISCOVERY: Analisa a estrutura e gera insights iniciais com o menor gasto de tokens possível.
+ * PRÉ-ANÁLISE LOCAL DETERMINÍSTICA DA IA:
+ * Lê campos, títulos e amostra dos dados para interpretar valores, datas, nomes, categorias e IDs,
+ * orientando o código sobre como configurar cada gráfico e card.
+ */
+export const runLocalPreAnalysis = (
+  headers: string[],
+  data: any[],
+  onboardingData?: any
+): SmartDiscoveryResult => {
+  if (!headers || !data || data.length === 0) {
+    return {
+      columnMapping: {},
+      dashboardConfig: {
+        primaryMetric: '',
+        secondaryMetric: '',
+        primaryCategory: '',
+        primaryDate: '',
+        chartTitles: {}
+      }
+    };
+  }
+
+  const columnMapping: Record<string, 'currency' | 'number' | 'date' | 'category' | 'text' | 'ignore'> = {};
+  const sampleRows = data.slice(0, 20);
+
+  const isDateName = (h: string) => {
+    const low = h.toLowerCase();
+    return (
+      low.includes('data') || low.includes('date') || low.includes('vencimento') ||
+      low.includes('realizacao') || low.includes('realização') || low.includes('nascimento') ||
+      low.includes('matricula') || low.includes('matrícula') || low.includes('criacao') ||
+      low.includes('admissao') || low.includes('validade')
+    );
+  };
+
+  const isCurrencyName = (h: string) => {
+    const low = h.toLowerCase();
+    return (
+      low.includes('valor') || low.includes('preço') || low.includes('preco') ||
+      low.includes('faturamento') || low.includes('saldo') || low.includes('receita') ||
+      low.includes('despesa') || low.includes('lucro') || low.includes('mensalidade') ||
+      low.includes('custo') || low.includes('pago') || low.includes('total')
+    );
+  };
+
+  const isIdName = (h: string) => {
+    const low = h.toLowerCase().trim();
+    return (
+      low === 'id' || low.includes('id_') || low.endsWith('_id') || low.includes(' id') ||
+      low.includes('código') || low.includes('codigo') || low.includes('cpf') ||
+      low.includes('cnpj') || low.includes('cep') || low.includes('telef') || low.includes('fone') ||
+      low === 'nome' || low.includes('nome_') || low.endsWith('_nome') || low.includes('nome ') ||
+      low === 'colaborador' || low.includes('colaborador_') || low.includes('colaborador ') ||
+      low === 'aluno' || low.includes('aluno_') || low === 'cliente' || low.includes('cliente_') ||
+      low === 'paciente' || low.includes('paciente_') || low === 'funcionario' || low.includes('funcionário') ||
+      low.includes('email') || low.includes('e-mail') || low.includes('matricula') || low.includes('matrícula') ||
+      low.includes('observacao') || low.includes('observação') || low.includes('descricao') || low.includes('descrição')
+    );
+  };
+
+  headers.forEach(h => {
+    if (isIdName(h)) {
+      columnMapping[h] = 'ignore';
+      return;
+    }
+
+    if (isDateName(h)) {
+      columnMapping[h] = 'date';
+      return;
+    }
+
+    const sampleVals = sampleRows.map(r => r[h]).filter(v => v !== null && v !== undefined && v !== '');
+
+    // Checar se é número serial do Excel (entre 30000 e 70000 com até 5 dígitos)
+    const dateSerialCount = sampleVals.filter(v => {
+      const num = Number(v);
+      return !isNaN(num) && num > 30000 && num < 70000 && String(v).trim().length <= 5;
+    }).length;
+
+    if (dateSerialCount >= sampleVals.length * 0.5 && sampleVals.length > 0) {
+      columnMapping[h] = 'date';
+      return;
+    }
+
+    if (isCurrencyName(h)) {
+      columnMapping[h] = 'currency';
+      return;
+    }
+
+    // Checar se é numérico
+    const numCount = sampleVals.filter(v => {
+      const cleaned = String(v).replace(/[R$\s.]/g, '').replace(',', '.');
+      return !isNaN(Number(cleaned));
+    }).length;
+
+    if (numCount >= sampleVals.length * 0.7 && sampleVals.length > 0) {
+      columnMapping[h] = 'number';
+      return;
+    }
+
+    // Checar se é categórico (poucos valores únicos em relação às linhas)
+    const uniqueCount = new Set(sampleVals.map(v => String(v).trim())).size;
+    if (uniqueCount > 0 && uniqueCount <= 25) {
+      columnMapping[h] = 'category';
+      return;
+    }
+
+    columnMapping[h] = 'text';
+  });
+
+  const currencyCols = Object.entries(columnMapping).filter(([, type]) => type === 'currency').map(([col]) => col);
+  const numberCols = Object.entries(columnMapping).filter(([, type]) => type === 'number').map(([col]) => col);
+  const categoryCols = Object.entries(columnMapping).filter(([, type]) => type === 'category').map(([col]) => col);
+  const dateCols = Object.entries(columnMapping).filter(([, type]) => type === 'date').map(([col]) => col);
+
+  const primaryMetric = currencyCols[0] || numberCols[0] || '';
+  const secondaryMetric = currencyCols[1] || numberCols[1] || (numberCols[0] !== primaryMetric ? numberCols[0] : '');
+  const primaryCategory = categoryCols[0] || headers.find(h => columnMapping[h] === 'text') || headers[0] || '';
+  const primaryDate = dateCols[0] || '';
+
+  const companyPrefix = onboardingData?.companyName ? ` (${onboardingData.companyName})` : '';
+
+  const chartTitles = {
+    barChart: primaryMetric && primaryCategory ? `Análise Comparativa de ${primaryMetric} por ${primaryCategory}${companyPrefix}` : `Análise Comparativa por Categoria${companyPrefix}`,
+    donutChart: primaryCategory ? `Distribuição Proporcional em ${primaryCategory}${companyPrefix}` : `Distribuição dos Dados${companyPrefix}`,
+    areaChart: primaryMetric && primaryDate ? `Evolução Temporal de ${primaryMetric} (${primaryDate})${companyPrefix}` : (primaryDate ? `Evolução Temporal (${primaryDate})${companyPrefix}` : `Evolução Temporal${companyPrefix}`),
+    radarChart: primaryCategory ? `Análise Multidimensional (${primaryCategory})${companyPrefix}` : `Análise Multidimensional${companyPrefix}`
+  };
+
+  return {
+    columnMapping,
+    dashboardConfig: {
+      primaryMetric,
+      secondaryMetric,
+      primaryCategory,
+      primaryDate,
+      chartTitles
+    }
+  };
+};
+
+/**
+ * SMART DISCOVERY: Analisa a estrutura e gera inteligência orientando a montagem do dashboard.
  */
 export const getSmartDiscovery = async (
   headers: string[],
   data: any[],
   onboardingData?: any
-) => {
-  if (!API_KEY) return null;
+): Promise<SmartDiscoveryResult | null> => {
+  const localAnalysis = runLocalPreAnalysis(headers, data, onboardingData);
+
+  if (!API_KEY) return localAnalysis;
 
   try {
-    // Simulando um delay de processamento um pouco maior para evitar spam na API (429)
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
     const sample = data.slice(0, 10); 
     const dataProfile = generateDataProfile(data.slice(0, 20), headers);
     
     const prompt = `
-[LUPA ANALYTICS - INTELIGÊNCIA DE NEGÓCIOS - PERFIL DE DADOS]
+[LUPA ANALYTICS - INTELIGÊNCIA DE NEGÓCIOS - PRÉ-ANÁLISE DE DADOS E ORIENTAÇÃO DO DASHBOARD]
 Você é o Analista Lupa AI (Consultor de BI Sênior).
-Analise o perfil estrutural abaixo e gere o mapeamento e insights.
+Sua tarefa é fazer a PRÉ-ANÁLISE dos campos, títulos e dados abaixo para orientar o código sobre qual gráfico montar e qual configuração utilizar.
 
-ESTRUTURA JSON DO DATASET:
+ESTRUTURA DOS DADOS:
 ${JSON.stringify(dataProfile, null, 2)}
+
+PRÉ-ANÁLISE SUGERIDA (LOCAL):
+${JSON.stringify(localAnalysis, null, 2)}
 
 CONTEXTO DO CLIENTE:
 - Setor: ${onboardingData?.industry || 'Geral'}
@@ -303,27 +466,33 @@ CONTEXTO DO CLIENTE:
 AMOSTRA DOS DADOS (10 linhas):
 ${JSON.stringify(sample)}
 
-INSTRUÇÕES CRÍTICAS DE MAPEAMENTO:
-1. "category": Escolha a MELHOR coluna para o eixo X. 
-   - REGRA DE OURO: NUNCA escolha colunas onde "isIdLike" seja true.
-   - Prefira colunas com nomes descritivos (ex: 'Produto', 'Vendedor', 'Mês', 'Status').
-2. "ignore": Marque como "ignore" todas as colunas que sejam ID, Chaves Primárias ou Metadados do sistema (isIdLike: true).
-3. "currency": Identifique colunas que representem valores monetários.
-
-INSTRUÇÕES PARA INSIGHTS:
-- Fale sobre os DADOS, não sobre as colunas.
-- Ex: "O faturamento subiu 10% na categoria X" (BOM).
-- Ex: "A coluna Valor é do tipo number" (ERRO - NÃO FAÇA ISSO).
+INSTRUÇÕES DE ORIENTAÇÃO PARA O DASHBOARD:
+1. Analise títulos e conteúdos das colunas para classificar o tipo correto de cada um: "currency", "date", "number", "category", "text", "ignore".
+2. Defina "primaryMetric": A melhor coluna de valor/moeda/métrica para os gráficos e cards.
+3. Defina "secondaryMetric": Segunda coluna numérica importante (se houver).
+4. Defina "primaryCategory": A melhor coluna categórica (ex: Produto, Curso, Status, Setor) para agrupar e montar os eixos X dos gráficos.
+5. Defina "primaryDate": A melhor coluna de data (ex: data_realizacao, Data_Matricula, data_vencimento) para a linha do tempo. NUNCA escolha colunas de data como métricas numéricas.
+6. Crie "chartTitles" com títulos executivos acionáveis de negócio para cada gráfico (barChart, donutChart, areaChart, radarChart).
 
 Responda APENAS o JSON:
 {
-  "insights": ["Insight acionável 1", "Insight acionável 2", "Insight acionável 3"],
+  "insights": ["Insight de negócio 1", "Insight de negócio 2"],
   "columnMapping": {
     "NOME_COLUNA": "type"
+  },
+  "dashboardConfig": {
+    "primaryMetric": "NOME_COLUNA",
+    "secondaryMetric": "NOME_COLUNA",
+    "primaryCategory": "NOME_COLUNA",
+    "primaryDate": "NOME_COLUNA",
+    "chartTitles": {
+      "barChart": "Título do Gráfico de Barras",
+      "donutChart": "Título do Donut KPI",
+      "areaChart": "Título do Gráfico de Evolução Temporal",
+      "radarChart": "Título do Gráfico de Radar"
+    }
   }
 }
-
-Tipos: "currency", "date", "number", "category", "text", "ignore".
 `;
 
     const CANDIDATE_MODELS = [
@@ -339,7 +508,7 @@ Tipos: "currency", "date", "number", "category", "text", "ignore".
         const response = await groq.chat.completions.create({
           model, 
           messages: [
-            { role: "system", content: "Você é um especialista em BI e Analytics que analisa perfis de dados para extrair inteligência de negócio." },
+            { role: "system", content: "Você é um especialista em BI e Analytics que orienta a estruturação de dashboards executivos a partir da pré-análise dos dados." },
             { role: "user", content: prompt }
           ],
           temperature: 0.1, 
@@ -349,14 +518,29 @@ Tipos: "currency", "date", "number", "category", "text", "ignore".
 
         const rawContent = response.choices[0]?.message?.content || "{}";
         const cleanedContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-        return JSON.parse(cleanedContent);
+        const parsed = JSON.parse(cleanedContent);
+
+        if (parsed && (parsed.columnMapping || parsed.dashboardConfig)) {
+          return {
+            insights: parsed.insights || localAnalysis.insights || [],
+            columnMapping: { ...localAnalysis.columnMapping, ...parsed.columnMapping },
+            dashboardConfig: {
+              ...localAnalysis.dashboardConfig,
+              ...parsed.dashboardConfig,
+              chartTitles: {
+                ...localAnalysis.dashboardConfig?.chartTitles,
+                ...parsed.dashboardConfig?.chartTitles
+              }
+            }
+          };
+        }
       } catch (err) {
         console.warn(`⚠️ SmartDiscovery: modelo ${model} indisponível, tentando próximo...`);
       }
     }
-    return null;
+    return localAnalysis;
   } catch (error) {
     console.error("Erro no Smart Discovery:", error);
-    return null;
+    return localAnalysis;
   }
 };
