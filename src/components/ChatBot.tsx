@@ -134,7 +134,7 @@ export default function ChatBot({ data, headers, onboardingData }: ChatBotProps)
           <Bot size={24} />
           <h3>Lupa</h3>
         </div>
-        <p className="chatbot-subtitle">Creattive</p>
+        <p className="chatbot-subtitle">Assistente IA</p>
       </div>
 
       <div className="chatbot-messages">

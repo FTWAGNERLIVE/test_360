@@ -1016,10 +1016,6 @@ export default function DataVisualization({ data, headers, smartMapping, insight
               )}
             </button>
           </div>
-          <div className="filter-support-notice">
-            <Mail size={12} />
-            <span>Precisa de mais filtros? <a href="https://www.linkedin.com/company/creattive-tecnologia/posts/?feedView=all" target="_blank" rel="noopener noreferrer">Fale com nosso time de vendas</a></span>
-          </div>
         </div>
       )}
 
