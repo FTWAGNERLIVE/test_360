@@ -48,33 +48,46 @@ export interface CSVData {
   updatedAt: Date
 }
 
+// Helper de sanitização recursiva contra chaves vazias ("") no Firestore
+const sanitizeForFirestore = (obj: any): any => {
+  if (obj === null || obj === undefined) return null
+  if (typeof obj !== 'object') return obj
+  if (obj instanceof Timestamp || obj instanceof Date) return obj
+  if (Array.isArray(obj)) return obj.map(item => sanitizeForFirestore(item))
+
+  const cleanObj: Record<string, any> = {}
+  for (const key of Object.keys(obj)) {
+    const trimmedKey = String(key).trim()
+    if (trimmedKey !== '') {
+      cleanObj[trimmedKey] = sanitizeForFirestore(obj[key])
+    }
+  }
+  return cleanObj
+}
+
 /**
- * Salva os dados do CSV no Firestore
+ * Salva os dados de uma planilha CSV no Firestore do usuário.
  */
 export async function saveCSVData(
-  csvData: any[], 
-  csvHeaders: string[], 
+  csvData: any[],
+  csvHeaders: string[],
   csvFileName?: string,
-  targetUserId?: string,
+  docIdToUpdate?: string,
   smartDiscovery?: any,
-  docIdToUpdate?: string
-): Promise<void> {
-  if (!db) {
-    throw new Error('Firebase não está configurado')
-  }
+  targetUserId?: string
+) {
+  if (!db) throw new Error('Firestore não inicializado')
 
-  // Esperar o Auth estar pronto antes de prosseguir
-  let userId: string;
+  let userId: string
   try {
-    userId = await waitForAuth();
+    userId = await waitForAuth()
     if (targetUserId) userId = targetUserId; // Se for admin impersonando, usa o target
   } catch (error) {
     throw new Error('Usuário não autenticado. Faça login novamente.')
   }
   
   // SANITIZAÇÃO PROFUNDA: Firebase não aceita chaves vazias "" ou campos undefined
-  // Isso acontece muito em arquivos Excel com colunas fantasmas.
-  const cleanHeaders = csvHeaders.filter(h => h && h.trim() !== "")
+  const cleanHeaders = csvHeaders.map(h => String(h || '').trim()).filter(h => h !== "")
   
   const sanitizedData = csvData.map(row => {
     const cleanRow: any = {}
@@ -90,19 +103,17 @@ export async function saveCSVData(
   const isSampled = sanitizedData.length > MAX_ROWS_TO_SAVE
   const dataToSave = isSampled ? sanitizedData.slice(0, MAX_ROWS_TO_SAVE) : sanitizedData
 
-  const sanitizedDiscovery = smartDiscovery || null
-
-  const csvDataDoc = {
+  const csvDataDoc = sanitizeForFirestore({
     userId,
     csvData: dataToSave,
     csvHeaders: cleanHeaders,
     csvFileName: csvFileName || 'dados.csv',
-    smartDiscovery: sanitizedDiscovery,
+    smartDiscovery: smartDiscovery || null,
     uploadedAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
     totalRows: sanitizedData.length,
     isSampled
-  }
+  })
 
   try {
     // Gerar um ID de documento limpo e seguro
