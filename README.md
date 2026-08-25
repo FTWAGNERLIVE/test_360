@@ -1,6 +1,6 @@
-# Lupa Analytics - Creattive
+# Lupa Analytics
 
-Dashboard interativo para análise de dados com IA, desenvolvido pela Creattive para atrair clientes e demonstrar o poder da Lupa Analytics.
+Dashboard interativo para análise de dados com IA para demonstrar o poder da Lupa Analytics.
 
 ## 🚀 Funcionalidades
 

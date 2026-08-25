@@ -492,7 +492,7 @@ export default function Admin() {
                       type="email"
                       value={newAdminEmail}
                       onChange={(e) => setNewAdminEmail(e.target.value)}
-                      placeholder="admin@creattive.com"
+                      placeholder="admin@lupa.com"
                       required
                     />
                   </div>
@@ -541,7 +541,7 @@ export default function Admin() {
                       type="email"
                       value={newVendasEmail}
                       onChange={(e) => setNewVendasEmail(e.target.value)}
-                      placeholder="vendas@creattive.com"
+                      placeholder="vendas@lupa.com"
                       required
                     />
                   </div>
