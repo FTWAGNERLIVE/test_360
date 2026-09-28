@@ -935,7 +935,7 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
             isSharedView ? (
               <div className="upload-view-container">
                 <div className="upload-box-card" style={{ padding: '40px', textAlign: 'center' }}>
-                  <h2 style={{ color: '#fff' }}>O Dashboard ainda não possui dados configurados.</h2>
+                  <h2 style={{ color: '#1e293b', marginTop: '20px' }}>O Dashboard ainda não possui dados configurados.</h2>
                 </div>
               </div>
             ) : (
