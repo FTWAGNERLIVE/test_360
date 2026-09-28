@@ -238,6 +238,7 @@ export const chatWithGroq = async (
 /**
  * ANALISA ESTRUTURA: Prepara um perfil detalhado de cada coluna para a IA não cometer erros.
  */
+// @ts-ignore
 const generateDataProfile = (data: any[], headers: string[]) => {
   const sample = data.slice(0, 100); // Amostra maior para perfilamento
   
@@ -443,67 +444,69 @@ export const getSmartDiscovery = async (
   data: any[],
   onboardingData?: any
 ): Promise<SmartDiscoveryResult | null> => {
-  const localAnalysis = runLocalPreAnalysis(headers, data, onboardingData);
+  const analysis = analyzeData(headers, data);
+  const mapping = analysis.mapping;
+  
+  const columnMapping: Record<string, any> = {};
+  analysis.profiles.forEach(p => { columnMapping[p.name] = p.type; });
 
-  if (!API_KEY) return localAnalysis;
+  const baseConfig = {
+    insights: [],
+    columnMapping,
+    dashboardConfig: {
+      primaryMetric: mapping.primaryMetric,
+      secondaryMetric: mapping.secondaryMetric,
+      primaryCategory: mapping.primaryCategory,
+      primaryDate: mapping.primaryDate,
+      donutCategory: mapping.donutCategory,
+      radarCategory: mapping.radarCategory,
+      chartTitles: {
+        barChart: mapping.primaryMetric && mapping.primaryCategory ? `Análise Comparativa de ${mapping.primaryMetric} por ${mapping.primaryCategory}` : 'Análise Comparativa',
+        donutChart: mapping.donutCategory ? `Distribuição Proporcional em ${mapping.donutCategory}` : 'Distribuição dos Dados',
+        areaChart: mapping.primaryMetric && mapping.primaryDate ? `Evolução Temporal de ${mapping.primaryMetric}` : 'Evolução Temporal',
+        radarChart: mapping.radarCategory ? `Perfil por ${mapping.radarCategory}` : 'Análise Multidimensional'
+      }
+    }
+  };
+
+  if (!API_KEY) return baseConfig as any;
 
   try {
-    const sample = data.slice(0, 10); 
-    const dataProfile = generateDataProfile(data.slice(0, 20), headers);
-    
     const prompt = `
-[LUPA ANALYTICS - INTELIGÊNCIA DE NEGÓCIOS - PRÉ-ANÁLISE DE DADOS E ORIENTAÇÃO DO DASHBOARD]
-Você é o Analista Lupa AI (Consultor de BI Sênior).
-Sua tarefa é fazer a PRÉ-ANÁLISE dos campos, títulos e dados abaixo para orientar o código sobre qual gráfico montar e qual configuração utilizar.
-
-ESTRUTURA DOS DADOS:
-${JSON.stringify(dataProfile, null, 2)}
-
-PRÉ-ANÁLISE SUGERIDA (LOCAL):
-${JSON.stringify(localAnalysis, null, 2)}
+[LUPA ANALYTICS - DASHBOARD TITLES E INSIGHTS]
+O sistema já decidiu matematicamente a estrutura dos gráficos abaixo:
+- Gráfico de Barras: Analisa Métrica (${mapping.primaryMetric || 'N/A'}) agrupada por (${mapping.primaryCategory || 'N/A'})
+- Gráfico Donut (Pizza): Distribuição da Categoria (${mapping.donutCategory || 'N/A'})
+- Gráfico de Área (Linha do Tempo): Evolução da Métrica (${mapping.primaryMetric || 'N/A'}) ao longo do Tempo (${mapping.primaryDate || 'N/A'})
+- Gráfico Radar: Análise da Categoria (${mapping.radarCategory || 'N/A'})
 
 CONTEXTO DO CLIENTE:
 - Setor: ${onboardingData?.industry || 'Geral'}
 - Objetivos: ${JSON.stringify(onboardingData?.goals || [])}
 
-AMOSTRA DOS DADOS (10 linhas):
-${JSON.stringify(sample)}
+Sua ÚNICA tarefa:
+1. Criar Títulos curtos, executivos e profissionais (estilo consultoria McKinsey) para cada um dos 4 gráficos acima.
+2. Criar 2 a 3 Insights genéricos e curtos sugerindo o que o usuário deve analisar com esses gráficos.
 
-INSTRUÇÕES DE ORIENTAÇÃO PARA O DASHBOARD:
-1. Analise títulos e conteúdos das colunas para classificar o tipo correto de cada um: "currency", "date", "number", "category", "text", "ignore".
-2. Defina "primaryMetric": A melhor coluna de valor/moeda/métrica para os gráficos e cards.
-3. Defina "secondaryMetric": Segunda coluna numérica importante (se houver).
-4. Defina "primaryCategory": A melhor coluna categórica (ex: Produto, Curso, Status, Setor) para agrupar e montar os eixos X dos gráficos.
-5. Defina "primaryDate": A melhor coluna de data (ex: data_realizacao, Data_Matricula, data_vencimento) para a linha do tempo. NUNCA escolha colunas de data como métricas numéricas.
-6. Crie "chartTitles" com títulos executivos acionáveis de negócio para cada gráfico (barChart, donutChart, areaChart, radarChart).
-
-Responda APENAS o JSON:
+Responda APENAS um JSON válido neste exato formato (sem marcação Markdown em volta se possível, apenas a string JSON):
 {
-  "insights": ["Insight de negócio 1", "Insight de negócio 2"],
-  "columnMapping": {
-    "NOME_COLUNA": "type"
+  "chartTitles": {
+    "barChart": "Título...",
+    "donutChart": "Título...",
+    "areaChart": "Título...",
+    "radarChart": "Título..."
   },
-  "dashboardConfig": {
-    "primaryMetric": "NOME_COLUNA",
-    "secondaryMetric": "NOME_COLUNA",
-    "primaryCategory": "NOME_COLUNA",
-    "primaryDate": "NOME_COLUNA",
-    "chartTitles": {
-      "barChart": "Título do Gráfico de Barras",
-      "donutChart": "Título do Donut KPI",
-      "areaChart": "Título do Gráfico de Evolução Temporal",
-      "radarChart": "Título do Gráfico de Radar"
-    }
-  }
+  "insights": [
+    "Insight curto 1...",
+    "Insight curto 2..."
+  ]
 }
 `;
 
     const CANDIDATE_MODELS = [
-      "openai/gpt-oss-120b",
-      "openai/gpt-oss-20b",
-      "qwen/qwen3.6-27b",
-      "groq/compound",
-      "allam-2-7b"
+      "qwen-2.5-32b",
+      "llama-3.1-8b-instant",
+      "mixtral-8x7b-32768"
     ];
 
     for (const model of CANDIDATE_MODELS) {
@@ -511,11 +514,11 @@ Responda APENAS o JSON:
         const response = await groq.chat.completions.create({
           model, 
           messages: [
-            { role: "system", content: "Você é um especialista em BI e Analytics que orienta a estruturação de dashboards executivos a partir da pré-análise dos dados." },
+            { role: "system", content: "Você é um especialista em BI e retorna APENAS JSON válido." },
             { role: "user", content: prompt }
           ],
           temperature: 0.1, 
-          max_tokens: 1500,
+          max_tokens: 400,
           response_format: { type: "json_object" }
         });
 
@@ -523,27 +526,26 @@ Responda APENAS o JSON:
         const cleanedContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
         const parsed = JSON.parse(cleanedContent);
 
-        if (parsed && (parsed.columnMapping || parsed.dashboardConfig)) {
+        if (parsed && (parsed.chartTitles || parsed.insights)) {
           return {
-            insights: parsed.insights || localAnalysis.insights || [],
-            columnMapping: { ...localAnalysis.columnMapping, ...parsed.columnMapping },
+            ...baseConfig,
+            insights: parsed.insights || baseConfig.insights,
             dashboardConfig: {
-              ...localAnalysis.dashboardConfig,
-              ...parsed.dashboardConfig,
+              ...baseConfig.dashboardConfig,
               chartTitles: {
-                ...localAnalysis.dashboardConfig?.chartTitles,
-                ...parsed.dashboardConfig?.chartTitles
+                ...baseConfig.dashboardConfig.chartTitles,
+                ...parsed.chartTitles
               }
             }
-          };
+          } as any;
         }
       } catch (err) {
-        console.warn(`⚠️ SmartDiscovery: modelo ${model} indisponível, tentando próximo...`);
+        console.warn(`⚠️ SmartDiscovery: modelo ${model} indisponível no momento.`);
       }
     }
-    return localAnalysis;
+    return baseConfig as any;
   } catch (error) {
     console.error("Erro no Smart Discovery:", error);
-    return localAnalysis;
+    return baseConfig as any;
   }
 };
