@@ -71,7 +71,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           passwordSet: firebaseUser.passwordSet,
           isPro: firebaseUser.isPro,
           plan: firebaseUser.plan,
-          lastAccess: firebaseUser.lastAccess
+          lastAccess: firebaseUser.lastAccess,
+          sharedWith: firebaseUser.sharedWith,
+          pendingAccessRequests: firebaseUser.pendingAccessRequests
         })
       } else {
         setUser(null)

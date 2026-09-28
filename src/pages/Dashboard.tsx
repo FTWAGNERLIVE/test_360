@@ -867,6 +867,7 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
             </div>
           </div>
         </header>
+        )}
 
         {/* NOTIFICAÇÃO DE IMPERSONAÇÃO */}
         {isImpersonating && !isSharedView && (
