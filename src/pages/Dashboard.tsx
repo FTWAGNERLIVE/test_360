@@ -790,6 +790,14 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
             <Table size={18} className="nav-icon" />
             <span>Tabela de Dados</span>
           </button>
+
+          <button 
+            className="nav-btn"
+            onClick={() => window.location.href = '/pricing'}
+          >
+            <DollarSign size={18} className="nav-icon" />
+            <span>Assinatura e Pagamentos</span>
+          </button>
         </nav>
       </aside>
       )}

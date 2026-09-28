@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Check, X, Sparkles, Zap, Shield, Crown } from 'lucide-react'
+import { Check, X, Sparkles, Zap, Shield, Crown, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import './Pricing.css'
 
@@ -126,10 +126,10 @@ export default function Pricing() {
 
   return (
     <div className="pricing-container">
+      <button className="back-btn" onClick={() => navigate(-1)}>
+        <ArrowLeft size={16} /> Voltar
+      </button>
       <div className="pricing-header">
-        <button className="back-btn" onClick={() => navigate(-1)}>
-          ← Voltar
-        </button>
         <h1>Escolha o plano ideal para sua <span>Estratégia</span></h1>
         <p>Analise dados com o poder da IA e transforme informações em resultados.</p>
       </div>
