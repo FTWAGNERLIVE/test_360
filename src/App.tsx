@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
+import SharedDashboard from './pages/SharedDashboard'
 import Admin from './pages/Admin'
 import Vendas from './pages/Vendas'
 import SetPassword from './pages/SetPassword'
@@ -137,6 +138,7 @@ function AppRoutes() {
           </VendasRoute>
         }
       />
+      <Route path="/share/:clientId" element={<SharedDashboard />} />
       <Route path="/terms" element={<TermsOfUse />} />
       <Route path="/security" element={<SecurityStatement />} />
       <Route path="/pricing" element={<Pricing />} />

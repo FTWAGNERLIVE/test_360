@@ -10,7 +10,7 @@ import {
   GoogleAuthProvider,
   updatePassword
 } from 'firebase/auth'
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, Timestamp, onSnapshot } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, Timestamp, onSnapshot, arrayUnion } from 'firebase/firestore'
 import { auth, db } from '../config/firebase'
 
 export interface UserData {
@@ -26,6 +26,8 @@ export interface UserData {
   isPro?: boolean
   plan?: 'free' | 'basic' | 'plus' | 'pro'
   lastAccess?: Date
+  sharedWith?: string[]
+  pendingAccessRequests?: string[]
 }
 
 const USERS_COLLECTION = 'users'
@@ -34,7 +36,7 @@ const TRIAL_DAYS = 15
 /**
  * Criar conta de usuário
  */
-export async function createAccount(email: string, password: string, name: string, role: 'admin' | 'vendas' | 'user' = 'user'): Promise<UserData> {
+export async function createAccount(email: string, password: string, name: string, role: 'admin' | 'vendas' | 'user' = 'user', skipOnboarding: boolean = false): Promise<UserData> {
   if (!auth || !db) {
     throw new Error('Firebase não está configurado')
   }
@@ -108,7 +110,7 @@ export async function createAccount(email: string, password: string, name: strin
       email: firebaseUser.email!,
       name: name || email.split('@')[0],
       role: role,
-      onboardingCompleted: role !== 'user', // Admin e vendas não precisam de onboarding
+      onboardingCompleted: role !== 'user' || skipOnboarding,
       createdAt: new Date(),
       trialEndDate,
       passwordSet: true
@@ -162,7 +164,7 @@ export async function createAccount(email: string, password: string, name: strin
     email: firebaseUser.email!,
     name: name || email.split('@')[0],
     role: role,
-    onboardingCompleted: role !== 'user',
+    onboardingCompleted: role !== 'user' || skipOnboarding,
     createdAt: new Date(),
     trialEndDate,
     passwordSet: true
@@ -283,7 +285,7 @@ export async function login(email: string, password: string): Promise<UserData> 
 /**
  * Fazer login com Google
  */
-export async function loginWithGoogle(): Promise<UserData> {
+export async function loginWithGoogle(skipOnboarding: boolean = false): Promise<UserData> {
   if (!auth || !db) {
     throw new Error('Firebase não está configurado')
   }
@@ -352,7 +354,7 @@ export async function loginWithGoogle(): Promise<UserData> {
       email: firebaseUser.email!,
       name: userData.name || firebaseUser.displayName || firebaseUser.email!.split('@')[0],
       role: userData.role || 'user',
-      onboardingCompleted: userData.onboardingCompleted || false,
+      onboardingCompleted: userData.onboardingCompleted || skipOnboarding,
       createdAt: userData.createdAt?.toDate() || new Date(),
       trialEndDate,
       passwordSet: userData.passwordSet !== undefined ? userData.passwordSet : true,
@@ -368,7 +370,7 @@ export async function loginWithGoogle(): Promise<UserData> {
       email: firebaseUser.email!,
       name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
       role: 'user',
-      onboardingCompleted: false,
+      onboardingCompleted: skipOnboarding,
       createdAt: new Date(),
       trialEndDate
     }
@@ -608,6 +610,36 @@ export async function getAllUsers(): Promise<UserData[]> {
 }
 
 /**
+ * Buscar um usuário por ID
+ */
+export async function getUserById(userId: string): Promise<UserData> {
+  if (!db) {
+    throw new Error('Firebase não está configurado')
+  }
+
+  const userDoc = await getDoc(doc(db, USERS_COLLECTION, userId))
+  if (!userDoc.exists()) {
+    throw new Error('Usuário não encontrado')
+  }
+
+  const data = userDoc.data()
+  return {
+    id: userDoc.id,
+    email: data.email,
+    name: data.name,
+    role: data.role || 'user',
+    onboardingCompleted: data.onboardingCompleted || false,
+    createdAt: data.createdAt?.toDate() || new Date(),
+    trialEndDate: data.trialEndDate?.toDate() || new Date(),
+    onboardingData: data.onboardingData,
+    isPro: data.isPro || false,
+    plan: data.plan || 'free',
+    lastAccess: data.lastAccess?.toDate(),
+    sharedWith: data.sharedWith || []
+  }
+}
+
+/**
  * Atualizar dados do usuário
  */
 export async function updateUserData(userId: string, data: Partial<UserData>): Promise<void> {
@@ -626,8 +658,17 @@ export async function updateUserData(userId: string, data: Partial<UserData>): P
 
   if (data.plan !== undefined) updateData.plan = data.plan
   if (data.isPro !== undefined) updateData.isPro = data.isPro
+  if (data.sharedWith !== undefined) updateData.sharedWith = data.sharedWith
+  if (data.pendingAccessRequests !== undefined) updateData.pendingAccessRequests = data.pendingAccessRequests
 
   await updateDoc(doc(db!, USERS_COLLECTION, userId), updateData)
+}
+
+export async function requestDashboardAccess(clientId: string, email: string): Promise<void> {
+  const userRef = doc(db!, USERS_COLLECTION, clientId)
+  await updateDoc(userRef, {
+    pendingAccessRequests: arrayUnion(email)
+  })
 }
 
 /**

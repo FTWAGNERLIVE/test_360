@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { login as firebaseLogin, loginWithGoogle as firebaseLoginWithGoogle, logout as firebaseLogout, onAuthStateChange, resetPassword, getAllUsers, updateUserData, resetUserPassword, createAccount as firebaseCreateAccount, UserData, isTrialExpired, getTrialDaysRemaining, updateAccountPassword as firebaseUpdatePassword, deleteUserAccount as firebaseDeleteUserAccount } from '../services/authService'
+import { login as firebaseLogin, loginWithGoogle as firebaseLoginWithGoogle, logout as firebaseLogout, onAuthStateChange, resetPassword, getAllUsers, updateUserData, resetUserPassword, createAccount as firebaseCreateAccount, UserData, isTrialExpired, getTrialDaysRemaining, updateAccountPassword as firebaseUpdatePassword, deleteUserAccount as firebaseDeleteUserAccount, getUserById } from '../services/authService'
 import { getAllOnboardingData as getFirestoreOnboardingData } from '../services/firestoreService'
 
 export interface User {
@@ -15,6 +15,8 @@ export interface User {
   isPro?: boolean
   plan?: 'free' | 'basic' | 'plus' | 'pro'
   lastAccess?: Date
+  sharedWith?: string[]
+  pendingAccessRequests?: string[]
 }
 
 export interface OnboardingData {
@@ -30,8 +32,8 @@ interface AuthContextType {
   user: User | null
   impersonatedUser: User | null
   login: (email: string, password: string) => Promise<boolean>
-  loginWithGoogle: () => Promise<boolean>
-  createAccount: (email: string, password: string, name: string) => Promise<boolean>
+  loginWithGoogle: (skipOnboarding?: boolean) => Promise<boolean>
+  createAccount: (email: string, password: string, name: string, skipOnboarding?: boolean) => Promise<boolean>
   logout: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
   resetUserPassword: (userId: string) => Promise<void>
@@ -102,9 +104,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const loginWithGoogle = async (): Promise<boolean> => {
+  const loginWithGoogle = async (skipOnboarding: boolean = false): Promise<boolean> => {
     try {
-      const userData = await firebaseLoginWithGoogle()
+      const userData = await firebaseLoginWithGoogle(skipOnboarding)
       setUser({
         id: userData.id,
         email: userData.email,
@@ -124,9 +126,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const createAccount = async (email: string, password: string, name: string): Promise<boolean> => {
+  const createAccount = async (email: string, password: string, name: string, skipOnboarding: boolean = false): Promise<boolean> => {
     try {
-      const userData = await firebaseCreateAccount(email, password, name, 'user')
+      const userData = await firebaseCreateAccount(email, password, name, 'user', skipOnboarding)
       setUser({
         id: userData.id,
         email: userData.email,
@@ -201,10 +203,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const users = await handleGetAllUsers()
-      const userToImpersonate = users.find(u => u.id === userId)
+      const userToImpersonate = await getUserById(userId)
       if (userToImpersonate) {
-        setImpersonatedUser(userToImpersonate)
+        setImpersonatedUser({
+          id: userToImpersonate.id,
+          email: userToImpersonate.email,
+          name: userToImpersonate.name,
+          role: userToImpersonate.role,
+          onboardingCompleted: userToImpersonate.onboardingCompleted,
+          onboardingData: userToImpersonate.onboardingData,
+          trialEndDate: userToImpersonate.trialEndDate,
+          createdAt: userToImpersonate.createdAt,
+          plan: userToImpersonate.plan,
+          lastAccess: userToImpersonate.lastAccess,
+          sharedWith: userToImpersonate.sharedWith
+        })
       } else {
         throw new Error('Usuário não encontrado para visualização')
       }

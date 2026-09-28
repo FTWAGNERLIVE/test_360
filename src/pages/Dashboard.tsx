@@ -101,8 +101,8 @@ export function isIdentityOrNameHeader(h: string): boolean {
   )
 }
 
-export default function Dashboard() {
-  const { user, logout, impersonatedUser, impersonateUser } = useAuth()
+export default function Dashboard({ isSharedView = false }: { isSharedView?: boolean }) {
+  const { user, logout, impersonatedUser, impersonateUser, updateProfile } = useAuth()
   const [csvData, setCsvData] = useState<any[]>([])
   const [csvHeaders, setCsvHeaders] = useState<string[]>([])
   const [smartDiscovery, setSmartDiscovery] = useState<any>(null)
@@ -119,6 +119,9 @@ export default function Dashboard() {
   const [userFiles, setUserFiles] = useState<any[]>([])
   const [isAddingNew, setIsAddingNew] = useState(false)
   const [activeFileId, setActiveFileId] = useState<string | null>(null)
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [shareEmail, setShareEmail] = useState('')
+  const [isCopying, setIsCopying] = useState(false)
   
   // Navigation & UI Layout State
   const [activeNav, setActiveNav] = useState<'home' | 'table' | 'file' | 'messages' | 'notification' | 'location' | 'graph'>('home')
@@ -799,13 +802,23 @@ export default function Dashboard() {
           </div>
 
           <div className="header-actions-section">
-            {user?.role === 'admin' && !isImpersonating && (
+            {user?.role === 'admin' && !isImpersonating && !isSharedView && (
               <button 
                 onClick={() => window.location.href = '/admin'} 
                 className="back-admin-btn"
               >
                 <LayoutDashboard size={16} />
                 Admin
+              </button>
+            )}
+
+            {user?.plan === 'pro' && !isImpersonating && !isSharedView && (
+              <button 
+                onClick={() => setShowShareModal(true)} 
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#3b82f6', color: '#fff', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+              >
+                <Share2 size={16} />
+                Compartilhar
               </button>
             )}
 
@@ -892,17 +905,21 @@ export default function Dashboard() {
                 >
                   <FileText size={14} />
                   <span>{file.fileName || 'Planilha'}</span>
-                  <button 
-                    className="tab-close"
-                    onClick={(e) => handleDeleteFile(e, file.id)}
-                  >
-                    <X size={12} />
-                  </button>
+                  {!isSharedView && (
+                    <button 
+                      className="tab-close"
+                      onClick={(e) => handleDeleteFile(e, file.id)}
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
                 </div>
               ))}
-              <button className="add-tab-pill" onClick={handleAddNewTab}>
-                <Plus size={16} />
-              </button>
+              {!isSharedView && (
+                <button className="add-tab-pill" onClick={handleAddNewTab}>
+                  <Plus size={16} />
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -915,6 +932,13 @@ export default function Dashboard() {
               <p>{loadingInsights ? 'Processando dados e gerando insights com IA...' : 'Carregando seus dados...'}</p>
             </div>
           ) : (csvData.length === 0 || isAddingNew) ? (
+            isSharedView ? (
+              <div className="upload-view-container">
+                <div className="upload-box-card" style={{ padding: '40px', textAlign: 'center' }}>
+                  <h2 style={{ color: '#fff' }}>O Dashboard ainda não possui dados configurados.</h2>
+                </div>
+              </div>
+            ) : (
             /* TELA DE UPLOAD / CONEXÃO DE DADOS */
             <div className="upload-view-container">
               <div className="upload-box-card">
@@ -960,7 +984,7 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
-          ) : activeNav === 'table' ? (
+          )) : activeNav === 'table' ? (
             /* VISÃO DEDICADA: TABELA DE DADOS BRUTOS COM FILTROS */
             <div className="dashboard-widgets-wrapper">
               <DataVisualization 
@@ -1296,6 +1320,131 @@ export default function Dashboard() {
           <HelpCircle size={22} />
         </button>
       </div>
+
+      {showShareModal && (
+        <div className="support-modal">
+          <div className="support-form-card" style={{ maxWidth: '500px' }}>
+            <div className="support-form-header">
+              <h2>Compartilhar Dashboard</h2>
+              <button onClick={() => setShowShareModal(false)} className="close-support-btn">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '10px' }}>
+                Link de compartilhamento para convidados:
+              </p>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input 
+                  type="text" 
+                  readOnly 
+                  value={`${window.location.origin}/share/${user?.id}`}
+                  style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }}
+                />
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/share/${user?.id}`)
+                    setIsCopying(true)
+                    setTimeout(() => setIsCopying(false), 2000)
+                  }}
+                  style={{ padding: '10px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                >
+                  {isCopying ? 'Copiado!' : 'Copiar'}
+                </button>
+              </div>
+            </div>
+
+            {user?.pendingAccessRequests && user.pendingAccessRequests.length > 0 && (
+              <div style={{ marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '16px', marginBottom: '10px', color: '#fff' }}>Solicitações de Acesso:</h3>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {user.pendingAccessRequests.map((email: string) => (
+                    <li key={email} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', background: '#334155', borderRadius: '6px', marginBottom: '8px' }}>
+                      <span style={{ color: '#f8fafc' }}>{email}</span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                          onClick={() => {
+                            if (user && updateProfile) {
+                              const newShared = [...(user.sharedWith || []), email]
+                              const newPending = user.pendingAccessRequests!.filter(e => e !== email)
+                              updateProfile({ sharedWith: newShared, pendingAccessRequests: newPending })
+                            }
+                          }}
+                          style={{ padding: '4px 8px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          Autorizar
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (user && updateProfile) {
+                              const newPending = user.pendingAccessRequests!.filter(e => e !== email)
+                              updateProfile({ pendingAccessRequests: newPending })
+                            }
+                          }}
+                          style={{ padding: '4px 8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          Rejeitar
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div style={{ marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '16px', marginBottom: '10px', color: '#fff' }}>Usuários com Acesso:</h3>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {user?.sharedWith && user.sharedWith.length > 0 ? (
+                  user.sharedWith.map((email: string) => (
+                    <li key={email} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', background: '#1e293b', borderRadius: '6px', marginBottom: '8px' }}>
+                      <span style={{ color: '#cbd5e1' }}>{email}</span>
+                      <button 
+                        onClick={() => {
+                          if (user && updateProfile) {
+                            updateProfile({ sharedWith: user.sharedWith!.filter(e => e !== email) })
+                          }
+                        }}
+                        style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                      >
+                        Remover
+                      </button>
+                    </li>
+                  ))
+                ) : (
+                  <p style={{ color: '#64748b', fontSize: '14px' }}>Nenhum usuário convidado ainda.</p>
+                )}
+              </ul>
+            </div>
+
+            <div>
+              <form onSubmit={(e) => {
+                e.preventDefault()
+                if (shareEmail && user && updateProfile) {
+                  const currentShared = user.sharedWith || []
+                  if (!currentShared.includes(shareEmail)) {
+                    updateProfile({ sharedWith: [...currentShared, shareEmail] })
+                  }
+                  setShareEmail('')
+                }
+              }} style={{ display: 'flex', gap: '10px' }}>
+                <input 
+                  type="email" 
+                  value={shareEmail}
+                  onChange={(e) => setShareEmail(e.target.value)}
+                  placeholder="Email do convidado"
+                  required
+                  style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }}
+                />
+                <button type="submit" style={{ padding: '10px 16px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                  Adicionar
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showChat && csvData.length > 0 && (
         <ChatBot data={csvData} headers={csvHeaders} onboardingData={effectiveUser?.onboardingData} />

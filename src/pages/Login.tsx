@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, Sparkles } from 'lucide-react'
 import './Login.css'
 
@@ -22,11 +22,15 @@ export default function Login() {
   const [signUpSuccess, setSignUpSuccess] = useState(false)
   const { user, login, loginWithGoogle, createAccount, resetPassword, isLoading } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const inviteClientId = searchParams.get('invite')
 
   // Redirecionar automaticamente quando o usuário fizer login
   useEffect(() => {
     if (!isLoading && user) {
-      if (user.role === 'admin') {
+      if (inviteClientId) {
+        navigate(`/share/${inviteClientId}`, { replace: true })
+      } else if (user.role === 'admin') {
         navigate('/admin', { replace: true })
       } else if (user.role === 'vendas') {
         navigate('/vendas', { replace: true })
@@ -64,7 +68,8 @@ export default function Login() {
     setLoading(true)
 
     try {
-      const success = await loginWithGoogle()
+      const skipOnboarding = !!inviteClientId
+      const success = await loginWithGoogle(skipOnboarding)
       if (!success) {
         setError('Erro ao fazer login com Google')
         setLoading(false)
@@ -123,7 +128,8 @@ export default function Login() {
     }
 
     try {
-      await createAccount(signUpEmail, signUpPassword, signUpName)
+      const skipOnboarding = !!inviteClientId
+      await createAccount(signUpEmail, signUpPassword, signUpName, skipOnboarding)
       setSignUpSuccess(true)
       setTimeout(() => {
         setShowSignUp(false)
