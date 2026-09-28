@@ -30,7 +30,8 @@ export default function SharedDashboard() {
       isMounted = false
       impersonateUser(null)
     }
-  }, [clientId, user, isLoading, impersonateUser])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, user?.id, isLoading])
 
   if (isLoading) return <div className="loading-screen">Carregando...</div>
   if (!user) return <Navigate to={`/login?invite=${clientId}`} replace />
