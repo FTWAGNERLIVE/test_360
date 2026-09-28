@@ -426,18 +426,21 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
 
   // Categoria 1: Para o Gráfico de Barras
   const barCategoryHeader = useMemo(() => {
-    return allCategoryHeaders[0] || csvHeaders.find(h => !isDateHeaderName(h) && !isIdentityOrNameHeader(h)) || csvHeaders[0] || ''
-  }, [allCategoryHeaders, csvHeaders])
+    if (effectiveDiscovery?.dashboardConfig?.primaryCategory && csvHeaders.includes(effectiveDiscovery.dashboardConfig.primaryCategory)) return effectiveDiscovery.dashboardConfig.primaryCategory;
+    return allCategoryHeaders[0] || csvHeaders.find(h => !isDateHeaderName(h) && !isIdentityOrNameHeader(h)) || csvHeaders[0] || '';
+  }, [allCategoryHeaders, csvHeaders, effectiveDiscovery])
 
   // Categoria 2: Para o Donut Chart (Evita repetir a Categoria 1)
   const donutCategoryHeader = useMemo(() => {
-    return allCategoryHeaders[1] || allCategoryHeaders[0] || csvHeaders.find(h => !isDateHeaderName(h) && !isIdentityOrNameHeader(h)) || csvHeaders[0] || ''
-  }, [allCategoryHeaders, csvHeaders])
+    if (effectiveDiscovery?.dashboardConfig?.donutCategory && csvHeaders.includes(effectiveDiscovery.dashboardConfig.donutCategory)) return effectiveDiscovery.dashboardConfig.donutCategory;
+    return allCategoryHeaders[1] || allCategoryHeaders[0] || csvHeaders.find(h => !isDateHeaderName(h) && !isIdentityOrNameHeader(h)) || csvHeaders[0] || '';
+  }, [allCategoryHeaders, csvHeaders, effectiveDiscovery])
 
   // Categoria 3: Para o Radar Chart (Evita repetir as Categorias 1 e 2)
   const radarCategoryHeader = useMemo(() => {
-    return allCategoryHeaders[2] || allCategoryHeaders[1] || allCategoryHeaders[0] || csvHeaders.find(h => !isDateHeaderName(h) && !isIdentityOrNameHeader(h)) || csvHeaders[0] || ''
-  }, [allCategoryHeaders, csvHeaders])
+    if (effectiveDiscovery?.dashboardConfig?.radarCategory && csvHeaders.includes(effectiveDiscovery.dashboardConfig.radarCategory)) return effectiveDiscovery.dashboardConfig.radarCategory;
+    return allCategoryHeaders[2] || allCategoryHeaders[0] || csvHeaders.find(h => !isDateHeaderName(h) && !isIdentityOrNameHeader(h)) || csvHeaders[0] || '';
+  }, [allCategoryHeaders, csvHeaders, effectiveDiscovery])
 
   // Fallback mantido por compatibilidade
   const categoryHeader = barCategoryHeader
