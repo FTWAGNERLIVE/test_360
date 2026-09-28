@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { analyzeData } from "./dataAnalyzer";
 
 const API_KEY = import.meta.env.VITE_GROQ_API_KEY || "";
 
@@ -275,6 +276,8 @@ export interface DashboardConfig {
   primaryMetric: string;
   secondaryMetric: string;
   primaryCategory: string;
+  donutCategory?: string;
+  radarCategory?: string;
   primaryDate: string;
   chartTitles: {
     barChart?: string;
