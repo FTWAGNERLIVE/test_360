@@ -755,38 +755,38 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
       {/* ===== SIDEBAR ESQUERDA (ESTILO AZUL MARINHO REFERÊNCIA) ===== */}
       {!isSharedView && (
         <aside className={`dashboard-sidebar ${isSidebarOpen ? 'open' : ''}`}>
-          <div className="sidebar-profile-card">
-            <div className="avatar-ring">
-              <div className="avatar-inner">
-                <span className="avatar-icon">👤</span>
-              </div>
+        <div className="sidebar-profile-card">
+          <div className="avatar-ring">
+            <div className="avatar-inner">
+              <span className="avatar-icon">👤</span>
             </div>
-            <h2 className="sidebar-user-name">
-              {effectiveUser?.name ? effectiveUser.name.toUpperCase() : 'USUÁRIO'}
-            </h2>
-            <p className="sidebar-user-email">
-              {effectiveUser?.email || 'usuario@empresa.com'}
-            </p>
           </div>
+          <h2 className="sidebar-user-name">
+            {effectiveUser?.name ? effectiveUser.name.toUpperCase() : 'USUÁRIO'}
+          </h2>
+          <p className="sidebar-user-email">
+            {effectiveUser?.email || 'usuario@empresa.com'}
+          </p>
+        </div>
 
-          <nav className="sidebar-nav">
-            <button 
-              className={`nav-btn ${activeNav === 'home' ? 'active' : ''}`}
-              onClick={() => { setActiveNav('home'); setIsAddingNew(false) }}
-            >
-              <Home size={18} className="nav-icon" />
-              <span>Dashboard</span>
-            </button>
+        <nav className="sidebar-nav">
+          <button 
+            className={`nav-btn ${activeNav === 'home' ? 'active' : ''}`}
+            onClick={() => { setActiveNav('home'); setIsAddingNew(false) }}
+          >
+            <Home size={18} className="nav-icon" />
+            <span>Dashboard</span>
+          </button>
 
-            <button 
-              className={`nav-btn ${activeNav === 'table' ? 'active' : ''}`}
-              onClick={() => { setActiveNav('table'); setIsAddingNew(false) }}
-            >
-              <Table size={18} className="nav-icon" />
-              <span>Tabela de Dados</span>
-            </button>
-          </nav>
-        </aside>
+          <button 
+            className={`nav-btn ${activeNav === 'table' ? 'active' : ''}`}
+            onClick={() => { setActiveNav('table'); setIsAddingNew(false) }}
+          >
+            <Table size={18} className="nav-icon" />
+            <span>Tabela de Dados</span>
+          </button>
+        </nav>
+      </aside>
       )}
 
       {/* ===== CONTEÚDO PRINCIPAL ===== */}
@@ -794,80 +794,79 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
         {/* CABEÇALHO DA DASHBOARD */}
         {!isSharedView && (
           <header className="main-header">
-            <div className="header-title-section">
+          <div className="header-title-section">
+            <button 
+              className="menu-toggle-btn"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            >
+              <Menu size={22} />
+            </button>
+            <h1 className="main-title">Dashboard User</h1>
+          </div>
+
+          <div className="header-actions-section">
+            {user?.role === 'admin' && !isImpersonating && !isSharedView && (
               <button 
-                className="menu-toggle-btn"
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                onClick={() => window.location.href = '/admin'} 
+                className="back-admin-btn"
               >
-                <Menu size={22} />
+                <LayoutDashboard size={16} />
+                Admin
               </button>
-              <h1 className="main-title">Dashboard User</h1>
-            </div>
+            )}
 
-            <div className="header-actions-section">
-              {user?.role === 'admin' && !isImpersonating && !isSharedView && (
-                <button 
-                  onClick={() => window.location.href = '/admin'} 
-                  className="back-admin-btn"
-                >
-                  <LayoutDashboard size={16} />
-                  Admin
-                </button>
-              )}
+            {user?.plan === 'pro' && !isImpersonating && !isSharedView && (
+              <button 
+                onClick={() => setShowShareModal(true)} 
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#3b82f6', color: '#fff', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+              >
+                <Share2 size={16} />
+                Compartilhar
+              </button>
+            )}
 
-              {user?.plan === 'pro' && !isImpersonating && !isSharedView && (
-                <button 
-                  onClick={() => setShowShareModal(true)} 
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#3b82f6', color: '#fff', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
-                >
-                  <Share2 size={16} />
-                  Compartilhar
-                </button>
-              )}
-
-              <div className="profile-dropdown-container">
-                <button 
-                  className="profile-trigger-btn" 
-                  onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-                >
-                  <div className="small-avatar">{effectiveUser?.name?.charAt(0).toUpperCase() || 'U'}</div>
-                  <span className="profile-name-text">{effectiveUser?.name || 'Usuário'}</span>
-                </button>
-                
-                {showProfileDropdown && (
-                  <div className="profile-dropdown-menu">
-                    <div className="profile-header">
-                      <strong>{effectiveUser?.name}</strong>
-                      <span>{effectiveUser?.email}</span>
-                    </div>
-                    
-                    <div className="profile-plan">
-                      <span>Plano:</span>
-                      <span className="plan-tag">{user?.plan?.toUpperCase() || 'FREE'}</span>
-                    </div>
-
-                    {user?.role === 'user' && (user?.plan === 'free' || !user?.plan) && (
-                      <button 
-                        onClick={() => window.location.href = '/pricing'} 
-                        className="dropdown-upgrade-btn"
-                      >
-                        <Sparkles size={14} />
-                        Fazer Upgrade
-                      </button>
-                    )}
-
-                    <div className="dropdown-divider"></div>
-                    
-                    <button onClick={logout} className="dropdown-logout-btn">
-                      <LogOut size={16} />
-                      Sair da Conta
-                    </button>
+            <div className="profile-dropdown-container">
+              <button 
+                className="profile-trigger-btn" 
+                onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+              >
+                <div className="small-avatar">{effectiveUser?.name?.charAt(0).toUpperCase() || 'U'}</div>
+                <span className="profile-name-text">{effectiveUser?.name || 'Usuário'}</span>
+              </button>
+              
+              {showProfileDropdown && (
+                <div className="profile-dropdown-menu">
+                  <div className="profile-header">
+                    <strong>{effectiveUser?.name}</strong>
+                    <span>{effectiveUser?.email}</span>
                   </div>
-                )}
-              </div>
+                  
+                  <div className="profile-plan">
+                    <span>Plano:</span>
+                    <span className="plan-tag">{user?.plan?.toUpperCase() || 'FREE'}</span>
+                  </div>
+
+                  {user?.role === 'user' && (user?.plan === 'free' || !user?.plan) && (
+                    <button 
+                      onClick={() => window.location.href = '/pricing'} 
+                      className="dropdown-upgrade-btn"
+                    >
+                      <Sparkles size={14} />
+                      Fazer Upgrade
+                    </button>
+                  )}
+
+                  <div className="dropdown-divider"></div>
+                  
+                  <button onClick={logout} className="dropdown-logout-btn">
+                    <LogOut size={16} />
+                    Sair da Conta
+                  </button>
+                </div>
+              )}
             </div>
-          </header>
-        )}
+          </div>
+        </header>
 
         {/* NOTIFICAÇÃO DE IMPERSONAÇÃO */}
         {isImpersonating && !isSharedView && (
