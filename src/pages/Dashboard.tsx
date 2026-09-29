@@ -4,6 +4,8 @@ import {
   LogOut, FileText, Sparkles, Clock, CheckCircle2, HelpCircle, 
   Send, X, LayoutDashboard, Plus,
   Home, Share2, ThumbsUp, Star, DollarSign, Menu, Table
+, Users, Activity, Briefcase, TrendingUp, ShoppingCart, Target, Heart, CheckCircle
+, Settings, Lock
 } from 'lucide-react'
 import { 
   BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, 
@@ -22,6 +24,12 @@ import { getSmartDiscovery, runLocalPreAnalysis } from '../services/groqService'
 import './Dashboard.css'
 
 // Helper para limpeza e conversão de números (moeda PT-BR, pontos, vírgulas)
+const ICON_MAP: Record<string, React.ElementType> = {
+  DollarSign, Users, Activity, Briefcase, TrendingUp, ShoppingCart,
+  FileText, CheckCircle, Target, Heart, Clock,
+  Share2, ThumbsUp, Star
+};
+
 const cleanNumber = (val: any): number => {
   if (typeof val === 'number') return val
   if (val === null || val === undefined || val === '') return NaN
@@ -105,7 +113,9 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
   const { user, logout, impersonatedUser, impersonateUser, updateProfile } = useAuth()
   const [csvData, setCsvData] = useState<any[]>([])
   const [csvHeaders, setCsvHeaders] = useState<string[]>([])
-  const [smartDiscovery, setSmartDiscovery] = useState<any>(null)
+    const [smartDiscovery, setSmartDiscovery] = useState<any>(null)
+  const [manualConfig, setManualConfig] = useState<any>({})
+  const [editingChart, setEditingChart] = useState<string | null>(null)
   const [loadingInsights, setLoadingInsights] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const [showSupport, setShowSupport] = useState(false)
@@ -238,6 +248,37 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
       console.error("Erro ao trocar arquivo:", err)
     }
   }
+
+  const handleRecreateWithAI = async () => {
+    if (!activeFileId || csvData.length === 0) return;
+    
+    setLoadingInsights(true);
+    setManualConfig({}); // CLEAR MANUAL CONFIG ON RECREATE
+    // Removemos o setSmartDiscovery(null) aqui para não piscar os gráficos antes da hora, ou deixamos para dar feedback de loading.
+    // O loadingInsights = true já vai mostrar o spinner "Processando dados..."
+    try {
+      const discovery = await getSmartDiscovery(csvHeaders, csvData, effectiveUser?.onboardingData);
+      setSmartDiscovery(discovery);
+      
+      const fileRecord = userFiles.find(f => f.id === activeFileId);
+      if (fileRecord) {
+        await saveCSVData(
+          csvData, 
+          csvHeaders, 
+          fileRecord.fileName, 
+          activeFileId, 
+          discovery, 
+          effectiveUser?.id
+        );
+      }
+    } catch (err) {
+      console.error("Erro ao recriar dashboard com IA:", err);
+      alert("Erro ao recriar dashboard com IA. Verifique sua conexão.");
+    } finally {
+      setLoadingInsights(false);
+    }
+  };
+
 
   const handleDeleteFile = async (e: React.MouseEvent, fileId: string) => {
     e.stopPropagation()
@@ -381,6 +422,20 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
   }, [csvHeaders, csvData])
 
   // Descoberta Efetiva: combina a IA do servidor (Groq) com a pré-análise local determinística
+  
+  const canEditCharts = (effectiveUser && effectiveUser.plan !== 'free') || (effectiveUser && effectiveUser.trialEndDate && getTrialDaysRemaining(new Date(effectiveUser.trialEndDate)) > 0);
+  
+  const handleEditClick = (chartId: string) => {
+    if (!canEditCharts) {
+      if (window.confirm('A edição de gráficos é exclusiva para assinantes Premium ou usuários em período de teste. Deseja fazer upgrade agora?')) {
+        window.location.href = '/pricing';
+      }
+      return;
+    }
+    setEditingChart(chartId);
+  };
+
+  
   const effectiveDiscovery = useMemo(() => {
     if (!smartDiscovery) return localDiscovery
     return {
@@ -396,7 +451,8 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
         chartTitles: {
           ...localDiscovery.dashboardConfig?.chartTitles,
           ...smartDiscovery.dashboardConfig?.chartTitles
-        }
+        },
+        kpis: smartDiscovery.dashboardConfig?.kpis
       }
     }
   }, [smartDiscovery, localDiscovery])
@@ -428,27 +484,31 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
 
   // Categoria 1: Para o Gráfico de Barras
   const barCategoryHeader = useMemo(() => {
+    if (manualConfig.primaryCategory && csvHeaders.includes(manualConfig.primaryCategory)) return manualConfig.primaryCategory;
     if (effectiveDiscovery?.dashboardConfig?.primaryCategory && csvHeaders.includes(effectiveDiscovery.dashboardConfig.primaryCategory)) return effectiveDiscovery.dashboardConfig.primaryCategory;
     return allCategoryHeaders[0] || csvHeaders.find(h => !isDateHeaderName(h) && !isIdentityOrNameHeader(h)) || csvHeaders[0] || '';
-  }, [allCategoryHeaders, csvHeaders, effectiveDiscovery])
+  }, [allCategoryHeaders, csvHeaders, effectiveDiscovery, manualConfig.primaryCategory])
 
   // Categoria 2: Para o Donut Chart (Evita repetir a Categoria 1)
   const donutCategoryHeader = useMemo(() => {
+    if (manualConfig.donutCategory && csvHeaders.includes(manualConfig.donutCategory)) return manualConfig.donutCategory;
     if (effectiveDiscovery?.dashboardConfig?.donutCategory && csvHeaders.includes(effectiveDiscovery.dashboardConfig.donutCategory)) return effectiveDiscovery.dashboardConfig.donutCategory;
     return allCategoryHeaders[1] || allCategoryHeaders[0] || csvHeaders.find(h => !isDateHeaderName(h) && !isIdentityOrNameHeader(h)) || csvHeaders[0] || '';
-  }, [allCategoryHeaders, csvHeaders, effectiveDiscovery])
+  }, [allCategoryHeaders, csvHeaders, effectiveDiscovery, manualConfig.donutCategory])
 
   // Categoria 3: Para o Radar Chart (Evita repetir as Categorias 1 e 2)
   const radarCategoryHeader = useMemo(() => {
+    if (manualConfig.radarCategory && csvHeaders.includes(manualConfig.radarCategory)) return manualConfig.radarCategory;
     if (effectiveDiscovery?.dashboardConfig?.radarCategory && csvHeaders.includes(effectiveDiscovery.dashboardConfig.radarCategory)) return effectiveDiscovery.dashboardConfig.radarCategory;
     return allCategoryHeaders[2] || allCategoryHeaders[0] || csvHeaders.find(h => !isDateHeaderName(h) && !isIdentityOrNameHeader(h)) || csvHeaders[0] || '';
-  }, [allCategoryHeaders, csvHeaders, effectiveDiscovery])
+  }, [allCategoryHeaders, csvHeaders, effectiveDiscovery, manualConfig.radarCategory])
 
   // Fallback mantido por compatibilidade
   const categoryHeader = barCategoryHeader
 
   // Coluna de Data Principal da Planilha (Orientada pela IA)
   const dateHeader = useMemo(() => {
+    if (manualConfig.primaryDate && csvHeaders.includes(manualConfig.primaryDate)) return manualConfig.primaryDate;
     if (effectiveDiscovery?.dashboardConfig?.primaryDate && csvHeaders.includes(effectiveDiscovery.dashboardConfig.primaryDate)) {
       return effectiveDiscovery.dashboardConfig.primaryDate
     }
@@ -462,17 +522,19 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
       }).length
       return dateSerialCount >= 3
     }) || ''
-  }, [csvHeaders, csvData, effectiveDiscovery])
+  }, [csvHeaders, csvData, effectiveDiscovery, manualConfig.primaryDate])
 
   // Nomes dos 2 campos numéricos principais para usar nos gráficos (Orientados pela IA)
   const series1Key = useMemo(() => {
+    if (manualConfig.primaryMetric && (csvHeaders.includes(manualConfig.primaryMetric) || manualConfig.primaryMetric === 'Registros')) return manualConfig.primaryMetric;
     if (effectiveDiscovery?.dashboardConfig?.primaryMetric && csvHeaders.includes(effectiveDiscovery.dashboardConfig.primaryMetric)) {
       return effectiveDiscovery.dashboardConfig.primaryMetric
     }
-    return numericHeaders[0] || 'Métrica 1'
+    return numericHeaders[0] || 'Registros'
   }, [effectiveDiscovery, csvHeaders, numericHeaders])
 
   const series2Key = useMemo(() => {
+    if (manualConfig.secondaryMetric && (csvHeaders.includes(manualConfig.secondaryMetric) || manualConfig.secondaryMetric === 'Registros')) return manualConfig.secondaryMetric;
     if (
       effectiveDiscovery?.dashboardConfig?.secondaryMetric && 
       csvHeaders.includes(effectiveDiscovery.dashboardConfig.secondaryMetric) &&
@@ -487,58 +549,87 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
   const statCardsData = useMemo(() => {
     if (activeData.length === 0) {
       return {
-        card1Label: 'Total Registros', card1Value: '0',
-        card2Label: 'Total Colunas', card2Value: '0',
-        card3Label: 'Métrica Principal', card3Value: '0',
-        card4Label: 'Status Dados', card4Value: 'Pendente'
+        cards: [
+          { label: 'Total Registros', value: '0', icon: 'FileText' },
+          { label: 'Total Colunas', value: '0', icon: 'Share2' },
+          { label: 'Métrica Principal', value: '0', icon: 'DollarSign' },
+          { label: 'Status Dados', value: 'Pendente', icon: 'CheckCircle' }
+        ]
       }
     }
 
-    // Card 1: Soma da Métrica 1 ou Total de Registros
-    let c1Label = series1Key
-    let c1Value = ''
-    if (numericHeaders[0]) {
-      const sum1 = activeData.reduce((acc, r) => acc + (cleanNumber(r[series1Key]) || 0), 0)
-      const isMoney = series1Key.toLowerCase().includes('valor') || series1Key.toLowerCase().includes('preço') || series1Key.toLowerCase().includes('preco') || series1Key.toLowerCase().includes('faturamento') || series1Key.toLowerCase().includes('patrimonio') || series1Key.toLowerCase().includes('saldo')
-      c1Value = isMoney ? `R$ ${formatValue(sum1)}` : formatValue(sum1)
-    } else {
-      c1Label = 'Total Registros'
-      c1Value = activeData.length.toLocaleString('pt-BR')
+    const aiKpis = (effectiveDiscovery.dashboardConfig as any)?.kpis;
+    if (aiKpis && Array.isArray(aiKpis) && aiKpis.length >= 4) {
+      const computedCards = aiKpis.slice(0, 4).map(kpi => {
+        let val = 0;
+        let txtVal = '';
+        if (kpi.operation === 'count_unique') {
+          const unique = new Set(activeData.map(r => String(r[kpi.column] || '')).filter(Boolean));
+          val = unique.size;
+          txtVal = val.toLocaleString('pt-BR');
+        } else if (kpi.operation === 'count') {
+          val = activeData.length;
+          txtVal = val.toLocaleString('pt-BR');
+        } else if (kpi.operation === 'sum' || kpi.operation === 'avg') {
+          const sum = activeData.reduce((acc, r) => acc + (cleanNumber(r[kpi.column]) || 0), 0);
+          val = kpi.operation === 'avg' ? (activeData.length ? sum / activeData.length : 0) : sum;
+          const isMoney = kpi.column.toLowerCase().includes('valor') || kpi.column.toLowerCase().includes('preço') || kpi.column.toLowerCase().includes('preco');
+          txtVal = isMoney ? `R$ ${formatValue(val)}` : formatValue(val);
+        }
+        return { label: kpi.label, value: txtVal, icon: ICON_MAP[kpi.icon] ? kpi.icon : 'Star' };
+      });
+      return { cards: computedCards };
     }
 
-    // Card 2: Soma da Métrica 2 ou Total Registros
-    let c2Label = series2Key !== series1Key && numericHeaders[1] ? series2Key : 'Total Registros'
-    let c2Value = ''
+    // Default Fallback logic
+    let c1Label = series1Key;
+    let c1Value = '';
+    if (numericHeaders[0]) {
+      const sum1 = activeData.reduce((acc, r) => acc + (cleanNumber(r[series1Key]) || 0), 0);
+      const isMoney = series1Key.toLowerCase().includes('valor') || series1Key.toLowerCase().includes('preço') || series1Key.toLowerCase().includes('preco');
+      c1Value = isMoney ? `R$ ${formatValue(sum1)}` : formatValue(sum1);
+    } else {
+      c1Label = 'Total Registros';
+      c1Value = activeData.length.toLocaleString('pt-BR');
+    }
+
+    let c2Label = series2Key !== series1Key && numericHeaders[1] ? series2Key : 'Total Registros';
+    let c2Value = '';
     if (numericHeaders[1] && series2Key !== series1Key) {
-      const sum2 = activeData.reduce((acc, r) => acc + (cleanNumber(r[series2Key]) || 0), 0)
-      c2Value = formatValue(sum2)
+      const sum2 = activeData.reduce((acc, r) => acc + (cleanNumber(r[series2Key]) || 0), 0);
+      c2Value = formatValue(sum2);
     } else {
-      c2Value = activeData.length.toLocaleString('pt-BR')
+      c2Value = activeData.length.toLocaleString('pt-BR');
     }
 
-    // Card 3: Média da Métrica 1 ou Quantidade de Campos
-    let c3Label = numericHeaders[0] ? `Média de ${series1Key}` : 'Total Colunas'
-    let c3Value = ''
+    let c3Label = numericHeaders[0] ? `Média de ${series1Key}` : 'Total Colunas';
+    let c3Value = '';
     if (numericHeaders[0]) {
-      const sum1 = activeData.reduce((acc, r) => acc + (cleanNumber(r[series1Key]) || 0), 0)
-      const avg1 = sum1 / activeData.length
-      c3Value = formatValue(avg1)
+      const sum1 = activeData.reduce((acc, r) => acc + (cleanNumber(r[series1Key]) || 0), 0);
+      const avg1 = sum1 / activeData.length;
+      c3Value = formatValue(avg1);
     } else {
-      c3Value = `${csvHeaders.length}`
+      c3Value = `${csvHeaders.length}`;
     }
 
-    // Card 4: Categoria Principal / Score KPI
-    let c4Label = categoryHeader ? `Categorias em ${categoryHeader}` : 'Qualidade'
-    let c4Value = ''
+    let c4Label = categoryHeader ? `Categorias em ${categoryHeader}` : 'Qualidade';
+    let c4Value = '';
     if (categoryHeader) {
-      const uniqueCats = new Set(activeData.map(r => String(r[categoryHeader] || '')).filter(Boolean))
-      c4Value = `${uniqueCats.size}`
+      const uniqueCats = new Set(activeData.map(r => String(r[categoryHeader] || '')).filter(Boolean));
+      c4Value = `${uniqueCats.size}`;
     } else {
-      c4Value = '100%'
+      c4Value = '100%';
     }
 
-    return { card1Label: c1Label, card1Value: c1Value, card2Label: c2Label, card2Value: c2Value, card3Label: c3Label, card3Value: c3Value, card4Label: c4Label, card4Value: c4Value }
-  }, [activeData, csvHeaders, numericHeaders, series1Key, series2Key, categoryHeader])
+    return { 
+      cards: [
+        { label: c1Label, value: c1Value, icon: 'DollarSign' },
+        { label: c2Label, value: c2Value, icon: 'Share2' },
+        { label: c3Label, value: c3Value, icon: 'ThumbsUp' },
+        { label: c4Label, value: c4Value, icon: 'Star' }
+      ]
+    };
+  }, [activeData, numericHeaders, series1Key, series2Key, categoryHeader, csvHeaders.length, effectiveDiscovery])
 
   // 2. DADOS DINÂMICOS E AGREGADOS DO BAR CHART (ANÁLISE COMPARATIVA POR CATEGORIA 1)
   const resultBarData = useMemo(() => {
@@ -749,7 +840,7 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
       const shortName = catName.length > 12 ? catName.substring(0, 10) + '..' : catName
       return {
         subject: shortName,
-        [numericHeaders[0] ? series1Key : 'Registros']: Number((item.sum || item.count).toFixed(1)),
+        [series1Key === 'Registros' || !numericHeaders[0] ? 'Registros' : series1Key]: series1Key === 'Registros' ? item.count : Number((item.sum || item.count).toFixed(1)),
         fullMark: maxVal
       }
     })
@@ -912,7 +1003,7 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
 
         {/* BARRA DE ABAS DE PLANILHAS (SE EXISTIREM) */}
         {(userFiles.length > 0 || isAddingNew) && (
-          <div className="tabs-bar-wrapper">
+          <div className="tabs-bar-wrapper" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div className="tabs-list">
               {userFiles.map(file => (
                 <div 
@@ -938,6 +1029,26 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
                 </button>
               )}
             </div>
+
+            {/* NOVO BOTÃO DE RECRIAR COM IA */}
+            {!isSharedView && activeFileId && !isAddingNew && (
+              <button 
+                onClick={handleRecreateWithAI}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  background: 'linear-gradient(to right, #f59e0b, #ea580c)',
+                  color: '#fff', border: 'none', padding: '6px 14px',
+                  borderRadius: '20px', fontSize: '13px', fontWeight: 600,
+                  cursor: 'pointer', boxShadow: '0 2px 4px rgba(234, 88, 12, 0.2)',
+                  whiteSpace: 'nowrap'
+                }}
+                title="Pedir para a IA analisar os dados e recriar os gráficos"
+              >
+                <Sparkles size={14} />
+                Recriar com IA
+              </button>
+            )}
+
           </div>
         )}
 
@@ -1033,49 +1144,21 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
               
               {/* LINHA 1: GRID DE 4 CARDS ESTATÍSTICOS COM RÓTULOS REAIS DA PLANILHA */}
               <div className="stat-cards-row">
-                {/* CARD 1: COLUNA NUMÉRICA PRINCIPAL */}
-                <div className="stat-card navy-card">
-                  <div className="stat-card-info">
-                    <span className="stat-label">{statCardsData.card1Label}</span>
-                    <h3 className="stat-value">{statCardsData.card1Value}</h3>
-                  </div>
-                  <div className="stat-icon-circle white-circle">
-                    <DollarSign size={20} className="navy-icon-color" />
-                  </div>
-                </div>
-
-                {/* CARD 2: MÉTRICA 2 / REGISTROS */}
-                <div className="stat-card white-card">
-                  <div className="stat-card-info">
-                    <span className="stat-label">{statCardsData.card2Label}</span>
-                    <h3 className="stat-value">{statCardsData.card2Value}</h3>
-                  </div>
-                  <div className="stat-icon-circle orange-light-bg">
-                    <Share2 size={20} className="orange-icon-color" />
-                  </div>
-                </div>
-
-                {/* CARD 3: MÉDIA / COLUNAS */}
-                <div className="stat-card white-card">
-                  <div className="stat-card-info">
-                    <span className="stat-label">{statCardsData.card3Label}</span>
-                    <h3 className="stat-value">{statCardsData.card3Value}</h3>
-                  </div>
-                  <div className="stat-icon-circle orange-light-bg">
-                    <ThumbsUp size={20} className="orange-icon-color" />
-                  </div>
-                </div>
-
-                {/* CARD 4: CATEGORIAS / SCORE */}
-                <div className="stat-card white-card">
-                  <div className="stat-card-info">
-                    <span className="stat-label">{statCardsData.card4Label}</span>
-                    <h3 className="stat-value">{statCardsData.card4Value}</h3>
-                  </div>
-                  <div className="stat-icon-circle orange-light-bg">
-                    <Star size={20} className="orange-icon-color" />
-                  </div>
-                </div>
+                {statCardsData.cards.map((card, index) => {
+                  const IconComp = ICON_MAP[card.icon] || ICON_MAP['Star'];
+                  const isNavy = index === 0;
+                  return (
+                    <div key={index} className={`stat-card ${isNavy ? 'navy-card' : 'white-card'}`}>
+                      <div className="stat-card-info">
+                        <span className="stat-label">{card.label}</span>
+                        <h3 className="stat-value">{card.value}</h3>
+                      </div>
+                      <div className={`stat-icon-circle ${isNavy ? 'white-circle' : 'orange-light-bg'}`}>
+                        <IconComp size={20} className={isNavy ? 'navy-icon-color' : 'orange-icon-color'} />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* LINHA 2: GRÁFICO DE RESULTADO (BARRAS COM COLUNAS DA PLANILHA) + DONUT KPI CHART */}
@@ -1083,8 +1166,10 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
                 {/* CARD ESQUERDA: RESULT BAR CHART */}
                 <div className="widget-card result-chart-card">
                   <div className="widget-header">
-                    <h3 className="widget-title">
-                      {effectiveDiscovery?.dashboardConfig?.chartTitles?.barChart || `Análise Comparativa por ${barCategoryHeader || 'Categoria'}`}
+                    <h3 className="widget-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}><span style={{ flex: 1 }}>{(manualConfig.primaryCategory || manualConfig.primaryMetric) ? `Análise Comparativa por ${barCategoryHeader || 'Categoria'}` : (effectiveDiscovery?.dashboardConfig?.chartTitles?.barChart || `Análise Comparativa por ${barCategoryHeader || 'Categoria'}`)}</span>
+                      <button onClick={() => handleEditClick('bar')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center', padding: '4px' }} title="Editar Gráfico">
+                        {canEditCharts ? <Settings size={16} /> : <Lock size={16} />}
+                      </button>
                     </h3>
                   </div>
 
@@ -1098,7 +1183,7 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
                           itemStyle={{ color: '#fff', fontSize: '12px' }}
                         />
                         <Bar dataKey={series1Key} fill="#ff9800" radius={[2, 2, 0, 0]} name={series1Key} />
-                        <Bar dataKey={series2Key} fill="#192a3e" radius={[2, 2, 0, 0]} name={series2Key} />
+                        {series2Key && series2Key !== 'Métrica 2' && <Bar dataKey={series2Key} fill="#192a3e" radius={[2, 2, 0, 0]} name={series2Key} />}
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -1108,18 +1193,22 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
                       <span className="legend-box orange-box"></span>
                       <span>{series1Key}</span>
                     </div>
-                    <div className="legend-item">
-                      <span className="legend-box navy-box"></span>
-                      <span>{series2Key}</span>
-                    </div>
+                    {series2Key && series2Key !== 'Métrica 2' && (
+                      <div className="legend-item">
+                        <span className="legend-box navy-box"></span>
+                        <span>{series2Key}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* CARD DIREITA: DONUT KPI + LISTA REAL DA PLANILHA */}
                 <div className="widget-card donut-chart-card">
                   <div className="widget-header" style={{ marginBottom: '10px' }}>
-                    <h3 className="widget-title" style={{ fontSize: '14px', fontWeight: 700, color: '#192a3e', margin: 0 }}>
-                      {effectiveDiscovery?.dashboardConfig?.chartTitles?.donutChart || `Proporção por ${donutCategoryHeader || 'Categoria'}`}
+                    <h3 className="widget-title" style={{ fontSize: '14px', fontWeight: 700, color: '#192a3e', margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}><span style={{ flex: 1 }}>{(manualConfig.donutCategory) ? `Proporção por ${donutCategoryHeader || 'Categoria'}` : (effectiveDiscovery?.dashboardConfig?.chartTitles?.donutChart || `Proporção por ${donutCategoryHeader || 'Categoria'}`)}</span>
+                      <button onClick={() => handleEditClick('donut')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center', padding: '4px' }} title="Editar Gráfico">
+                        {canEditCharts ? <Settings size={16} /> : <Lock size={16} />}
+                      </button>
                     </h3>
                   </div>
 
@@ -1526,10 +1615,83 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
                   {supportLoading ? 'Enviando...' : 'Enviar Mensagem'}
                 </button>
               </form>
+
             )}
           </div>
         </div>
       )}
+
+      {/* Modal de Edição de Gráficos */}
+      {editingChart && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '400px', maxWidth: '90%' }}>
+            <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#192a3e' }}>Editar Gráfico</h2>
+            
+            {editingChart === 'bar' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <label style={{ fontSize: '14px', color: '#64748b' }}>Categoria (Eixo X)
+                  <select value={manualConfig.primaryCategory || barCategoryHeader} onChange={e => setManualConfig({...manualConfig, primaryCategory: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                    {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </label>
+                <label style={{ fontSize: '14px', color: '#64748b' }}>Métrica 1 (Eixo Y)
+                  <select value={manualConfig.primaryMetric || series1Key} onChange={e => setManualConfig({...manualConfig, primaryMetric: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                    <option value="Registros">Quantidade de Registros</option>
+                    {numericHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </label>
+                <label style={{ fontSize: '14px', color: '#64748b' }}>Métrica 2 (Opcional)
+                  <select value={manualConfig.secondaryMetric || series2Key} onChange={e => setManualConfig({...manualConfig, secondaryMetric: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                    <option value="">Nenhuma</option>
+                    <option value="Registros">Quantidade de Registros</option>
+                    {numericHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </label>
+              </div>
+            )}
+
+            {editingChart === 'donut' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <label style={{ fontSize: '14px', color: '#64748b' }}>Categoria do Donut
+                  <select value={manualConfig.donutCategory || donutCategoryHeader} onChange={e => setManualConfig({...manualConfig, donutCategory: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                    {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </label>
+              </div>
+            )}
+
+            {editingChart === 'radar' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <label style={{ fontSize: '14px', color: '#64748b' }}>Categoria do Radar
+                  <select value={manualConfig.radarCategory || radarCategoryHeader} onChange={e => setManualConfig({...manualConfig, radarCategory: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                    {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </label>
+              </div>
+            )}
+
+            {editingChart === 'area' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <label style={{ fontSize: '14px', color: '#64748b' }}>Data (Eixo X)
+                  <select value={manualConfig.primaryDate || dateHeader} onChange={e => setManualConfig({...manualConfig, primaryDate: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                    {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </label>
+                <label style={{ fontSize: '14px', color: '#64748b' }}>Métrica (Eixo Y)
+                  <select value={manualConfig.primaryMetric || series1Key} onChange={e => setManualConfig({...manualConfig, primaryMetric: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                    <option value="Registros">Quantidade de Registros</option>
+                    {numericHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </label>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '24px' }}>
+              <button onClick={() => setEditingChart(null)} style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: '#ff9800', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>Pronto</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  )
+  );
 }

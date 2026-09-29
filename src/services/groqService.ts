@@ -476,6 +476,7 @@ export const getSmartDiscovery = async (
 
     const prompt = `
 [LUPA ANALYTICS - DASHBOARD INTELIGENTE]
+SEED DE ALEATORIEDADE (Ignore, apenas para forçar geração não-cacheada): ${Math.random()}
 Você é um Cientista de Dados Sênior. Sua tarefa é analisar o contexto do cliente e as colunas de dados disponíveis para montar o dashboard perfeito.
 
 CONTEXTO DO CLIENTE:
@@ -496,9 +497,13 @@ MAPEAMENTO MATEMÁTICO INICIAL (Pode e DEVE ser ajustado por você se não fizer
 - primaryDate: ${mapping.primaryDate || 'N/A'}
 
 SUA TAREFA:
-1. REVISAR O MAPEAMENTO: Escolha as melhores colunas EXATAMENTE como estão escritas na lista de "Colunas Disponíveis" para responder às dúvidas do cliente. Se o mapeamento inicial for ruim para os objetivos, troque!
-2. TÍTULOS: Criar Títulos curtos, executivos e profissionais (estilo consultoria) para os 4 gráficos (barChart, donutChart, areaChart, radarChart).
-3. INSIGHTS: Criar 2 a 3 Insights curtos sugerindo o que o usuário deve procurar focar nesses gráficos.
+1. REVISAR O MAPEAMENTO (EVITE REDUNDÂNCIA): Escolha as melhores colunas EXATAMENTE como estão na lista de "Colunas Disponíveis". REGRA DE OURO: O dashboard atual está repetitivo! Escolha (se possível) categorias DIFERENTES para o primaryCategory (Barras), donutCategory (Donut) e radarCategory (Radar) para dar uma visão 360º dos dados.
+2. TÍTULOS CRIATIVOS E EXECUTIVOS: Não use o formato chato "Análise Comparativa de X por Y". Crie títulos profissionais e inspiradores (estilo consultoria McKinsey) para os 4 gráficos.
+3. KPIs INTELIGENTES: Você deve sugerir 4 KPIs (Indicadores chave) que façam sentido. REGRA DE OURO: NÃO SOME IDADES. Use 'avg' (média) para idade, avaliações ou métricas não somáveis. Use ícones coerentes (Ex: NÃO use DollarSign para Idade, use 'Users' ou 'Activity'). Para cada KPI, diga o Rótulo, a Coluna (EXATAMENTE como escrita), a operação matemática ('sum', 'avg', 'count', 'count_unique') e um Ícone válido: "DollarSign", "Users", "Activity", "Briefcase", "TrendingUp", "ShoppingCart", "FileText", "CheckCircle", "Target", "Star", "Heart", "Clock".
+4. INSIGHTS: Criar 2 a 3 Insights curtos sugerindo o que focar nesses gráficos.
+5. ORIGINALIDADE: Busque um cruzamento de dados NOVO ou não óbvio, entregue a melhor visão possível!
+6. GRÁFICOS DE EVOLUÇÃO TEMPORAL E BARRAS: Se a métrica numérica for "Idade" ou algo que NÃO faz sentido somar no tempo, NÃO use como primaryMetric. Em vez disso, use EXATAMENTE a string "Registros" no primaryMetric. Assim o gráfico vai contar as linhas em vez de somar valores que não fazem sentido.
+6. LIMPEZA: NUNCA coloque quebras de linha ("\n") nos títulos dos gráficos. Formate-os em uma única linha simples.
 
 Responda APENAS um JSON válido neste exato formato:
 {
@@ -513,7 +518,13 @@ Responda APENAS um JSON válido neste exato formato:
       "donutChart": "Título...",
       "areaChart": "Título...",
       "radarChart": "Título..."
-    }
+    },
+    "kpis": [
+      { "label": "Título do KPI", "column": "Nome da coluna", "operation": "sum ou avg ou count ou count_unique", "icon": "NomeDoIcone" },
+      { "label": "Título do KPI", "column": "Nome da coluna", "operation": "sum ou avg ou count ou count_unique", "icon": "NomeDoIcone" },
+      { "label": "Título do KPI", "column": "Nome da coluna", "operation": "sum ou avg ou count ou count_unique", "icon": "NomeDoIcone" },
+      { "label": "Título do KPI", "column": "Nome da coluna", "operation": "sum ou avg ou count ou count_unique", "icon": "NomeDoIcone" }
+    ]
   },
   "insights": [
     "Insight 1...",
@@ -536,17 +547,25 @@ Responda APENAS um JSON válido neste exato formato:
             { role: "system", content: "Você é um especialista em BI e retorna APENAS JSON válido." },
             { role: "user", content: prompt }
           ],
-          temperature: 0.1, 
+          temperature: 0.7, 
           max_tokens: 600,
           response_format: { type: "json_object" }
         });
 
         const rawContent = response.choices[0]?.message?.content || "{}";
-        const cleanedContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        let cleanedContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        
+        // Remove markdown formatting if the model wrapped the JSON
+        if (cleanedContent.startsWith('```json')) {
+          cleanedContent = cleanedContent.replace(/^```json/, '').replace(/```$/, '').trim();
+        } else if (cleanedContent.startsWith('```')) {
+          cleanedContent = cleanedContent.replace(/^```/, '').replace(/```$/, '').trim();
+        }
+        
         const parsed = JSON.parse(cleanedContent);
 
         if (parsed && (parsed.dashboardConfig || parsed.insights)) {
-          let finalConfig = { ...baseConfig.dashboardConfig };
+          let finalConfig: any = { ...baseConfig.dashboardConfig };
           const aiConfig = parsed.dashboardConfig;
 
           if (aiConfig) {
@@ -561,6 +580,11 @@ Responda APENAS um JSON válido neste exato formato:
               ...finalConfig.chartTitles,
               ...(aiConfig.chartTitles || parsed.chartTitles || {})
             };
+            
+            // Anti-hallucination safe merge para KPIs
+            if (aiConfig.kpis && Array.isArray(aiConfig.kpis)) {
+              finalConfig.kpis = aiConfig.kpis.filter((k: any) => headers.includes(k.column));
+            }
           }
 
           return {
