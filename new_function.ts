@@ -1,3 +1,14 @@
+import OpenAI from "openai";
+import { analyzeData } from "./src/services/dataAnalyzer";
+import { SmartDiscoveryResult } from "./src/services/groqService";
+
+const API_KEY = (import.meta as any).env ? (import.meta as any).env.VITE_GROQ_API_KEY : "";
+const groq = new OpenAI({
+  apiKey: API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
+  dangerouslyAllowBrowser: true,
+});
+
 export const getSmartDiscovery = async (
   headers: string[],
   data: any[],
@@ -7,7 +18,7 @@ export const getSmartDiscovery = async (
   const mapping = analysis.mapping;
   
   const columnMapping: Record<string, any> = {};
-  analysis.profiles.forEach(p => { columnMapping[p.name] = p.type; });
+  analysis.profiles.forEach((p: any) => { columnMapping[p.name] = p.type; });
 
   const baseConfig = {
     insights: [],
@@ -31,33 +42,52 @@ export const getSmartDiscovery = async (
   if (!API_KEY) return baseConfig as any;
 
   try {
+    const columnsContext = analysis.profiles.map((p: any) => `- ${p.name} (Tipo: ${p.type}, Valores únicos: ${p.uniqueCount})`).join('\n');
+
     const prompt = `
-[LUPA ANALYTICS - DASHBOARD TITLES E INSIGHTS]
-O sistema já decidiu matematicamente a estrutura dos gráficos abaixo:
-- Gráfico de Barras: Analisa Métrica (${mapping.primaryMetric || 'N/A'}) agrupada por (${mapping.primaryCategory || 'N/A'})
-- Gráfico Donut (Pizza): Distribuição da Categoria (${mapping.donutCategory || 'N/A'})
-- Gráfico de Área (Linha do Tempo): Evolução da Métrica (${mapping.primaryMetric || 'N/A'}) ao longo do Tempo (${mapping.primaryDate || 'N/A'})
-- Gráfico Radar: Análise da Categoria (${mapping.radarCategory || 'N/A'})
+[LUPA ANALYTICS - DASHBOARD INTELIGENTE]
+Você é um Cientista de Dados Sênior. Sua tarefa é analisar o contexto do cliente e as colunas de dados disponíveis para montar o dashboard perfeito.
 
 CONTEXTO DO CLIENTE:
+- Empresa: ${onboardingData?.companyName || 'Não informado'}
 - Setor: ${onboardingData?.industry || 'Geral'}
-- Objetivos: ${JSON.stringify(onboardingData?.goals || [])}
+- Fonte dos Dados: ${onboardingData?.dataSource || 'Não informado'}
+- Objetivos Principais: ${JSON.stringify(onboardingData?.goals || [])}
+- Dúvidas/Questões Específicas do Cliente: ${onboardingData?.specificQuestions || 'Nenhuma'}
 
-Sua ÚNICA tarefa:
-1. Criar Títulos curtos, executivos e profissionais (estilo consultoria McKinsey) para cada um dos 4 gráficos acima.
-2. Criar 2 a 3 Insights genéricos e curtos sugerindo o que o usuário deve analisar com esses gráficos.
+COLUNAS DISPONÍVEIS NA BASE DE DADOS:
+${columnsContext}
 
-Responda APENAS um JSON válido neste exato formato (sem marcação Markdown em volta se possível, apenas a string JSON):
+MAPEAMENTO MATEMÁTICO INICIAL (Pode e DEVE ser ajustado por você se não fizer sentido pro negócio):
+- primaryMetric: ${mapping.primaryMetric || 'N/A'}
+- primaryCategory: ${mapping.primaryCategory || 'N/A'}
+- donutCategory: ${mapping.donutCategory || 'N/A'}
+- radarCategory: ${mapping.radarCategory || 'N/A'}
+- primaryDate: ${mapping.primaryDate || 'N/A'}
+
+SUA TAREFA:
+1. REVISAR O MAPEAMENTO: Escolha as melhores colunas EXATAMENTE como estão escritas na lista de "Colunas Disponíveis" para responder às dúvidas do cliente. Se o mapeamento inicial for ruim para os objetivos, troque!
+2. TÍTULOS: Criar Títulos curtos, executivos e profissionais (estilo consultoria) para os 4 gráficos (barChart, donutChart, areaChart, radarChart).
+3. INSIGHTS: Criar 2 a 3 Insights curtos sugerindo o que o usuário deve procurar focar nesses gráficos.
+
+Responda APENAS um JSON válido neste exato formato:
 {
-  "chartTitles": {
-    "barChart": "Título...",
-    "donutChart": "Título...",
-    "areaChart": "Título...",
-    "radarChart": "Título..."
+  "dashboardConfig": {
+    "primaryMetric": "Nome da coluna...",
+    "primaryCategory": "Nome da coluna...",
+    "donutCategory": "Nome da coluna...",
+    "radarCategory": "Nome da coluna...",
+    "primaryDate": "Nome da coluna...",
+    "chartTitles": {
+      "barChart": "Título...",
+      "donutChart": "Título...",
+      "areaChart": "Título...",
+      "radarChart": "Título..."
+    }
   },
   "insights": [
-    "Insight curto 1...",
-    "Insight curto 2..."
+    "Insight 1...",
+    "Insight 2..."
   ]
 }
 `;
@@ -77,7 +107,7 @@ Responda APENAS um JSON válido neste exato formato (sem marcação Markdown em 
             { role: "user", content: prompt }
           ],
           temperature: 0.1, 
-          max_tokens: 400,
+          max_tokens: 600,
           response_format: { type: "json_object" }
         });
 
@@ -85,15 +115,16 @@ Responda APENAS um JSON válido neste exato formato (sem marcação Markdown em 
         const cleanedContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
         const parsed = JSON.parse(cleanedContent);
 
-        if (parsed && (parsed.chartTitles || parsed.insights)) {
+        if (parsed && (parsed.dashboardConfig || parsed.insights)) {
           return {
             ...baseConfig,
             insights: parsed.insights || baseConfig.insights,
             dashboardConfig: {
               ...baseConfig.dashboardConfig,
+              ...(parsed.dashboardConfig || {}),
               chartTitles: {
                 ...baseConfig.dashboardConfig.chartTitles,
-                ...parsed.chartTitles
+                ...(parsed.dashboardConfig?.chartTitles || parsed.chartTitles || {})
               }
             }
           } as any;
