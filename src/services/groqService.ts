@@ -499,11 +499,11 @@ MAPEAMENTO MATEMÁTICO INICIAL (Pode e DEVE ser ajustado por você se não fizer
 SUA TAREFA:
 1. REVISAR O MAPEAMENTO (EVITE REDUNDÂNCIA): Escolha as melhores colunas EXATAMENTE como estão na lista de "Colunas Disponíveis". REGRA DE OURO: O dashboard atual está repetitivo! Escolha (se possível) categorias DIFERENTES para o primaryCategory (Barras), donutCategory (Donut) e radarCategory (Radar) para dar uma visão 360º dos dados.
 2. TÍTULOS CRIATIVOS E EXECUTIVOS: Não use o formato chato "Análise Comparativa de X por Y". Crie títulos profissionais e inspiradores (estilo consultoria McKinsey) para os 4 gráficos.
-3. KPIs INTELIGENTES: Você deve sugerir 4 KPIs (Indicadores chave) que façam sentido. REGRA DE OURO: NÃO SOME IDADES. Use 'avg' (média) para idade, avaliações ou métricas não somáveis. Use ícones coerentes (Ex: NÃO use DollarSign para Idade, use 'Users' ou 'Activity'). Para cada KPI, diga o Rótulo, a Coluna (EXATAMENTE como escrita), a operação matemática ('sum', 'avg', 'count', 'count_unique') e um Ícone válido: "DollarSign", "Users", "Activity", "Briefcase", "TrendingUp", "ShoppingCart", "FileText", "CheckCircle", "Target", "Star", "Heart", "Clock".
+3. KPIs INTELIGENTES: Sugira 4 KPIs. REGRA CRÍTICA DE ÍCONES E CÁLCULOS: NUNCA use "DollarSign" para Idade ou Contagens (use "Users", "Activity" ou "TrendingUp"). NUNCA faça "sum" de Idade (use "avg"). Para cada KPI, informe o Rótulo, a Coluna, a operação matemática ('sum', 'avg', 'count', 'count_unique') e um Ícone válido dentre os listados: "DollarSign", "Users", "Activity", "Briefcase", "TrendingUp", "ShoppingCart", "FileText", "CheckCircle", "Target", "Star", "Heart", "Clock".
 4. INSIGHTS: Criar 2 a 3 Insights curtos sugerindo o que focar nesses gráficos.
 5. ORIGINALIDADE: Busque um cruzamento de dados NOVO ou não óbvio, entregue a melhor visão possível!
-6. GRÁFICOS DE EVOLUÇÃO TEMPORAL E BARRAS: Se a métrica numérica for "Idade" ou algo que NÃO faz sentido somar no tempo, NÃO use como primaryMetric. Em vez disso, use EXATAMENTE a string "Registros" no primaryMetric. Assim o gráfico vai contar as linhas em vez de somar valores que não fazem sentido.
-6. LIMPEZA: NUNCA coloque quebras de linha ("\n") nos títulos dos gráficos. Formate-os em uma única linha simples.
+6. GRÁFICOS DE EVOLUÇÃO TEMPORAL E BARRAS (REGRA CRÍTICA ABSOLUTA): NUNCA, EM HIPÓTESE ALGUMA, use "Idade", "Age", "Ano" ou variáveis não somáveis como 'primaryMetric'. Se a única opção numérica for Idade, você DEVE OBRIGATORIAMENTE definir 'primaryMetric' como a string exata "Registros".
+7. LIMPEZA: NUNCA coloque quebras de linha ("\\n") nos títulos dos gráficos. Formate-os em uma única linha simples.
 
 Responda APENAS um JSON válido neste exato formato:
 {
@@ -563,6 +563,28 @@ Responda APENAS um JSON válido neste exato formato:
         }
         
         const parsed = JSON.parse(cleanedContent);
+        
+        // SANITIZAÇÃO DE EMERGÊNCIA CONTRA ALUCINAÇÃO DA IA
+        if (parsed.dashboardConfig) {
+          if (parsed.dashboardConfig.primaryMetric && parsed.dashboardConfig.primaryMetric.toLowerCase().includes('idade')) {
+            parsed.dashboardConfig.primaryMetric = 'Registros';
+            if (parsed.dashboardConfig.chartTitles) {
+               if (parsed.dashboardConfig.chartTitles.barChart) parsed.dashboardConfig.chartTitles.barChart = parsed.dashboardConfig.chartTitles.barChart.replace(/Idade/gi, 'Registros');
+               if (parsed.dashboardConfig.chartTitles.areaChart) parsed.dashboardConfig.chartTitles.areaChart = parsed.dashboardConfig.chartTitles.areaChart.replace(/Idade/gi, 'Registros');
+            }
+          }
+          if (parsed.dashboardConfig.kpis && Array.isArray(parsed.dashboardConfig.kpis)) {
+            parsed.dashboardConfig.kpis.forEach((kpi: any) => {
+              if (kpi.column && kpi.column.toLowerCase().includes('idade')) {
+                if (kpi.operation === 'sum') {
+                  kpi.operation = 'avg';
+                  if (kpi.label) kpi.label = kpi.label.replace(/soma/gi, 'Média').replace(/total/gi, 'Média');
+                }
+                if (kpi.icon === 'DollarSign') kpi.icon = 'Users';
+              }
+            });
+          }
+        }
 
         if (parsed && (parsed.dashboardConfig || parsed.insights)) {
           let finalConfig: any = { ...baseConfig.dashboardConfig };

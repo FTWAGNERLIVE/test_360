@@ -531,9 +531,15 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
       return effectiveDiscovery.dashboardConfig.primaryMetric
     }
     return numericHeaders[0] || 'Registros'
-  }, [effectiveDiscovery, csvHeaders, numericHeaders])
+  }, [effectiveDiscovery, csvHeaders, numericHeaders, manualConfig.primaryMetric])
 
-  const series2Key = useMemo(() => {
+    const seriesAreaKey = useMemo(() => {
+    if (manualConfig.areaMetric && (csvHeaders.includes(manualConfig.areaMetric) || manualConfig.areaMetric === 'Registros')) return manualConfig.areaMetric;
+    return series1Key;
+  }, [series1Key, manualConfig.areaMetric, csvHeaders])
+
+const series2Key = useMemo(() => {
+    if (manualConfig.secondaryMetric === '') return ''; // Usuário escolheu "Nenhuma" explicitamente
     if (manualConfig.secondaryMetric && (csvHeaders.includes(manualConfig.secondaryMetric) || manualConfig.secondaryMetric === 'Registros')) return manualConfig.secondaryMetric;
     if (
       effectiveDiscovery?.dashboardConfig?.secondaryMetric && 
@@ -543,7 +549,7 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
       return effectiveDiscovery.dashboardConfig.secondaryMetric
     }
     return (numericHeaders[1] && numericHeaders[1] !== series1Key) ? numericHeaders[1] : 'Métrica 2'
-  }, [effectiveDiscovery, csvHeaders, numericHeaders, series1Key])
+  }, [effectiveDiscovery, csvHeaders, numericHeaders, series1Key, manualConfig.secondaryMetric])
 
   // 1. CARDS DE ESTATÍSTICAS DINÂMICOS
   const statCardsData = useMemo(() => {
@@ -747,7 +753,7 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
               grouped[dateKey] = { displayDate, timestamp, val1: 0, val2: 0, count: 0 }
             }
 
-            const v1 = cleanNumber(row[series1Key])
+            const v1 = cleanNumber(row[seriesAreaKey])
             const v2 = cleanNumber(row[series2Key])
             if (!isNaN(v1)) grouped[dateKey].val1 += Math.abs(v1)
             if (!isNaN(v2)) grouped[dateKey].val2 += Math.abs(v2)
@@ -777,7 +783,7 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
       activeData.forEach(row => {
         const cat = String(row[groupKey] || 'Outros').trim()
         if (!grouped[cat]) grouped[cat] = { val1: 0, val2: 0, count: 0 }
-        const v1 = cleanNumber(row[series1Key])
+        const v1 = cleanNumber(row[seriesAreaKey])
         const v2 = cleanNumber(row[series2Key])
         if (!isNaN(v1)) grouped[cat].val1 += Math.abs(v1)
         if (!isNaN(v2)) grouped[cat].val2 += Math.abs(v2)
@@ -796,7 +802,7 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
     }
 
     return []
-  }, [activeData, dateHeader, barCategoryHeader, csvHeaders, numericHeaders, series1Key, series2Key, timeGranularity])
+  }, [activeData, dateHeader, barCategoryHeader, csvHeaders, numericHeaders, seriesAreaKey, series2Key, timeGranularity])
 
   // Ajustar a granularidade temporal padrão (se os dados forem de um único mês, alterna para 'day' automaticamente)
   useEffect(() => {
@@ -1313,7 +1319,7 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
                       <div className="area-legend-header" style={{ display: 'flex', gap: '10px' }}>
                         <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#64748b' }}>
                           <span className="legend-dot orange-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff9800' }}></span>
-                          <span>{numericHeaders[0] ? series1Key : 'Registros'}</span>
+                          <span>{numericHeaders[0] ? seriesAreaKey : 'Registros'}</span>
                         </div>
                         {numericHeaders[1] && series2Key !== series1Key && (
                           <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#64748b' }}>
@@ -1678,7 +1684,7 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
                   </select>
                 </label>
                 <label style={{ fontSize: '14px', color: '#64748b' }}>Métrica (Eixo Y)
-                  <select value={manualConfig.primaryMetric || series1Key} onChange={e => setManualConfig({...manualConfig, primaryMetric: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                  <select value={manualConfig.areaMetric || seriesAreaKey} onChange={e => setManualConfig({...manualConfig, areaMetric: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
                     <option value="Registros">Quantidade de Registros</option>
                     {numericHeaders.map(h => <option key={h} value={h}>{h}</option>)}
                   </select>
