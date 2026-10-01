@@ -1,5 +1,6 @@
 const fs = require('fs');
-const p = 'c:/Users/creat/Documents/Projeto_test360/src/pages/Dashboard.tsx';
+const path = require('path');
+const p = path.join(__dirname, 'src', 'pages', 'Dashboard.tsx');
 let d = fs.readFileSync(p, 'utf8');
 
 const regex = /\{\/\* LINHA 1: GRID DE 4 CARDS ESTATÍSTICOS COM RÓTULOS REAIS DA PLANILHA \*\/\}\s*<div className="stat-cards-row">[\s\S]*?<\/div>\s*\{\/\* LINHA 2: GRÁFICO DE RESULTADO/;

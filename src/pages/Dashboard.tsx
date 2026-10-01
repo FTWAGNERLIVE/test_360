@@ -21,6 +21,7 @@ import { sendSupportMessage } from '../services/supportService'
 import { saveCSVData, listUserFiles, loadFileById, deleteFileById } from '../services/csvService'
 import { isTrialExpired, getTrialDaysRemaining } from '../services/authService'
 import { getSmartDiscovery, runLocalPreAnalysis } from '../services/groqService'
+import { processAdaptiveSqlPipeline } from '../services/adaptiveSqlService'
 import './Dashboard.css'
 
 // Helper para limpeza e conversão de números (moeda PT-BR, pontos, vírgulas)
@@ -132,6 +133,8 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
   const [showShareModal, setShowShareModal] = useState(false)
   const [shareEmail, setShareEmail] = useState('')
   const [isCopying, setIsCopying] = useState(false)
+  const [adaptiveSqlQuery, setAdaptiveSqlQuery] = useState<string>('')
+  const [showSqlModal, setShowSqlModal] = useState(false)
   
   // Navigation & UI Layout State
   const [activeNav, setActiveNav] = useState<'home' | 'table' | 'file' | 'messages' | 'notification' | 'location' | 'graph'>('home')
@@ -166,7 +169,10 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
           setActiveFileId(sortedFiles[0].id)
           const fileData = await loadFileById(sortedFiles[0].id)
           if (fileData) {
-            setCsvData(fileData.csvData)
+            const sqlResult = processAdaptiveSqlPipeline(fileData.csvHeaders, fileData.csvData, effectiveUser?.onboardingData)
+            setCsvData(sqlResult.cleanData)
+            setCsvHeaders(sqlResult.cleanHeaders)
+            setAdaptiveSqlQuery(sqlResult.sqlQuery)
             setCsvHeaders(fileData.csvHeaders)
             setSmartDiscovery(fileData.smartDiscovery)
           } else {
@@ -203,17 +209,21 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
       return
     }
 
-    setCsvData(data)
-    setCsvHeaders(headers)
+    const sqlResult = processAdaptiveSqlPipeline(headers, data, effectiveUser?.onboardingData)
+    const cleanHeaders = sqlResult.cleanHeaders
+    const cleanData = sqlResult.cleanData
+    setAdaptiveSqlQuery(sqlResult.sqlQuery)
+    setCsvData(cleanData)
+    setCsvHeaders(cleanHeaders)
     setSmartDiscovery(null)
     setLoadingInsights(true)
     setIsAddingNew(false)
     
     try {
-      const discovery = await getSmartDiscovery(headers, data, effectiveUser?.onboardingData)
+      const discovery = await getSmartDiscovery(cleanHeaders, cleanData, effectiveUser?.onboardingData)
       setSmartDiscovery(discovery)
       
-      await saveCSVData(data, headers, fileName, effectiveUser?.id, discovery, isReplacing ? activeFileId! : undefined)
+      await saveCSVData(cleanData, cleanHeaders, fileName, effectiveUser?.id, discovery, isReplacing ? activeFileId! : undefined)
       
       const files = await listUserFiles(effectiveUser?.id)
       const sortedFiles = [...files].sort((a, b) => {
@@ -239,8 +249,12 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
     try {
       const fileData = await loadFileById(fileId)
       if (fileData) {
-        setCsvData(fileData.csvData)
-        setCsvHeaders(fileData.csvHeaders)
+        const sqlResult = processAdaptiveSqlPipeline(fileData.csvHeaders, fileData.csvData, effectiveUser?.onboardingData)
+        const cleanHeaders = sqlResult.cleanHeaders
+        const cleanData = sqlResult.cleanData
+        setAdaptiveSqlQuery(sqlResult.sqlQuery)
+        setCsvData(cleanData)
+        setCsvHeaders(cleanHeaders)
         setSmartDiscovery(fileData.smartDiscovery)
         setActiveFileId(fileId)
       }
@@ -590,10 +604,19 @@ const series2Key = useMemo(() => {
     // Default Fallback logic
     let c1Label = series1Key;
     let c1Value = '';
+    const isMoney1 = series1Key.toLowerCase().includes('valor') || series1Key.toLowerCase().includes('preço') || series1Key.toLowerCase().includes('preco') || series1Key.toLowerCase().includes('faturamento') || series1Key.toLowerCase().includes('mensalidade');
+    const isGradeOrScore = series1Key.toLowerCase().includes('nota') || series1Key.toLowerCase().includes('media') || series1Key.toLowerCase().includes('média') || series1Key.toLowerCase().includes('frequencia') || series1Key.toLowerCase().includes('frequência') || series1Key.toLowerCase().includes('score') || series1Key.toLowerCase().includes('rating');
+
     if (numericHeaders[0]) {
-      const sum1 = activeData.reduce((acc, r) => acc + (cleanNumber(r[series1Key]) || 0), 0);
-      const isMoney = series1Key.toLowerCase().includes('valor') || series1Key.toLowerCase().includes('preço') || series1Key.toLowerCase().includes('preco');
-      c1Value = isMoney ? `R$ ${formatValue(sum1)}` : formatValue(sum1);
+      const validVals = activeData.map(r => cleanNumber(r[series1Key])).filter(v => !isNaN(v));
+      if (isGradeOrScore && validVals.length > 0) {
+        const avg = validVals.reduce((a, b) => a + b, 0) / validVals.length;
+        c1Label = `Média de ${series1Key}`;
+        c1Value = formatValue(avg);
+      } else {
+        const sum1 = validVals.reduce((acc, v) => acc + v, 0);
+        c1Value = isMoney1 ? `R$ ${formatValue(sum1)}` : formatValue(sum1);
+      }
     } else {
       c1Label = 'Total Registros';
       c1Value = activeData.length.toLocaleString('pt-BR');
@@ -608,12 +631,11 @@ const series2Key = useMemo(() => {
       c2Value = activeData.length.toLocaleString('pt-BR');
     }
 
-    let c3Label = numericHeaders[0] ? `Média de ${series1Key}` : 'Total Colunas';
+    let c3Label = numericHeaders[0] ? `Total ${series1Key}` : 'Total Colunas';
     let c3Value = '';
     if (numericHeaders[0]) {
       const sum1 = activeData.reduce((acc, r) => acc + (cleanNumber(r[series1Key]) || 0), 0);
-      const avg1 = sum1 / activeData.length;
-      c3Value = formatValue(avg1);
+      c3Value = formatValue(sum1);
     } else {
       c3Value = `${csvHeaders.length}`;
     }
@@ -627,9 +649,11 @@ const series2Key = useMemo(() => {
       c4Value = '100%';
     }
 
+    const c1Icon = isMoney1 ? 'DollarSign' : (series1Key.toLowerCase().includes('aluno') ? 'Users' : 'Activity');
+
     return { 
       cards: [
-        { label: c1Label, value: c1Value, icon: 'DollarSign' },
+        { label: c1Label, value: c1Value, icon: c1Icon },
         { label: c2Label, value: c2Value, icon: 'Share2' },
         { label: c3Label, value: c3Value, icon: 'ThumbsUp' },
         { label: c4Label, value: c4Value, icon: 'Star' }
@@ -1036,23 +1060,41 @@ const series2Key = useMemo(() => {
               )}
             </div>
 
-            {/* NOVO BOTÃO DE RECRIAR COM IA */}
+            {/* NOVO BOTÃO DE RECRIAR COM IA E VER SQL ADAPTATIVO */}
             {!isSharedView && activeFileId && !isAddingNew && (
-              <button 
-                onClick={handleRecreateWithAI}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  background: 'linear-gradient(to right, #f59e0b, #ea580c)',
-                  color: '#fff', border: 'none', padding: '6px 14px',
-                  borderRadius: '20px', fontSize: '13px', fontWeight: 600,
-                  cursor: 'pointer', boxShadow: '0 2px 4px rgba(234, 88, 12, 0.2)',
-                  whiteSpace: 'nowrap'
-                }}
-                title="Pedir para a IA analisar os dados e recriar os gráficos"
-              >
-                <Sparkles size={14} />
-                Recriar com IA
-              </button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button 
+                  onClick={() => setShowSqlModal(true)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    background: '#1e293b',
+                    color: '#38bdf8', border: '1px solid #334155', padding: '6px 14px',
+                    borderRadius: '20px', fontSize: '13px', fontWeight: 600,
+                    cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title="Ver a Query SQL Adaptativa gerada dinamicamente pelo sistema para esta planilha"
+                >
+                  <Table size={14} />
+                  Ver SQL Adaptativo
+                </button>
+
+                <button 
+                  onClick={handleRecreateWithAI}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    background: 'linear-gradient(to right, #f59e0b, #ea580c)',
+                    color: '#fff', border: 'none', padding: '6px 14px',
+                    borderRadius: '20px', fontSize: '13px', fontWeight: 600,
+                    cursor: 'pointer', boxShadow: '0 2px 4px rgba(234, 88, 12, 0.2)',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title="Pedir para a IA analisar os dados e recriar os gráficos"
+                >
+                  <Sparkles size={14} />
+                  Recriar com IA
+                </button>
+              </div>
             )}
 
           </div>
@@ -1694,6 +1736,68 @@ const series2Key = useMemo(() => {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '24px' }}>
               <button onClick={() => setEditingChart(null)} style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: '#ff9800', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>Pronto</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE EXIBIÇÃO DA QUERY SQL ADAPTATIVA */}
+      {showSqlModal && (
+        <div className="modal-overlay" style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div style={{
+            background: '#0f172a', color: '#f8fafc', width: '90%', maxWidth: '800px',
+            maxHeight: '85vh', borderRadius: '16px', padding: '24px',
+            border: '1px solid #334155', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            display: 'flex', flexDirection: 'column', gap: '16px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Table size={22} style={{ color: '#38bdf8' }} />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#f8fafc' }}>Query SQL Adaptativa Gerada pelo Sistema</h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '13px', color: '#94a3b8' }}>Esta View SQL é construída dinamicamente com base nas regras de tratamento do cliente.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowSqlModal(false)}
+                style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', background: '#020617', padding: '16px', borderRadius: '8px', border: '1px solid #1e293b' }}>
+              <pre style={{ margin: 0, fontFamily: 'Consolas, Monaco, "Courier New", monospace', fontSize: '13px', color: '#38bdf8', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
+                {adaptiveSqlQuery || '-- Nenhuma Query SQL gerada para esta planilha.'}
+              </pre>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(adaptiveSqlQuery);
+                  alert('Query SQL copiada para a área de transferência!');
+                }}
+                style={{
+                  background: '#1e293b', color: '#f8fafc', border: '1px solid #334155',
+                  padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600
+                }}
+              >
+                Copiar SQL
+              </button>
+              <button 
+                onClick={() => setShowSqlModal(false)}
+                style={{
+                  background: '#0284c7', color: '#fff', border: 'none',
+                  padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600
+                }}
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>

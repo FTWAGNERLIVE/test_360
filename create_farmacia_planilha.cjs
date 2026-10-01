@@ -1,0 +1,74 @@
+const fs = require('fs');
+const path = require('path');
+const XLSX = require('xlsx');
+
+// Dados desorganizados da farmácia
+const rawHeaders = [
+  " ID_Transacao ",
+  "Data da Venda",
+  " Nome_Produto / Medicamento ",
+  "CATEGORIA",
+  " Qtd Vendida ",
+  " Preco Unitario (R$) ",
+  "Valor Total",
+  " Forma de Pagamento ",
+  " Nome do Cliente ",
+  "CPF Cliente",
+  "Filial / Unidade",
+  "Receita Medica?"
+];
+
+const rawRows = [
+  ["TX-1001", "15/01/2024", "  Dipirona Monidratada 500mg (20 comp) ", "MEDICAMENTOS", "3", "R$ 8,50", "25,50", "Cartao de Credito", " Joao da Silva ", "12345678901", "Filial Centro", "Nao"],
+  ["TX-1002", "2024-01-16", "Dorflex 36 comprimidos", "medicamento", "1 cx", "24.90", "R$ 24,90", "PIX", "Maria Santos", "234.567.890-12", "FILIAL NORTE", "NAO"],
+  ["TX-1003", "17/01/2024", " Neosaldina 20 drageas ", " Medicamentos ", " 2 ", "18,00", "36.00", "Dinheiro", "Carlos Eduardo", "", "Filial Centro", "N"],
+  ["TX-1004", "2024-01-18", "Protetor Solar Sundown FPS 50 200ml", "Higiene e Beleza", "1", "R$ 54.90", "54.9", "Credito", "Ana Paula", "34567890123", "filial sul", "NÃO"],
+  ["TX-1005", "19-01-2024", " Fralda Pampers Pants G 40 un ", "INFANTIL", "2 un", "69.90", "139.80", "Cartao de Debito", "Patricia Souza", "456.789.012-34", "Filial Centro", "Nao"],
+  ["TX-1006", "2024/01/20", "Amoxicilina 500mg 21 caps", "Medicamentos", "1", "32,50", "R$ 32,50", "Pix", "Roberto Alves", "56789012345", "Filial Sul", "SIM"],
+  ["TX-1007", "21.01.2024", "Vitamina C Lavitan 1000mg Efferv", "Suplementos & Vitaminas", "3", "15.00", "45,00", "Cartão Crédito", "Fernanda Rocha", "", "FILIAL CENTRO", "Não"],
+  ["TX-1008", "2024-01-22", " Rivotril 2mg (Clonazepam) 30 comp ", "Medicamento Controlado", "1", "R$ 28,30", "28.30", "Debito", "Lucas Martins", "678.901.234-56", "Filial Norte", "Sim"],
+  ["TX-1009", "23/01/2024", "Shampoo L'Oréal Elseve 400ml", "Higiene & Beleza", "2", "22.90", "45.8", "PIX", "Camila Lima", "78901234567", "Filial Centro", "Nao"],
+  ["TX-1010", "2024-01-24", " Omeprazol 20mg 28 caps ", "medicamento", "1", "R$ 14,00", "14,00", "dinheiro", "Rafael Torres", "", "Filial Sul", "Nao"],
+  ["TX-1011", "25-Jan-2024", "Tylenol 750mg 20 comp", "MEDICAMENTOS", "4", "21.50", "86.00", "Cartao de Credito", "Juliana Costa", "890.123.456-78", "Filial Norte", "Nao"],
+  ["TX-1012", "26/01/2024", "Desodorante Aerossol Rexona 150ml", "higiene", "3", "14.90", "R$ 44,70", "Pix", "Bruno Oliveira", "90123456789", "filial centro", "Não"],
+  ["TX-1013", "2024-01-27", " Buscopan Composto 20 drageas ", "Medicamentos", " 1 ", "R$ 19,80", "19,80", "Cartao Debito", "Amanda Ribeiro", "", "Filial Norte", "Nao"],
+  ["TX-1014", "28/01/2024", "Sabonete Liquido Granado Bebê 250ml", "Infantil", "2", "26.50", "53.00", "CREDITO", "Diego Ferreira", "012.345.678-90", "Filial Sul", "Nao"],
+  ["TX-1015", "29-01-2024", "Cimegripe 20 capsulas", "medicamento", "2", "12,90", "R$ 25,80", "Dinheiro", "Isabela Gomes", "12309845677", "Filial Centro", "Nao"],
+  ["TX-1016", "2024/01/30", " Preservativo Jontex Leve 8 Pague 6 ", "Conveniência", "3", "16.00", "48.0", "PIX", "Thiago Mendes", "", "Filial Norte", "Nao"],
+  ["TX-1017", "31.01.2024", " Losartan Potassica 50mg 30 comp ", "Medicamentos", "2", "R$ 9.90", "19,80", "Cartao Credito", "Mariana Castro", "23410958688", "Filial Sul", "Sim"],
+  ["TX-1018", "2024-02-01", " Colirio Lacrifilm 10ml ", "Medicamentos", "1", "38.40", "38,40", "Debito", "Gabriel Santos", "", "Filial Centro", "Nao"],
+  ["TX-1019", "02/02/2024", " Suplemento Whey Protein 900g ", "Suplementos", "1", "R$ 119,90", "R$ 119,90", "Cartao Credito", " Vanessa Dias ", "34521069799", "FILIAL NORTE", "Nao"],
+  ["TX-1020", "2024-02-03", "Alcool em Gel 70% 500ml", "Higiene", "5", "9.50", "47.50", "Pix", "Rodrigo Silva", "", "Filial Sul", "Nao"],
+  ["TX-1021", "04/02/2024", " Termometro Digital G-Tech ", "Equipamentos", "1", "29,90", "29.9", "Dinheiro", "Aline Pereira", "45632170800", "Filial Centro", "Nao"],
+  ["TX-1022", "2024-02-05", "Benegrip 12 comprimidos", "MEDICAMENTOS", "2", "R$ 18.50", "37,00", "Cartao Credito", "Marcelo Nunes", "", "Filial Norte", "Nao"],
+  ["TX-1023", "06-02-2024", " Pasta de Dente Colgate Total 12 ", "Higiene & Beleza", "4", "8.90", "35.60", "Pix", "Beatriz Melo", "56743281911", "filial sul", "Nao"],
+  ["TX-1024", "2024/02/07", " Centrum Multivitaminico 60 comp ", "Suplementos", "1", "89,90", "R$ 89,90", "Cartao Credito", " Otavio Martins ", "", "Filial Centro", "Nao"],
+  ["TX-1025", "08.02.2024", " Fita Micropore 25mm x 4,5m ", "Primeiros Socorros", "2", "11.20", "22.4", "Debito", "Larissa Machado", "67854392022", "Filial Norte", "Nao"],
+  ["TX-1026", "2024-02-09", " Inalador Nebulizador Ultrassonico ", "Equipamentos", "1", "189.00", "R$ 189,00", "Cartao Credito", "Eduardo Rocha", "78965403133", "Filial Sul", "Nao"],
+  ["TX-1027", "10/02/2024", "Allegra 120mg 10 comprimidos", "Medicamentos", "1", "R$ 42,00", "42,00", "Pix", " Tatiane Barbosa ", "", "Filial Centro", "Nao"],
+  ["TX-1028", "2024-02-11", "Bepantol Baby Pomada 100g", "Infantil", "1", "52.90", "52,9", "Dinheiro", "Gustavo Henrique", "89076514244", "FILIAL CENTRO", "Nao"]
+];
+
+// 1. Gerar CSV desorganizado
+const csvLines = [];
+csvLines.push(rawHeaders.join(","));
+for (const row of rawRows) {
+  // envolver valores entre aspas para suportar vírgulas internas
+  const formattedRow = row.map(cell => `"${cell.replace(/"/g, '""')}"`);
+  csvLines.push(formattedRow.join(","));
+}
+const csvContent = csvLines.join("\n");
+
+const csvPath = path.join(__dirname, 'exemplo-farmacia-desorganizada.csv');
+fs.writeFileSync(csvPath, csvContent, 'utf8');
+console.log('CSV desorganizado de farmácia gerado com sucesso em:', csvPath);
+
+// 2. Gerar XLSX desorganizado
+const wsData = [rawHeaders, ...rawRows];
+const ws = XLSX.utils.aoa_to_sheet(wsData);
+const wb = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb, ws, "Vendas Farmacia");
+
+const xlsxPath = path.join(__dirname, 'exemplo-farmacia-desorganizada.xlsx');
+XLSX.writeFile(wb, xlsxPath);
+console.log('XLSX desorganizado de farmácia gerado com sucesso em:', xlsxPath);
