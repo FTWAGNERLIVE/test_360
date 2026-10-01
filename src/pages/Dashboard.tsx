@@ -7,8 +7,8 @@ import {
 , Users, Activity, Briefcase, TrendingUp, ShoppingCart, Target, Heart, CheckCircle
 , Settings, Lock
 } from 'lucide-react'
-import { 
-  BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, 
+import {
+  BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, LabelList,
   PieChart, Pie, Cell, AreaChart, Area,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts'
@@ -702,7 +702,7 @@ const series2Key = useMemo(() => {
       return {
         data: [{ name: 'Sem Dados', value: 100, color: '#192a3e' }],
         topPercentage: '0%',
-        categoriesList: ['Sem registros']
+        categoriesList: [{ text: 'Sem registros', color: '#192a3e' }]
       }
     }
 
@@ -725,9 +725,9 @@ const series2Key = useMemo(() => {
       color: colors[i % colors.length]
     }))
 
-    const list = top4.map(([name, count]) => {
+    const list = top4.map(([name, count], i) => {
       const pct = Math.round((count / totalCount) * 100)
-      return `${name} (${pct}%)`
+      return { text: `${name} (${pct}%)`, color: colors[i % colors.length] }
     })
 
     return {
@@ -1223,15 +1223,21 @@ const series2Key = useMemo(() => {
 
                   <div className="bar-chart-container">
                     <ResponsiveContainer width="100%" height={220}>
-                      <BarChart data={resultBarData} barGap={4}>
+                      <BarChart data={resultBarData} barGap={4} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
                         <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
                         <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
                         <Tooltip 
                           contentStyle={{ backgroundColor: '#192a3e', borderRadius: '8px', color: '#fff', border: 'none' }}
                           itemStyle={{ color: '#fff', fontSize: '12px' }}
                         />
-                        <Bar dataKey={series1Key} fill="#ff9800" radius={[2, 2, 0, 0]} name={series1Key} />
-                        {series2Key && series2Key !== 'Métrica 2' && <Bar dataKey={series2Key} fill="#192a3e" radius={[2, 2, 0, 0]} name={series2Key} />}
+                        <Bar dataKey={series1Key} fill="#ff9800" radius={[2, 2, 0, 0]} name={series1Key}>
+                          <LabelList dataKey={series1Key} position="top" fill="#64748b" fontSize={10} fontWeight="bold" />
+                        </Bar>
+                        {series2Key && series2Key !== 'Métrica 2' && (
+                          <Bar dataKey={series2Key} fill="#192a3e" radius={[2, 2, 0, 0]} name={series2Key}>
+                            <LabelList dataKey={series2Key} position="top" fill="#64748b" fontSize={10} fontWeight="bold" />
+                          </Bar>
+                        )}
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -1265,12 +1271,24 @@ const series2Key = useMemo(() => {
                       <PieChart>
                         <Pie
                           data={donutInfo.data}
-                          innerRadius={52}
-                          outerRadius={72}
+                          innerRadius={45}
+                          outerRadius={70}
                           paddingAngle={2}
                           dataKey="value"
                           startAngle={90}
                           endAngle={-270}
+                          labelLine={false}
+                          label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                            const RADIAN = Math.PI / 180;
+                            const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                            const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                            const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                            return percent > 0.05 ? (
+                              <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={10} fontWeight="bold">
+                                {`${(percent * 100).toFixed(0)}%`}
+                              </text>
+                            ) : null;
+                          }}
                         >
                           {donutInfo.data.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
@@ -1284,9 +1302,9 @@ const series2Key = useMemo(() => {
                   </div>
 
                   <div className="donut-text-list">
-                    {donutInfo.categoriesList.map((item, idx) => (
+                    {donutInfo.categoriesList.map((item: any, idx: number) => (
                       <div key={idx} className="list-row">
-                        <span className="bullet"></span> {item}
+                        <span className="bullet" style={{ backgroundColor: item.color }}></span> {item.text}
                       </div>
                     ))}
                   </div>
@@ -1375,7 +1393,7 @@ const series2Key = useMemo(() => {
 
                   <div className="area-chart-container">
                     <ResponsiveContainer width="100%" height={210}>
-                      <AreaChart data={areaChartData}>
+                      <AreaChart data={areaChartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                           <linearGradient id="colorOrange" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#ff9800" stopOpacity={0.8}/>
@@ -1400,7 +1418,9 @@ const series2Key = useMemo(() => {
                           fillOpacity={1} 
                           fill="url(#colorOrange)" 
                           name={numericHeaders[0] ? series1Key : 'Registros'}
-                        />
+                        >
+                          <LabelList dataKey={numericHeaders[0] ? series1Key : 'Registros'} position="top" fill="#64748b" fontSize={10} fontWeight="bold" />
+                        </Area>
                         {numericHeaders[1] && series2Key !== series1Key && (
                           <Area 
                             type="monotone" 
@@ -1410,7 +1430,9 @@ const series2Key = useMemo(() => {
                             fillOpacity={1} 
                             fill="url(#colorNavy)" 
                             name={series2Key}
-                          />
+                          >
+                            <LabelList dataKey={series2Key} position="top" fill="#64748b" fontSize={10} fontWeight="bold" />
+                          </Area>
                         )}
                       </AreaChart>
                     </ResponsiveContainer>
