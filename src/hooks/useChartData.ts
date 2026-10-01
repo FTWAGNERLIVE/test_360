@@ -262,29 +262,48 @@ export function useChartData({
       }
     }
 
-    const counts: Record<string, number> = {}
+    const counts: Record<string, { count: number; displayName: string }> = {}
     activeData.forEach((row: any) => {
       const val = String(row[donutCategoryHeader] || 'Outros').trim()
-      if (val) counts[val] = (counts[val] || 0) + 1
+      if (val) {
+        const key = val.toUpperCase()
+        if (!counts[key]) counts[key] = { count: 0, displayName: val }
+        counts[key].count += 1
+      }
     })
 
-    const sorted = Object.entries(counts).sort(([, a], [, b]) => b - a)
+    const sorted = Object.entries(counts).sort(([, a], [, b]) => b.count - a.count)
     const top4 = sorted.slice(0, 4)
     const totalCount = activeData.length
-    const topVal = top4[0]?.[1] || 0
+    const topVal = top4[0]?.[1].count || 0
     const topPct = totalCount > 0 ? Math.round((topVal / totalCount) * 100) : 0
 
     const colors = ['#ff9800', '#192a3e', '#6366f1', '#f58220']
-    const pieData = top4.map(([name, count], i) => ({
-      name,
-      value: count,
+    const pieData = top4.map(([, dataObj], i) => ({
+      name: dataObj.displayName,
+      value: dataObj.count,
       color: colors[i % colors.length]
     }))
 
-    const list = top4.map(([name, count], i) => {
-      const pct = Math.round((count / totalCount) * 100)
-      return { text: `${name} (${pct}%)`, color: colors[i % colors.length] }
+    const list = top4.map(([, dataObj], i) => {
+      const pct = Math.round((dataObj.count / totalCount) * 100)
+      return { text: `${dataObj.displayName} (${pct}%)`, color: colors[i % colors.length] }
     })
+
+    const top4Sum = top4.reduce((acc, [, dataObj]) => acc + dataObj.count, 0)
+    if (top4Sum < totalCount && totalCount > 0) {
+      const othersCount = totalCount - top4Sum
+      const othersPct = Math.round((othersCount / totalCount) * 100)
+      pieData.push({
+        name: 'Outros',
+        value: othersCount,
+        color: '#cbd5e1'
+      })
+      list.push({
+        text: `Outros (${othersPct}%)`,
+        color: '#cbd5e1'
+      })
+    }
 
     return {
       data: pieData.length > 0 ? pieData : [{ name: 'Outros', value: 100, color: '#192a3e' }],
