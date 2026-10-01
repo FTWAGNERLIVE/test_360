@@ -1,12 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { 
-  LogOut, FileText, Sparkles, Clock, CheckCircle2, HelpCircle, 
-  Send, X, LayoutDashboard, Plus,
-  Home, Share2, ThumbsUp, Star, DollarSign, Menu, Table
-, Users, Activity, Briefcase, TrendingUp, ShoppingCart, Target, Heart, CheckCircle
+  FileText, Clock, CheckCircle2, HelpCircle, 
+  Send, X, Plus,
+  Share2, ThumbsUp, Star, Users, Activity, Briefcase, TrendingUp, ShoppingCart, Target, Heart, CheckCircle
 , Settings, Lock
-} from 'lucide-react'
+, Table, Sparkles } from 'lucide-react'
 import {
   BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, LabelList,
   PieChart, Pie, Cell, AreaChart, Area,
@@ -23,95 +22,31 @@ import { isTrialExpired, getTrialDaysRemaining } from '../services/authService'
 import { getSmartDiscovery, runLocalPreAnalysis } from '../services/groqService'
 import { processAdaptiveSqlPipeline } from '../services/adaptiveSqlService'
 import './Dashboard.css'
+import DashboardSidebar from '../components/DashboardSidebar';
+import DashboardHeader from '../components/DashboardHeader';
+
+
+import { useChartData } from '../hooks/useChartData';
+
+
 
 // Helper para limpeza e conversão de números (moeda PT-BR, pontos, vírgulas)
 const ICON_MAP: Record<string, React.ElementType> = {
-  DollarSign, Users, Activity, Briefcase, TrendingUp, ShoppingCart,
+  Users, Activity, Briefcase, TrendingUp, ShoppingCart,
   FileText, CheckCircle, Target, Heart, Clock,
   Share2, ThumbsUp, Star
 };
 
-const cleanNumber = (val: any): number => {
-  if (typeof val === 'number') return val
-  if (val === null || val === undefined || val === '') return NaN
-  const cleaned = String(val).trim().replace(/[R$\s]/g, '')
-  if (cleaned.includes(',') && cleaned.includes('.')) {
-    return Number(cleaned.replace(/\./g, '').replace(',', '.'))
-  }
-  if (cleaned.includes(',') && !cleaned.includes('.')) {
-    return Number(cleaned.replace(',', '.'))
-  }
-  return Number(cleaned)
-}
 
-const formatValue = (num: number) => {
-  if (isNaN(num)) return '0'
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
-  return num.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
-}
 
-const parseDate = (dateStr: any): Date | null => {
-  if (dateStr === null || dateStr === undefined || dateStr === '' || dateStr === 'null' || dateStr === 'undefined') return null
-  
-  const num = Number(dateStr);
-  if (!isNaN(num) && String(dateStr).trim() !== '') {
-    if (num > 1000 && num < 100000) {
-      return new Date(Math.round((num - 25569) * 86400 * 1000));
-    }
-    if (num > 1000000000000000000) return new Date(num / 1000000);
-    if (num > 1000000000000000) return new Date(num / 1000);
-    if (num > 1000000000000) return new Date(num);
-    if (num > 100000000) return new Date(num * 1000);
-  }
 
-  const s = String(dateStr).trim()
 
-  const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)
-  if (isoMatch) {
-    return new Date(Date.UTC(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3])))
-  }
 
-  if (s.includes('/')) {
-    const parts = s.split(' ')[0].split('/')
-    if (parts.length === 3) {
-      let day = Number(parts[0])
-      let month = Number(parts[1]) - 1
-      let year = Number(parts[2])
-      
-      if (parts[2].length === 2) year += 2000;
-      if (parts[0].length === 4) {
-        year = Number(parts[0])
-        day = Number(parts[2])
-      }
-      return new Date(Date.UTC(year, month, day))
-    }
-  }
 
-  const d = new Date(s)
-  return isNaN(d.getTime()) ? null : d
-}
 
-export function isIdentityOrNameHeader(h: string): boolean {
-  if (!h) return false
-  const low = h.toLowerCase().trim()
-  return (
-    low === 'nome' || low.includes('nome_') || low.endsWith('_nome') || low.includes('nome ') ||
-    low === 'colaborador' || low.includes('colaborador_') || low.includes('colaborador ') ||
-    low === 'aluno' || low.includes('aluno_') ||
-    low === 'cliente' || low.includes('cliente_') ||
-    low === 'paciente' || low.includes('paciente_') ||
-    low === 'funcionario' || low.includes('funcionário') ||
-    low.includes('funcional') || low.includes('matricula') || low.includes('matrícula') ||
-    low.includes('cpf') || low.includes('rg') || low.includes('cnpj') ||
-    low.includes('email') || low.includes('e-mail') || low.includes('telefone') || low.includes('celular') ||
-    low === 'id' || low.includes('id_') || low.endsWith('_id') || low.includes('codigo') || low.includes('código') ||
-    low.includes('observacao') || low.includes('observação') || low.includes('descricao') || low.includes('descrição')
-  )
-}
 
 export default function Dashboard({ isSharedView = false }: { isSharedView?: boolean }) {
-  const { user, logout, impersonatedUser, impersonateUser, updateProfile } = useAuth()
+  const { user, impersonatedUser, impersonateUser, updateProfile } = useAuth()
   const [csvData, setCsvData] = useState<any[]>([])
   const [csvHeaders, setCsvHeaders] = useState<string[]>([])
     const [smartDiscovery, setSmartDiscovery] = useState<any>(null)
@@ -126,8 +61,7 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
   const [supportSuccess, setSupportSuccess] = useState(false)
   const [loadingCSV, setLoadingCSV] = useState(true)
   const [importMethod, setImportMethod] = useState<'file' | 'url'>('file')
-  const [showProfileDropdown, setShowProfileDropdown] = useState(false)
-  const [userFiles, setUserFiles] = useState<any[]>([])
+    const [userFiles, setUserFiles] = useState<any[]>([])
   const [isAddingNew, setIsAddingNew] = useState(false)
   const [activeFileId, setActiveFileId] = useState<string | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
@@ -375,68 +309,37 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
   // PROCESSAMENTO DINÂMICO DOS DADOS DA PLANILHA (SEM HARDCODING)
   // =========================================================================
   
-  const isDateHeaderName = (header: string): boolean => {
-    if (!header) return false
-    const lower = header.toLowerCase()
-    return (
-      lower.includes('data') ||
-      lower.includes('date') ||
-      lower.includes('vencimento') ||
-      lower.includes('realizacao') ||
-      lower.includes('realização') ||
-      lower.includes('nascimento') ||
-      lower.includes('matricula') ||
-      lower.includes('matrícula') ||
-      lower.includes('criacao') ||
-      lower.includes('criação') ||
-      lower.includes('admissao') ||
-      lower.includes('admissão') ||
-      lower.includes('demissao') ||
-      lower.includes('demissão') ||
-      lower.includes('validade')
-    )
-  }
+  
 
-  // Colunas Numéricas Reais da Planilha (Excluindo Datas, IDs e Códigos)
-  const numericHeaders = useMemo(() => {
-    if (!csvHeaders || !csvData || csvData.length === 0) return []
-    return csvHeaders.filter(h => {
-      if (isDateHeaderName(h)) return false // Ignorar colunas com nome de data
-
-      const lower = h.toLowerCase()
-      if (
-        lower.includes('id') ||
-        lower.includes('código') ||
-        lower.includes('codigo') ||
-        lower.includes('cpf') ||
-        lower.includes('cep') ||
-        lower.includes('fone') ||
-        lower.includes('telef')
-      ) return false
-
-      const sampleRows = csvData.slice(0, 15)
-      
-      // Se os valores numéricos são números seriais de data do Excel (entre 30000 e 70000 e com até 5 caracteres)
-      const dateSerialCount = sampleRows.filter(r => {
-        const val = String(r[h] || '').trim()
-        const num = Number(val)
-        return !isNaN(num) && num > 30000 && num < 70000 && val.length <= 5
-      }).length
-
-      if (dateSerialCount >= 3) return false // É coluna de data serial
-
-      const validCount = sampleRows.filter(r => !isNaN(cleanNumber(r[h]))).length
-      return validCount >= 3
-    })
-  }, [csvHeaders, csvData])
-
+  
+  
   // Pré-análise inteligente local (executada imediatamente ao carregar ou receber os dados)
   const localDiscovery = useMemo(() => {
     return runLocalPreAnalysis(csvHeaders, csvData)
   }, [csvHeaders, csvData])
 
   // Descoberta Efetiva: combina a IA do servidor (Groq) com a pré-análise local determinística
-  
+  const effectiveDiscovery = useMemo(() => {
+    if (!smartDiscovery) return localDiscovery
+    return {
+      insights: smartDiscovery.insights || localDiscovery.insights || [],
+      columnMapping: { ...localDiscovery.columnMapping, ...smartDiscovery.columnMapping },
+      dashboardConfig: {
+        primaryMetric: smartDiscovery.dashboardConfig?.primaryMetric || localDiscovery.dashboardConfig?.primaryMetric || '',
+        secondaryMetric: smartDiscovery.dashboardConfig?.secondaryMetric || localDiscovery.dashboardConfig?.secondaryMetric || '',
+        primaryCategory: smartDiscovery.dashboardConfig?.primaryCategory || localDiscovery.dashboardConfig?.primaryCategory || '',
+        primaryDate: smartDiscovery.dashboardConfig?.primaryDate || localDiscovery.dashboardConfig?.primaryDate || '',
+        donutCategory: smartDiscovery.dashboardConfig?.donutCategory || localDiscovery.dashboardConfig?.donutCategory || '',
+        radarCategory: smartDiscovery.dashboardConfig?.radarCategory || localDiscovery.dashboardConfig?.radarCategory || '',
+        chartTitles: {
+          ...localDiscovery.dashboardConfig?.chartTitles,
+          ...smartDiscovery.dashboardConfig?.chartTitles
+        },
+        kpis: smartDiscovery.dashboardConfig?.kpis
+      }
+    }
+  }, [smartDiscovery, localDiscovery])
+
   const canEditCharts = (effectiveUser && effectiveUser.plan !== 'free') || (effectiveUser && effectiveUser.trialEndDate && getTrialDaysRemaining(new Date(effectiveUser.trialEndDate)) > 0);
   
   const handleEditClick = (chartId: string) => {
@@ -449,559 +352,53 @@ export default function Dashboard({ isSharedView = false }: { isSharedView?: boo
     setEditingChart(chartId);
   };
 
-  
-  const effectiveDiscovery = useMemo(() => {
-    if (!smartDiscovery) return localDiscovery
-    return {
-      insights: smartDiscovery.insights || localDiscovery.insights || [],
-      columnMapping: { ...localDiscovery.columnMapping, ...smartDiscovery.columnMapping },
-      dashboardConfig: {
-        primaryMetric: smartDiscovery.dashboardConfig?.primaryMetric || localDiscovery.dashboardConfig?.primaryMetric || '',
-        secondaryMetric: smartDiscovery.dashboardConfig?.secondaryMetric || localDiscovery.dashboardConfig?.secondaryMetric || '',
-        primaryCategory: smartDiscovery.dashboardConfig?.primaryCategory || localDiscovery.dashboardConfig?.primaryCategory || '',
-        primaryDate: smartDiscovery.dashboardConfig?.primaryDate || localDiscovery.dashboardConfig?.primaryDate || '',
-          donutCategory: smartDiscovery.dashboardConfig?.donutCategory || localDiscovery.dashboardConfig?.donutCategory || '',
-          radarCategory: smartDiscovery.dashboardConfig?.radarCategory || localDiscovery.dashboardConfig?.radarCategory || '',
-        chartTitles: {
-          ...localDiscovery.dashboardConfig?.chartTitles,
-          ...smartDiscovery.dashboardConfig?.chartTitles
-        },
-        kpis: smartDiscovery.dashboardConfig?.kpis
-      }
-    }
-  }, [smartDiscovery, localDiscovery])
-
-  // Lista de todas as colunas de categorias válidas da planilha, ordenadas por diversidade e utilidade
-  const allCategoryHeaders = useMemo(() => {
-    if (!csvHeaders || !activeData || activeData.length === 0) return []
-
-    const candidates = csvHeaders.filter(h => {
-      if (isDateHeaderName(h) || isIdentityOrNameHeader(h)) return false
-      const sampleVals = activeData.map(r => String(r[h] || '').trim()).filter(Boolean)
-      if (sampleVals.length === 0) return false
-      const numCount = sampleVals.filter(v => !isNaN(cleanNumber(v))).length
-      if (numCount >= sampleVals.length * 0.7) return false // É numérico
-
-      const uniqueCount = new Set(sampleVals).size
-      // Categoria válida tem entre 2 e min(40, 85% do total de linhas)
-      return uniqueCount >= 2 && uniqueCount <= Math.max(40, Math.ceil(activeData.length * 0.85))
-    })
-
-    // Coloca a categoria identificada pela IA no topo se ela existir
-    const aiCategory = effectiveDiscovery?.dashboardConfig?.primaryCategory
-    if (aiCategory && candidates.includes(aiCategory) && !isIdentityOrNameHeader(aiCategory)) {
-      return [aiCategory, ...candidates.filter(c => c !== aiCategory)]
-    }
-
-    return candidates
-  }, [csvHeaders, activeData, effectiveDiscovery])
-
-  // Categoria 1: Para o Gráfico de Barras
-  const barCategoryHeader = useMemo(() => {
-    if (manualConfig.primaryCategory && csvHeaders.includes(manualConfig.primaryCategory)) return manualConfig.primaryCategory;
-    if (effectiveDiscovery?.dashboardConfig?.primaryCategory && csvHeaders.includes(effectiveDiscovery.dashboardConfig.primaryCategory)) return effectiveDiscovery.dashboardConfig.primaryCategory;
-    return allCategoryHeaders[0] || csvHeaders.find(h => !isDateHeaderName(h) && !isIdentityOrNameHeader(h)) || csvHeaders[0] || '';
-  }, [allCategoryHeaders, csvHeaders, effectiveDiscovery, manualConfig.primaryCategory])
-
-  // Categoria 2: Para o Donut Chart (Evita repetir a Categoria 1)
-  const donutCategoryHeader = useMemo(() => {
-    if (manualConfig.donutCategory && csvHeaders.includes(manualConfig.donutCategory)) return manualConfig.donutCategory;
-    if (effectiveDiscovery?.dashboardConfig?.donutCategory && csvHeaders.includes(effectiveDiscovery.dashboardConfig.donutCategory)) return effectiveDiscovery.dashboardConfig.donutCategory;
-    return allCategoryHeaders[1] || allCategoryHeaders[0] || csvHeaders.find(h => !isDateHeaderName(h) && !isIdentityOrNameHeader(h)) || csvHeaders[0] || '';
-  }, [allCategoryHeaders, csvHeaders, effectiveDiscovery, manualConfig.donutCategory])
-
-  // Categoria 3: Para o Radar Chart (Evita repetir as Categorias 1 e 2)
-  const radarCategoryHeader = useMemo(() => {
-    if (manualConfig.radarCategory && csvHeaders.includes(manualConfig.radarCategory)) return manualConfig.radarCategory;
-    if (effectiveDiscovery?.dashboardConfig?.radarCategory && csvHeaders.includes(effectiveDiscovery.dashboardConfig.radarCategory)) return effectiveDiscovery.dashboardConfig.radarCategory;
-    return allCategoryHeaders[2] || allCategoryHeaders[0] || csvHeaders.find(h => !isDateHeaderName(h) && !isIdentityOrNameHeader(h)) || csvHeaders[0] || '';
-  }, [allCategoryHeaders, csvHeaders, effectiveDiscovery, manualConfig.radarCategory])
-
-  // Fallback mantido por compatibilidade
-  const categoryHeader = barCategoryHeader
-
-  // Coluna de Data Principal da Planilha (Orientada pela IA)
-  const dateHeader = useMemo(() => {
-    if (manualConfig.primaryDate && csvHeaders.includes(manualConfig.primaryDate)) return manualConfig.primaryDate;
-    if (effectiveDiscovery?.dashboardConfig?.primaryDate && csvHeaders.includes(effectiveDiscovery.dashboardConfig.primaryDate)) {
-      return effectiveDiscovery.dashboardConfig.primaryDate
-    }
-    if (!csvHeaders || !csvData || csvData.length === 0) return ''
-    return csvHeaders.find(h => isDateHeaderName(h)) || csvHeaders.find(h => {
-      const sampleRows = csvData.slice(0, 10)
-      const dateSerialCount = sampleRows.filter(r => {
-        const val = String(r[h] || '').trim()
-        const num = Number(val)
-        return !isNaN(num) && num > 30000 && num < 70000 && val.length <= 5
-      }).length
-      return dateSerialCount >= 3
-    }) || ''
-  }, [csvHeaders, csvData, effectiveDiscovery, manualConfig.primaryDate])
-
-  // Nomes dos 2 campos numéricos principais para usar nos gráficos (Orientados pela IA)
-  const series1Key = useMemo(() => {
-    if (manualConfig.primaryMetric && (csvHeaders.includes(manualConfig.primaryMetric) || manualConfig.primaryMetric === 'Registros')) return manualConfig.primaryMetric;
-    if (effectiveDiscovery?.dashboardConfig?.primaryMetric && csvHeaders.includes(effectiveDiscovery.dashboardConfig.primaryMetric)) {
-      return effectiveDiscovery.dashboardConfig.primaryMetric
-    }
-    return numericHeaders[0] || 'Registros'
-  }, [effectiveDiscovery, csvHeaders, numericHeaders, manualConfig.primaryMetric])
-
-    const seriesAreaKey = useMemo(() => {
-    if (manualConfig.areaMetric && (csvHeaders.includes(manualConfig.areaMetric) || manualConfig.areaMetric === 'Registros')) return manualConfig.areaMetric;
-    return series1Key;
-  }, [series1Key, manualConfig.areaMetric, csvHeaders])
-
-const series2Key = useMemo(() => {
-    if (manualConfig.secondaryMetric === '') return ''; // Usuário escolheu "Nenhuma" explicitamente
-    if (manualConfig.secondaryMetric && (csvHeaders.includes(manualConfig.secondaryMetric) || manualConfig.secondaryMetric === 'Registros')) return manualConfig.secondaryMetric;
-    if (
-      effectiveDiscovery?.dashboardConfig?.secondaryMetric && 
-      csvHeaders.includes(effectiveDiscovery.dashboardConfig.secondaryMetric) &&
-      effectiveDiscovery.dashboardConfig.secondaryMetric !== series1Key
-    ) {
-      return effectiveDiscovery.dashboardConfig.secondaryMetric
-    }
-    return (numericHeaders[1] && numericHeaders[1] !== series1Key) ? numericHeaders[1] : 'Métrica 2'
-  }, [effectiveDiscovery, csvHeaders, numericHeaders, series1Key, manualConfig.secondaryMetric])
-
-  // 1. CARDS DE ESTATÍSTICAS DINÂMICOS
-  const statCardsData = useMemo(() => {
-    if (activeData.length === 0) {
-      return {
-        cards: [
-          { label: 'Total Registros', value: '0', icon: 'FileText' },
-          { label: 'Total Colunas', value: '0', icon: 'Share2' },
-          { label: 'Métrica Principal', value: '0', icon: 'DollarSign' },
-          { label: 'Status Dados', value: 'Pendente', icon: 'CheckCircle' }
-        ]
-      }
-    }
-
-    const aiKpis = (effectiveDiscovery.dashboardConfig as any)?.kpis;
-    if (aiKpis && Array.isArray(aiKpis) && aiKpis.length >= 4) {
-      const computedCards = aiKpis.slice(0, 4).map(kpi => {
-        let val = 0;
-        let txtVal = '';
-        if (kpi.operation === 'count_unique') {
-          const unique = new Set(activeData.map(r => String(r[kpi.column] || '')).filter(Boolean));
-          val = unique.size;
-          txtVal = val.toLocaleString('pt-BR');
-        } else if (kpi.operation === 'count') {
-          val = activeData.length;
-          txtVal = val.toLocaleString('pt-BR');
-        } else if (kpi.operation === 'sum' || kpi.operation === 'avg') {
-          const sum = activeData.reduce((acc, r) => acc + (cleanNumber(r[kpi.column]) || 0), 0);
-          val = kpi.operation === 'avg' ? (activeData.length ? sum / activeData.length : 0) : sum;
-          const isMoney = kpi.column.toLowerCase().includes('valor') || kpi.column.toLowerCase().includes('preço') || kpi.column.toLowerCase().includes('preco');
-          txtVal = isMoney ? `R$ ${formatValue(val)}` : formatValue(val);
-        }
-        return { label: kpi.label, value: txtVal, icon: ICON_MAP[kpi.icon] ? kpi.icon : 'Star' };
-      });
-      return { cards: computedCards };
-    }
-
-    // Default Fallback logic
-    let c1Label = series1Key;
-    let c1Value = '';
-    const isMoney1 = series1Key.toLowerCase().includes('valor') || series1Key.toLowerCase().includes('preço') || series1Key.toLowerCase().includes('preco') || series1Key.toLowerCase().includes('faturamento') || series1Key.toLowerCase().includes('mensalidade');
-    const isGradeOrScore = series1Key.toLowerCase().includes('nota') || series1Key.toLowerCase().includes('media') || series1Key.toLowerCase().includes('média') || series1Key.toLowerCase().includes('frequencia') || series1Key.toLowerCase().includes('frequência') || series1Key.toLowerCase().includes('score') || series1Key.toLowerCase().includes('rating');
-
-    if (numericHeaders[0]) {
-      const validVals = activeData.map(r => cleanNumber(r[series1Key])).filter(v => !isNaN(v));
-      if (isGradeOrScore && validVals.length > 0) {
-        const avg = validVals.reduce((a, b) => a + b, 0) / validVals.length;
-        c1Label = `Média de ${series1Key}`;
-        c1Value = formatValue(avg);
-      } else {
-        const sum1 = validVals.reduce((acc, v) => acc + v, 0);
-        c1Value = isMoney1 ? `R$ ${formatValue(sum1)}` : formatValue(sum1);
-      }
-    } else {
-      c1Label = 'Total Registros';
-      c1Value = activeData.length.toLocaleString('pt-BR');
-    }
-
-    let c2Label = series2Key !== series1Key && numericHeaders[1] ? series2Key : 'Total Registros';
-    let c2Value = '';
-    if (numericHeaders[1] && series2Key !== series1Key) {
-      const sum2 = activeData.reduce((acc, r) => acc + (cleanNumber(r[series2Key]) || 0), 0);
-      c2Value = formatValue(sum2);
-    } else {
-      c2Value = activeData.length.toLocaleString('pt-BR');
-    }
-
-    let c3Label = numericHeaders[0] ? `Total ${series1Key}` : 'Total Colunas';
-    let c3Value = '';
-    if (numericHeaders[0]) {
-      const sum1 = activeData.reduce((acc, r) => acc + (cleanNumber(r[series1Key]) || 0), 0);
-      c3Value = formatValue(sum1);
-    } else {
-      c3Value = `${csvHeaders.length}`;
-    }
-
-    let c4Label = categoryHeader ? `Categorias em ${categoryHeader}` : 'Qualidade';
-    let c4Value = '';
-    if (categoryHeader) {
-      const uniqueCats = new Set(activeData.map(r => String(r[categoryHeader] || '')).filter(Boolean));
-      c4Value = `${uniqueCats.size}`;
-    } else {
-      c4Value = '100%';
-    }
-
-    const c1Icon = isMoney1 ? 'DollarSign' : (series1Key.toLowerCase().includes('aluno') ? 'Users' : 'Activity');
-
-    return { 
-      cards: [
-        { label: c1Label, value: c1Value, icon: c1Icon },
-        { label: c2Label, value: c2Value, icon: 'Share2' },
-        { label: c3Label, value: c3Value, icon: 'ThumbsUp' },
-        { label: c4Label, value: c4Value, icon: 'Star' }
-      ]
-    };
-  }, [activeData, numericHeaders, series1Key, series2Key, categoryHeader, csvHeaders.length, effectiveDiscovery])
-
-  // 2. DADOS DINÂMICOS E AGREGADOS DO BAR CHART (ANÁLISE COMPARATIVA POR CATEGORIA 1)
-  const resultBarData = useMemo(() => {
-    if (activeData.length === 0) return []
-
-    const groupKey = barCategoryHeader || csvHeaders[0] || ''
-    const grouped: Record<string, { val1: number; val2: number; count: number }> = {}
-
-    activeData.forEach(row => {
-      const catVal = String(row[groupKey] || 'Outros').trim()
-      if (!grouped[catVal]) grouped[catVal] = { val1: 0, val2: 0, count: 0 }
-      const v1 = cleanNumber(row[series1Key])
-      const v2 = cleanNumber(row[series2Key])
-      if (!isNaN(v1)) grouped[catVal].val1 += Math.abs(v1)
-      if (!isNaN(v2)) grouped[catVal].val2 += Math.abs(v2)
-      grouped[catVal].count += 1
-    })
-
-    const sorted = Object.entries(grouped).sort(([, a], [, b]) => (b.val1 || b.count) - (a.val1 || a.count))
-    const topSample = sorted.slice(0, 8)
-
-    return topSample.map(([catVal, item]) => {
-      const name = catVal.length > 12 ? catVal.substring(0, 10) + '...' : catVal
-      const res: any = { name }
-      if (numericHeaders[0]) {
-        res[series1Key] = Number(item.val1.toFixed(1))
-      } else {
-        res['Registros'] = item.count
-      }
-      if (numericHeaders[1] && series2Key !== series1Key) {
-        res[series2Key] = Number(item.val2.toFixed(1))
-      }
-      return res
-    })
-  }, [activeData, barCategoryHeader, csvHeaders, numericHeaders, series1Key, series2Key])
-
-  // 3. DADOS DINÂMICOS DO DONUT CHART & LISTA (PROPORÇÃO DA CATEGORIA 2)
-  const donutInfo = useMemo(() => {
-    if (activeData.length === 0 || !donutCategoryHeader) {
-      return {
-        data: [{ name: 'Sem Dados', value: 100, color: '#192a3e' }],
-        topPercentage: '0%',
-        categoriesList: [{ text: 'Sem registros', color: '#192a3e' }]
-      }
-    }
-
-    const counts: Record<string, number> = {}
-    activeData.forEach(row => {
-      const val = String(row[donutCategoryHeader] || 'Outros').trim()
-      if (val) counts[val] = (counts[val] || 0) + 1
-    })
-
-    const sorted = Object.entries(counts).sort(([, a], [, b]) => b - a)
-    const top4 = sorted.slice(0, 4)
-    const totalCount = activeData.length
-    const topVal = top4[0]?.[1] || 0
-    const topPct = totalCount > 0 ? Math.round((topVal / totalCount) * 100) : 0
-
-    const colors = ['#ff9800', '#192a3e', '#6366f1', '#f58220']
-    const pieData = top4.map(([name, count], i) => ({
-      name,
-      value: count,
-      color: colors[i % colors.length]
-    }))
-
-    const list = top4.map(([name, count], i) => {
-      const pct = Math.round((count / totalCount) * 100)
-      return { text: `${name} (${pct}%)`, color: colors[i % colors.length] }
-    })
-
-    return {
-      data: pieData.length > 0 ? pieData : [{ name: 'Outros', value: 100, color: '#192a3e' }],
-      topPercentage: `${topPct}%`,
-      categoriesList: list
-    }
-  }, [activeData, donutCategoryHeader])
-
-  // 4. DADOS DINÂMICOS E CHRONOLÓGICOS DO AREA CHART (SUPORTE A DIAS, MÊS E ANOS)
-  const areaChartData = useMemo(() => {
-    if (activeData.length === 0) return []
-
-    const key1 = numericHeaders[0] ? series1Key : 'Registros'
-    const key2 = numericHeaders[1] && series2Key !== series1Key ? series2Key : null
-
-    // Se encontramos uma coluna de data real
-    if (dateHeader) {
-      const grouped: Record<string, { displayDate: string; timestamp: number; val1: number; val2: number; count: number }> = {}
-
-      activeData.forEach(row => {
-        const rawDate = row[dateHeader]
-        const parsed = parseDate(rawDate)
-        if (parsed && !isNaN(parsed.getTime())) {
-          const year = parsed.getUTCFullYear()
-          if (year >= 1950 && year <= 2100) {
-            const monthNum = parsed.getUTCMonth() + 1
-            const month = String(monthNum).padStart(2, '0')
-            const dayNum = parsed.getUTCDate()
-            const day = String(dayNum).padStart(2, '0')
-
-            let dateKey = `${year}-${month}`
-            let displayDate = `${month}/${String(year).slice(-2)}`
-            let timestamp = new Date(Date.UTC(year, monthNum - 1, 1)).getTime()
-
-            if (timeGranularity === 'day') {
-              dateKey = `${year}-${month}-${day}`
-              displayDate = `${day}/${month}`
-              timestamp = parsed.getTime()
-            } else if (timeGranularity === 'year') {
-              dateKey = `${year}`
-              displayDate = `${year}`
-              timestamp = new Date(Date.UTC(year, 0, 1)).getTime()
-            }
-
-            if (!grouped[dateKey]) {
-              grouped[dateKey] = { displayDate, timestamp, val1: 0, val2: 0, count: 0 }
-            }
-
-            const v1 = cleanNumber(row[seriesAreaKey])
-            const v2 = cleanNumber(row[series2Key])
-            if (!isNaN(v1)) grouped[dateKey].val1 += Math.abs(v1)
-            if (!isNaN(v2)) grouped[dateKey].val2 += Math.abs(v2)
-            grouped[dateKey].count += 1
-          }
-        }
-      })
-
-      const sortedEntries = Object.values(grouped).sort((a, b) => a.timestamp - b.timestamp)
-
-      if (sortedEntries.length > 0) {
-        return sortedEntries.map(item => {
-          const res: any = { name: item.displayDate }
-          res[key1] = numericHeaders[0] ? Number(item.val1.toFixed(1)) : item.count
-          if (key2) {
-            res[key2] = Number(item.val2.toFixed(1))
-          }
-          return res
-        })
-      }
-    }
-
-    // Fallback se não houver datas válidas: agrupar por categoria
-    const groupKey = barCategoryHeader || csvHeaders[0] || ''
-    if (groupKey) {
-      const grouped: Record<string, { val1: number; val2: number; count: number }> = {}
-      activeData.forEach(row => {
-        const cat = String(row[groupKey] || 'Outros').trim()
-        if (!grouped[cat]) grouped[cat] = { val1: 0, val2: 0, count: 0 }
-        const v1 = cleanNumber(row[seriesAreaKey])
-        const v2 = cleanNumber(row[series2Key])
-        if (!isNaN(v1)) grouped[cat].val1 += Math.abs(v1)
-        if (!isNaN(v2)) grouped[cat].val2 += Math.abs(v2)
-        grouped[cat].count += 1
-      })
-
-      return Object.entries(grouped).slice(0, 10).map(([catName, item]) => {
-        const shortName = catName.length > 10 ? catName.substring(0, 8) + '..' : catName
-        const res: any = { name: shortName }
-        res[key1] = numericHeaders[0] ? Number(item.val1.toFixed(1)) : item.count
-        if (key2) {
-          res[key2] = Number(item.val2.toFixed(1))
-        }
-        return res
-      })
-    }
-
-    return []
-  }, [activeData, dateHeader, barCategoryHeader, csvHeaders, numericHeaders, seriesAreaKey, series2Key, timeGranularity])
-
-  // Ajustar a granularidade temporal padrão (se os dados forem de um único mês, alterna para 'day' automaticamente)
-  useEffect(() => {
-    if (dateHeader && activeData && activeData.length > 0) {
-      const months = new Set<string>()
-      activeData.forEach(row => {
-        const parsed = parseDate(row[dateHeader])
-        if (parsed && !isNaN(parsed.getTime())) {
-          months.add(`${parsed.getUTCFullYear()}-${parsed.getUTCMonth()}`)
-        }
-      })
-      if (months.size === 1) {
-        setTimeGranularity('day')
-      } else if (months.size > 12) {
-        setTimeGranularity('year')
-      }
-    }
-  }, [dateHeader, activeData])
-
-  // 5. DADOS DINÂMICOS DO RADAR CHART (DISTRIBUIÇÃO MULTIDIMENSIONAL POR CATEGORIA 3)
-  const radarChartData = useMemo(() => {
-    if (activeData.length === 0) return []
-
-    const groupKey = radarCategoryHeader || csvHeaders[0] || ''
-    const grouped: Record<string, { count: number; sum: number }> = {}
-
-    activeData.forEach(row => {
-      const cat = String(row[groupKey] || 'Outros').trim()
-      if (!grouped[cat]) grouped[cat] = { count: 0, sum: 0 }
-      grouped[cat].count += 1
-      const val = cleanNumber(row[series1Key])
-      if (!isNaN(val)) grouped[cat].sum += Math.abs(val)
-    })
-
-    const sorted = Object.entries(grouped).sort(([, a], [, b]) => (b.sum || b.count) - (a.sum || a.count))
-    const top6 = sorted.slice(0, 6)
-
-    const maxVal = Math.max(...top6.map(([, item]) => item.sum || item.count), 1)
-
-    return top6.map(([catName, item]) => {
-      const shortName = catName.length > 12 ? catName.substring(0, 10) + '..' : catName
-      return {
-        subject: shortName,
-        [series1Key === 'Registros' || !numericHeaders[0] ? 'Registros' : series1Key]: series1Key === 'Registros' ? item.count : Number((item.sum || item.count).toFixed(1)),
-        fullMark: maxVal
-      }
-    })
-  }, [activeData, radarCategoryHeader, csvHeaders, numericHeaders, series1Key])
+  const {
+    numericHeaders,
+    barCategoryHeader,
+    donutCategoryHeader,
+    radarCategoryHeader,
+    dateHeader,
+    series1Key,
+    seriesAreaKey,
+    series2Key,
+    statCardsData,
+    resultBarData,
+    donutInfo,
+    areaChartData,
+    radarChartData
+  } = useChartData({
+    activeData,
+    csvHeaders,
+    csvData,
+    effectiveDiscovery,
+    manualConfig,
+    timeGranularity
+  });
 
   return (
     <div className="dashboard-layout">
       {/* ===== SIDEBAR ESQUERDA (ESTILO AZUL MARINHO REFERÊNCIA) ===== */}
       {!isSharedView && (
-        <aside className={`dashboard-sidebar ${isSidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-profile-card">
-          <div className="avatar-ring">
-            <div className="avatar-inner">
-              <span className="avatar-icon">👤</span>
-            </div>
-          </div>
-          <h2 className="sidebar-user-name">
-            {effectiveUser?.name ? effectiveUser.name.toUpperCase() : 'USUÁRIO'}
-          </h2>
-          <p className="sidebar-user-email">
-            {effectiveUser?.email || 'usuario@empresa.com'}
-          </p>
-        </div>
-
-        <nav className="sidebar-nav">
-          <button 
-            className={`nav-btn ${activeNav === 'home' ? 'active' : ''}`}
-            onClick={() => { setActiveNav('home'); setIsAddingNew(false) }}
-          >
-            <Home size={18} className="nav-icon" />
-            <span>Dashboard</span>
-          </button>
-
-          <button 
-            className={`nav-btn ${activeNav === 'table' ? 'active' : ''}`}
-            onClick={() => { setActiveNav('table'); setIsAddingNew(false) }}
-          >
-            <Table size={18} className="nav-icon" />
-            <span>Tabela de Dados</span>
-          </button>
-
-          <button 
-            className="nav-btn"
-            onClick={() => window.location.href = '/pricing'}
-          >
-            <DollarSign size={18} className="nav-icon" />
-            <span>Assinatura e Pagamentos</span>
-          </button>
-        </nav>
-      </aside>
+        <DashboardSidebar
+          isSidebarOpen={isSidebarOpen}
+          effectiveUser={effectiveUser}
+          activeNav={activeNav}
+          setActiveNav={setActiveNav}
+          setIsAddingNew={setIsAddingNew}
+        />
       )}
 
       {/* ===== CONTEÚDO PRINCIPAL ===== */}
       <div className="dashboard-main-area">
         {/* CABEÇALHO DA DASHBOARD */}
-        {!isSharedView && (
-          <header className="main-header">
-          <div className="header-title-section">
-            <button 
-              className="menu-toggle-btn"
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            >
-              <Menu size={22} />
-            </button>
-            <h1 className="main-title">Dashboard User</h1>
-          </div>
-
-          <div className="header-actions-section">
-            {user?.role === 'admin' && !isImpersonating && !isSharedView && (
-              <button 
-                onClick={() => window.location.href = '/admin'} 
-                className="back-admin-btn"
-              >
-                <LayoutDashboard size={16} />
-                Admin
-              </button>
-            )}
-
-            {user?.plan === 'pro' && !isImpersonating && !isSharedView && (
-              <button 
-                onClick={() => setShowShareModal(true)} 
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#3b82f6', color: '#fff', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
-              >
-                <Share2 size={16} />
-                Compartilhar
-              </button>
-            )}
-
-            <div className="profile-dropdown-container">
-              <button 
-                className="profile-trigger-btn" 
-                onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-              >
-                <div className="small-avatar">{effectiveUser?.name?.charAt(0).toUpperCase() || 'U'}</div>
-                <span className="profile-name-text">{effectiveUser?.name || 'Usuário'}</span>
-              </button>
-              
-              {showProfileDropdown && (
-                <div className="profile-dropdown-menu">
-                  <div className="profile-header">
-                    <strong>{effectiveUser?.name}</strong>
-                    <span>{effectiveUser?.email}</span>
-                  </div>
-                  
-                  <div className="profile-plan">
-                    <span>Plano:</span>
-                    <span className="plan-tag">{user?.plan?.toUpperCase() || 'FREE'}</span>
-                  </div>
-
-                  {user?.role === 'user' && (user?.plan === 'free' || !user?.plan) && (
-                    <button 
-                      onClick={() => window.location.href = '/pricing'} 
-                      className="dropdown-upgrade-btn"
-                    >
-                      <Sparkles size={14} />
-                      Fazer Upgrade
-                    </button>
-                  )}
-
-                  <div className="dropdown-divider"></div>
-                  
-                  <button onClick={logout} className="dropdown-logout-btn">
-                    <LogOut size={16} />
-                    Sair da Conta
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-        )}
+        <DashboardHeader 
+          isSidebarOpen={isSidebarOpen}
+          setIsSidebarOpen={setIsSidebarOpen}
+          isSharedView={isSharedView}
+          setShowShareModal={setShowShareModal}
+          effectiveUser={effectiveUser}
+          isImpersonating={isImpersonating}
+        />
 
         {/* NOTIFICAÇÃO DE IMPERSONAÇÃO */}
         {isImpersonating && !isSharedView && (
@@ -1192,7 +589,7 @@ const series2Key = useMemo(() => {
               
               {/* LINHA 1: GRID DE 4 CARDS ESTATÍSTICOS COM RÓTULOS REAIS DA PLANILHA */}
               <div className="stat-cards-row">
-                {statCardsData.cards.map((card, index) => {
+                {statCardsData.cards.map((card: any, index: number) => {
                   const IconComp = ICON_MAP[card.icon] || ICON_MAP['Star'];
                   const isNavy = index === 0;
                   return (
@@ -1290,7 +687,7 @@ const series2Key = useMemo(() => {
                             ) : null;
                           }}
                         >
-                          {donutInfo.data.map((entry, index) => (
+                          {donutInfo.data.map((entry: any, index: number) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
@@ -1701,20 +1098,20 @@ const series2Key = useMemo(() => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <label style={{ fontSize: '14px', color: '#64748b' }}>Categoria (Eixo X)
                   <select value={manualConfig.primaryCategory || barCategoryHeader} onChange={e => setManualConfig({...manualConfig, primaryCategory: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                    {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                    {csvHeaders.map((h: string) => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </label>
                 <label style={{ fontSize: '14px', color: '#64748b' }}>Métrica 1 (Eixo Y)
                   <select value={manualConfig.primaryMetric || series1Key} onChange={e => setManualConfig({...manualConfig, primaryMetric: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
                     <option value="Registros">Quantidade de Registros</option>
-                    {numericHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                    {numericHeaders.map((h: string) => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </label>
                 <label style={{ fontSize: '14px', color: '#64748b' }}>Métrica 2 (Opcional)
                   <select value={manualConfig.secondaryMetric || series2Key} onChange={e => setManualConfig({...manualConfig, secondaryMetric: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
                     <option value="">Nenhuma</option>
                     <option value="Registros">Quantidade de Registros</option>
-                    {numericHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                    {numericHeaders.map((h: string) => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </label>
               </div>
@@ -1724,7 +1121,7 @@ const series2Key = useMemo(() => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <label style={{ fontSize: '14px', color: '#64748b' }}>Categoria do Donut
                   <select value={manualConfig.donutCategory || donutCategoryHeader} onChange={e => setManualConfig({...manualConfig, donutCategory: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                    {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                    {csvHeaders.map((h: string) => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </label>
               </div>
@@ -1734,7 +1131,7 @@ const series2Key = useMemo(() => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <label style={{ fontSize: '14px', color: '#64748b' }}>Categoria do Radar
                   <select value={manualConfig.radarCategory || radarCategoryHeader} onChange={e => setManualConfig({...manualConfig, radarCategory: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                    {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                    {csvHeaders.map((h: string) => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </label>
               </div>
@@ -1744,13 +1141,13 @@ const series2Key = useMemo(() => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <label style={{ fontSize: '14px', color: '#64748b' }}>Data (Eixo X)
                   <select value={manualConfig.primaryDate || dateHeader} onChange={e => setManualConfig({...manualConfig, primaryDate: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                    {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                    {csvHeaders.map((h: string) => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </label>
                 <label style={{ fontSize: '14px', color: '#64748b' }}>Métrica (Eixo Y)
                   <select value={manualConfig.areaMetric || seriesAreaKey} onChange={e => setManualConfig({...manualConfig, areaMetric: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
                     <option value="Registros">Quantidade de Registros</option>
-                    {numericHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                    {numericHeaders.map((h: string) => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </label>
               </div>
